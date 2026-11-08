@@ -60,19 +60,19 @@
   .badges { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 8px; }
   .badges span { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink); background: var(--yellow); border: 2px solid var(--ink); padding: 2px 9px; }
 
-  .vcr { position: relative; background: var(--cream); border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 22px 20px 20px; transform: rotate(2deg); }
-  .vcr .tray { background: #040405; border: 3px solid var(--ink); padding: 20px; text-align: center; }
-  .vcr .tray img { width: 100%; max-width: 320px; height: auto; display: inline-block; }
-  .vcr .label { margin-top: 14px; background: var(--yellow); border: 3px solid var(--ink); padding: 10px 14px; text-align: center; }
-  .vcr .label strong { display: block; font-family: var(--display); font-weight: 400; font-size: 22px; letter-spacing: .1em; text-transform: uppercase; }
-  .vcr .label span { font-size: 14px; font-weight: 600; }
+  .shelf { position: relative; background: #1d1d20; border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 18px 16px 6px; transform: rotate(1.5deg); }
+  .shelf .vcr-top { display: block; width: 62%; max-width: 250px; height: auto; margin: 0 auto -2px; }
+  .shelf .row { display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding: 0 4px; min-height: 134px; }
+  .shelf .board { height: 14px; background: #3b3b40; border: 3px solid var(--ink); border-top-color: var(--yellow); margin: 0 -8px 16px; box-shadow: 0 5px 0 rgba(0,0,0,.45); }
+  .tape { position: relative; flex: 0 0 auto; width: 30px; height: var(--h, 120px); background: #17171a; border: 2px solid var(--ink); outline: 1px solid #3b3b40; display: flex; justify-content: center; align-items: center; transform: rotate(var(--r, 0deg)); transform-origin: bottom center; }
+  .tape::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 10px; background: var(--c, var(--red)); border-bottom: 2px solid var(--ink); }
+  .tape b { writing-mode: vertical-rl; transform: rotate(180deg); background: var(--yellow); color: var(--ink); font-family: var(--display); font-weight: 400; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 2px; margin-top: 12px; max-height: calc(100% - 20px); overflow: hidden; white-space: nowrap; }
   .burst {
-    position: absolute; top: -34px; right: -26px; width: 112px; height: 112px; display: grid; place-items: center; text-align: center;
-    background: var(--red); color: var(--yellow); font-family: var(--comic); font-size: 22px; line-height: .95; letter-spacing: .03em; transform: rotate(14deg);
+    position: absolute; top: -30px; right: -22px; width: 104px; height: 104px; display: grid; place-items: center; text-align: center;
+    background: var(--red); color: var(--yellow); font-family: var(--comic); font-size: 21px; line-height: .95; letter-spacing: .03em; transform: rotate(14deg);
     clip-path: polygon(50% 0, 61% 14%, 79% 6%, 80% 25%, 98% 28%, 88% 44%, 100% 58%, 83% 66%, 87% 85%, 68% 84%, 58% 100%, 46% 86%, 28% 96%, 25% 77%, 6% 73%, 15% 56%, 0 44%, 17% 34%, 13% 15%, 32% 18%);
     filter: drop-shadow(3px 3px 0 var(--ink));
   }
-  .burst b { font-size: 30px; display: block; color: #fff; }
 
   section { padding: 70px 0; border-top: 5px dashed var(--ink); }
   section.alt { background: var(--yellow); }
@@ -117,7 +117,7 @@
     .grid, .steps { grid-template-columns: 1fr; }
     header.top nav { display: none; }
     section { padding: 50px 0; }
-    .vcr { margin: 8px 12px 0 0; }
+    .shelf { margin: 8px 12px 0 0; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } html { scroll-behavior: auto; } .marquee { white-space: normal; } }
 </style>
@@ -125,8 +125,8 @@
 <body>
 
 <div class="marquee" aria-hidden="true"><div>
-  <span>★ Sem multa por atraso</span><span>★ Não precisa rebobinar</span><span>★ Sem assinatura</span><span>★ Catálogo só seu</span><span>★ Aberto 24 horas</span>
-  <span>★ Sem multa por atraso</span><span>★ Não precisa rebobinar</span><span>★ Sem assinatura</span><span>★ Catálogo só seu</span><span>★ Aberto 24 horas</span>
+  <span>★ Anos 80 e 90 na sua estante</span><span>★ Não precisa rebobinar</span><span>★ Sem assinatura</span><span>★ Coleção só sua</span><span>★ Aberto 24h</span>
+  <span>★ Anos 80 e 90 na sua estante</span><span>★ Não precisa rebobinar</span><span>★ Sem assinatura</span><span>★ Coleção só sua</span><span>★ Aberto 24h</span>
 </div></div>
 
 <header class="top">
@@ -145,9 +145,9 @@
 <div class="hero">
   <div class="wrap">
     <div class="hero-text">
-      <span class="kicker">Inauguração!</span> <span class="kicker open">Aberto 24h</span>
-      <h1>Sua locadora particular, <em>aberta a noite toda.</em></h1>
-      <p class="lead">Um servidor auto-hospedado que transforma a sua nuvem, um HD externo ou um pendrive numa biblioteca no estilo streaming. Leve, instantâneo e sem assinatura.</p>
+      <span class="kicker">Coleção pessoal</span> <span class="kicker open">Aberto 24h</span>
+      <h1>Sua estante de fitas, <em>agora sem poeira.</em></h1>
+      <p class="lead">Aquela prateleira de VHS dos anos 80 e 90, só que digital: seus filmes e séries da nuvem, de um HD externo ou de um pendrive, numa biblioteca só sua. Leve, instantânea e sem assinatura.</p>
       <div class="cta">
         <a class="btn primary" href="#instalar">Instalar agora</a>
         <a class="btn" href="https://github.com/ticianocorral/midnightmediaserver/releases/latest">Baixar a última versão</a>
@@ -156,17 +156,38 @@
         <span>Python 3.9+</span><span>rclone</span><span>Windows · macOS · Linux</span><span>Licença MIT</span>
       </div>
     </div>
-    <div class="vcr" aria-hidden="true">
-      <div class="burst"><span>Sem<br>multa!<b>R$0</b></span></div>
-      <div class="tray"><img src="assets/vcr-logo.svg" alt=""></div>
-      <div class="label"><strong>Media Server</strong><span>Sua locadora particular, em fita e LED.</span></div>
+    <div class="shelf" aria-hidden="true">
+      <div class="burst"><span>Anos<br>80 &amp; 90</span></div>
+      <img class="vcr-top" src="assets/vcr-logo.svg" alt="">
+    <div class="row">
+      <i class="tape" style="--h:122px;--c:#f02828;--r:0deg"><b>Férias 89</b></i>
+      <i class="tape" style="--h:134px;--c:#efe6d0;--r:0deg"><b>Natal 1994</b></i>
+      <i class="tape" style="--h:140px;--c:#8a8a90;--r:0deg"><b>Terror de sábado</b></i>
+      <i class="tape" style="--h:118px;--c:#f02828;--r:0deg"><b>Comédia 91</b></i>
+      <i class="tape" style="--h:128px;--c:#fff;--r:0deg"><b>Aniversário</b></i>
+      <i class="tape" style="--h:138px;--c:#f02828;--r:0deg"><b>Ação 87</b></i>
+      <i class="tape" style="--h:120px;--c:#efe6d0;--r:0deg"><b>Praia 92</b></i>
+      <i class="tape" style="--h:142px;--c:#8a8a90;--r:-7deg"><b>Sessão da tarde</b></i>
+    </div>
+    <div class="board"></div>
+    <div class="row">
+      <i class="tape" style="--h:130px;--c:#efe6d0;--r:0deg"><b>Faroeste</b></i>
+      <i class="tape" style="--h:140px;--c:#f02828;--r:0deg"><b>Ficção 85</b></i>
+      <i class="tape" style="--h:118px;--c:#fff;--r:0deg"><b>Show ao vivo</b></i>
+      <i class="tape" style="--h:132px;--c:#f02828;--r:0deg"><b>Carnaval 90</b></i>
+      <i class="tape" style="--h:124px;--c:#efe6d0;--r:0deg"><b>Desenhos</b></i>
+      <i class="tape" style="--h:138px;--c:#8a8a90;--r:0deg"><b>Suspense</b></i>
+      <i class="tape" style="--h:120px;--c:#f02828;--r:5deg"><b>Maratona 93</b></i>
+      <i class="tape" style="--h:134px;--c:#fff;--r:0deg"><b>Família</b></i>
+    </div>
+    <div class="board"></div>
     </div>
   </div>
 </div>
 
 <section id="recursos" class="alt">
   <div class="wrap">
-    <h2>Tudo o que uma locadora digital precisa</h2>
+    <h2>Tudo o que a sua estante precisa</h2>
     <p class="sub">Escaneia suas pastas, lê os metadados e serve tudo numa interface rápida, que funciona no computador, no celular e na TV.</p>
     <div class="grid">
       <div class="card"><h3>Nuvem, HD ou pendrive</h3><p>Qualquer remote do rclone (Backblaze B2, Google Drive, S3, SFTP…) e também discos locais, no mesmo catálogo.</p></div>
@@ -177,7 +198,7 @@
       <div class="card"><h3>Metadados completos</h3><p>Pôsteres, sinopse, elenco e nota, lidos de arquivos NFO do Kodi ou do tinyMediaManager.</p></div>
       <div class="card"><h3>Responsivo de verdade</h3><p>No celular a barra vira gaveta e os controles do player se reorganizam, tudo pensado para toque.</p></div>
       <div class="card"><h3>Backup e restauração</h3><p>Salve o catálogo, envie para a nuvem e restaure quando precisar, direto pela interface.</p></div>
-      <div class="card"><h3>Aberto 24 horas</h3><p>Seu servidor não fecha: assista a qualquer hora, sem horário de funcionamento, sem fila e sem multa por atraso.</p></div>
+      <div class="card"><h3>Aberto 24 horas</h3><p>Sua coleção não fecha: assista a qualquer hora, sem horário, sem fila e sem precisar rebobinar.</p></div>
     </div>
   </div>
 </section>
@@ -191,8 +212,8 @@
       <div class="step"><h3>Assista</h3><p>Abra o endereço no navegador, no celular ou na TV e escolha o que ver.</p></div>
     </div>
     <div class="coupon">
-      <div><strong>Cartão de sócio grátis</strong><small>Sem fidelidade · sem multa · sem rebobinar</small></div>
-      <div class="price">R$ 0,00</div>
+      <div><strong>Coleção sem limite de fitas</strong><small>Sem estante lotada · sem fita mofada · sem rebobinar</small></div>
+      <div class="price">∞ fitas</div>
     </div>
   </div>
 </section>
@@ -224,7 +245,7 @@ Instalador-Media-Server-Linux.sh</pre>
 
 <footer>
   <div class="wrap">
-    <span><span class="rewind">Seja gentil, não rebobine.</span> · Midnight Media Server · Licença MIT</span>
+    <span><span class="rewind">Cada fita no seu lugar.</span> · Midnight Media Server · Licença MIT</span>
     <span><a href="https://github.com/ticianocorral/midnightmediaserver">Código no GitHub</a> · <a href="https://github.com/ticianocorral/midnightmediaserver/releases">Versões</a> · <a href="press/">Press kit</a></span>
   </div>
 </footer>
