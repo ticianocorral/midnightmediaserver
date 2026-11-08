@@ -45,6 +45,7 @@
   .hero .wrap { display: grid; grid-template-columns: 1.15fr .85fr; gap: 48px; align-items: center; }
   .hero-text { color: #fff; }
   .kicker { display: inline-block; background: var(--yellow); color: var(--ink); font-family: var(--comic); font-size: 24px; letter-spacing: .05em; padding: 2px 14px; border: 3px solid var(--ink); transform: rotate(-2.5deg); box-shadow: 4px 4px 0 var(--ink); }
+  .kicker.open { background: var(--red); color: #fff; transform: rotate(2deg); margin-left: 8px; }
   h1 { margin-top: 18px; font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: clamp(42px, 7vw, 76px); line-height: .98; letter-spacing: .01em; text-shadow: 4px 4px 0 var(--ink); }
   h1 em { font-style: normal; color: var(--red); display: block; }
   .lead { margin-top: 18px; font-size: 19px; font-weight: 500; max-width: 33em; color: #d8d2c2; }
@@ -144,7 +145,7 @@
 <div class="hero">
   <div class="wrap">
     <div class="hero-text">
-      <span class="kicker">Inauguração!</span>
+      <span class="kicker">Inauguração!</span> <span class="kicker open">Aberto 24h</span>
       <h1>Sua locadora particular, <em>aberta a noite toda.</em></h1>
       <p class="lead">Um servidor auto-hospedado que transforma a sua nuvem, um HD externo ou um pendrive numa biblioteca no estilo streaming. Leve, instantâneo e sem assinatura.</p>
       <div class="cta">
@@ -176,7 +177,7 @@
       <div class="card"><h3>Metadados completos</h3><p>Pôsteres, sinopse, elenco e nota, lidos de arquivos NFO do Kodi ou do tinyMediaManager.</p></div>
       <div class="card"><h3>Responsivo de verdade</h3><p>No celular a barra vira gaveta e os controles do player se reorganizam, tudo pensado para toque.</p></div>
       <div class="card"><h3>Backup e restauração</h3><p>Salve o catálogo, envie para a nuvem e restaure quando precisar, direto pela interface.</p></div>
-      <div class="card"><h3>Sua cara</h3><p>Escolha o nome na instalação e a cor da marca quando quiser, refletidas em todo o app.</p></div>
+      <div class="card"><h3>Aberto 24 horas</h3><p>Seu servidor não fecha: assista a qualquer hora, sem horário de funcionamento, sem fila e sem multa por atraso.</p></div>
     </div>
   </div>
 </section>
