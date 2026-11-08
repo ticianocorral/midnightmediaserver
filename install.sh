@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# 12:00 Media Server — Instalador (Linux e macOS)
+# Midnight Media Server — Instalador (Linux e macOS)
 #
 # Uso recomendado (nao precisa clonar nada antes):
-#   curl -fsSL https://raw.githubusercontent.com/ticianocorral/12mediaserver/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ticianocorral/midnightmediaserver/main/install.sh | bash
 #
 # Tambem funciona rodado de dentro de um clone existente:
 #   bash install.sh
@@ -11,7 +11,7 @@
 # "curl | bash" ali em cima).
 set -euo pipefail
 
-REPO="${MEDIA_SERVER_REPO:-ticianocorral/12mediaserver}"
+REPO="${MEDIA_SERVER_REPO:-ticianocorral/midnightmediaserver}"
 REF="${MEDIA_SERVER_REF:-main}"
 PORTA="${MEDIA_SERVER_PORT:-9187}"
 
@@ -27,7 +27,7 @@ aviso(){ echo -e "  ${AMARELO}⚠${RESET} $1"; }
 erro() { echo -e "  ${VERMELHO}✗${RESET} $1"; }
 
 echo ""
-echo -e "  ${CIANO}🎬 12:00 Media Server — Instalador${RESET}"
+echo -e "  ${CIANO}🎬 Midnight Media Server — Instalador${RESET}"
 echo -e "  ${CIANO}═══════════════════════════${RESET}"
 echo ""
 
@@ -53,7 +53,7 @@ if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ] \
     ok "Rodando a partir de um clone existente: $DIR"
 else
     DIR="${MEDIA_SERVER_DIR:-$HOME/Media-Server}"
-    info "Baixando o 12:00 Media Server (${REPO}@${REF})..."
+    info "Baixando o Midnight Media Server (${REPO}@${REF})..."
     mkdir -p "$DIR"
     URL_TARBALL="https://github.com/${REPO}/archive/refs/heads/${REF}.tar.gz"
     if ! curl -fsSL "$URL_TARBALL" | tar -xz --strip-components=1 -C "$DIR" 2>/tmp/media-server-download.log; then
@@ -194,7 +194,7 @@ PYRCLONE
             case ":$PATH:" in
                 *":$LOCAL_BIN:"*) : ;;
                 *) aviso "Para o comando 'rclone' funcionar no seu terminal, adicione ~/.local/bin ao PATH."
-                   aviso "O 12:00 Media Server ja enxerga o rclone sem isso — e so a linha de comando." ;;
+                   aviso "O Midnight Media Server ja enxerga o rclone sem isso — e so a linha de comando." ;;
             esac
         fi
     else
@@ -296,7 +296,7 @@ else
     mkdir -p "$SERVICE_DIR"
     cat > "$SERVICE_FILE" <<UNIT
 [Unit]
-Description=12:00 Media Server
+Description=Midnight Media Server
 Documentation=https://github.com/${REPO}
 After=network-online.target
 Wants=network-online.target

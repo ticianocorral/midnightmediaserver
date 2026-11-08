@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""12:00 Media Server — entrypoint.
+"""Midnight Media Server — entrypoint.
 
 O codigo vive no pacote mediaserver/. Este arquivo continua na raiz porque
 quatro coisas fixam este caminho: o ExecStart do systemd, o LaunchAgent do

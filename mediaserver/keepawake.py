@@ -63,7 +63,7 @@ def _create_assertion():
             None, _ASSERT_TYPE, _CF_UTF8
         )
         cf_reason = cf.CFStringCreateWithCString(
-            None, b"12:00 Media Server esta transmitindo um video", _CF_UTF8
+            None, b"Midnight Media Server esta transmitindo um video", _CF_UTF8
         )
         if not cf_type or not cf_reason:
             return 0
@@ -98,7 +98,7 @@ class _StreamGuard:
                 _assertion_id = _create_assertion()
                 if _assertion_id:
                     print(
-                        "[12:00 Media Server] Stream iniciado — suspensao do sistema pausada.",
+                        "[Midnight Media Server] Stream iniciado — suspensao do sistema pausada.",
                         flush=True,
                     )
         return self
@@ -111,7 +111,7 @@ class _StreamGuard:
                 _release_assertion(_assertion_id)
                 _assertion_id = 0
                 print(
-                    "[12:00 Media Server] Stream encerrado — suspensao do sistema reativada.",
+                    "[Midnight Media Server] Stream encerrado — suspensao do sistema reativada.",
                     flush=True,
                 )
         return False

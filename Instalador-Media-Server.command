@@ -1,5 +1,5 @@
 #!/bin/bash
-# 12:00 Media Server — instalador visual para macOS (duplo clique).
+# Midnight Media Server — instalador visual para macOS (duplo clique).
 # Abre um assistente no navegador; so precisa do Python 3 (o do macOS serve).
 cd "$(dirname "$0")" || exit 1
 

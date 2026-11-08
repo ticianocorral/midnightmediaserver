@@ -1,5 +1,5 @@
 #!/bin/bash
-# 12:00 Media Server — instalador visual para Linux.
+# Midnight Media Server — instalador visual para Linux.
 # Abre um assistente no navegador; so precisa do Python 3.
 cd "$(dirname "$0")" || exit 1
 

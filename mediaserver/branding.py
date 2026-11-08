@@ -22,7 +22,7 @@ from pathlib import Path
 
 from .config import BRANDING_PATH, CACHE_DIR
 
-NOME_PADRAO = "12:00 Media Server"
+NOME_PADRAO = "Midnight Media Server"
 COR_PADRAO = "#f02828"
 # O nome padrao tem ":" (nao vale em nome de pasta), entao a pasta real do
 # acervo no HD/pendrive e na nuvem usa esta forma. Nomes escolhidos na

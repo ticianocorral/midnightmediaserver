@@ -182,7 +182,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
     def version_string(self):
         # Nao anuncia Python/BaseHTTP: e a primeira coisa que um scanner de
         # rede le e nao ajuda ninguem que usa o app.
-        return "12:00 Media Server"
+        return "Midnight Media Server"
 
     def handle_one_request(self):
         """Queda de cliente no meio do stream e rotina, nao bug: TV desligada,
@@ -196,7 +196,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError,
                 TimeoutError, ssl.SSLError, socket.timeout) as e:
             self.close_connection = True
-            sys.stderr.write("[12:00 Media Server] conexao encerrada pelo cliente "
+            sys.stderr.write("[Midnight Media Server] conexao encerrada pelo cliente "
                              "(%s) em %s\n"
                              % (type(e).__name__, getattr(self, "path", "?")))
         except ValueError as e:
@@ -211,7 +211,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         # saia e o cliente ficava com a conexao fechada, sem nada. Era o que
         # acontecia com qualquer HEAD (nao existia do_HEAD).
         try:
-            sys.stderr.write("[12:00 Media Server] " + " ".join(str(a) for a in args) + "\n")
+            sys.stderr.write("[Midnight Media Server] " + " ".join(str(a) for a in args) + "\n")
         except Exception:
             pass
 
@@ -387,10 +387,10 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         if not hmac.compare_digest(str(body.get("code", "")).strip(),
                                    _setup_code_value()):
             _record_login_failure(ip)
-            sys.stderr.write("[12:00 Media Server] codigo de instalacao errado de %s\n" % ip)
+            sys.stderr.write("[Midnight Media Server] codigo de instalacao errado de %s\n" % ip)
             self._send_json({"status": "error", "error":
                              "Codigo de instalacao incorreto. Ele aparece no "
-                             "terminal onde o 12:00 Media Server esta rodando."}, 403)
+                             "terminal onde o Midnight Media Server esta rodando."}, 403)
             return
         # O nome do app e sempre o padrao: nao se escolhe mais na instalacao.
         # (Instalacoes antigas com outro nome gravado no branding.json
@@ -408,7 +408,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         # O primeiro perfil (administrador) ja entra: o seletor aparece nos
         # proximos acessos, quando houver mais de um perfil.
         self._start_session(pid)
-        print("[12:00 Media Server] Conta '%s' criada." % _norm_username(username),
+        print("[Midnight Media Server] Conta '%s' criada." % _norm_username(username),
               flush=True)
         self._send_json({"status": "ok"})
 
@@ -423,7 +423,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         user = _check_credentials(username, str(body.get("password", "")))
         if not user:
             _record_login_failure(ip)
-            sys.stderr.write("[12:00 Media Server] login recusado para '%s' de %s\n"
+            sys.stderr.write("[Midnight Media Server] login recusado para '%s' de %s\n"
                              % (_norm_username(username), ip))
             # Mensagem unica: nao revela se a conta existe.
             self._send_json({"status": "error",
@@ -968,7 +968,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
 
     def _send_exception(self, e, status=500):
         """Detalhe completo no log do servidor, mensagem generica para o cliente."""
-        sys.stderr.write("[12:00 Media Server] %s: %r\n" % (self.path, e))
+        sys.stderr.write("[Midnight Media Server] %s: %r\n" % (self.path, e))
         self._send_json({"status": "error", "error": "Erro interno — veja o log do servidor"}, status)
 
     def _send_json(self, data, status=200):
@@ -1004,9 +1004,9 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
 
     def _index_html(self):
         """Monta o HTML da raiz do app. GET e HEAD usam o mesmo conteudo."""
-        html_content = FRONTEND_PATH.read_text(encoding="utf-8") if FRONTEND_PATH.exists() else "<h1>12:00 Media Server</h1><p>Frontend not found.</p>"
+        html_content = FRONTEND_PATH.read_text(encoding="utf-8") if FRONTEND_PATH.exists() else "<h1>Midnight Media Server</h1><p>Frontend not found.</p>"
         # Troca o nome de exibicao antes de servir: fazer isso por
-        # JavaScript depois piscaria "12:00 Media Server" por um instante a cada
+        # JavaScript depois piscaria "Midnight Media Server" por um instante a cada
         # carregamento, em qualquer instalacao que tenha escolhido outro
         # nome. So esse texto muda — CACHE_DIR, nome do banco e do
         # servico continuam fixos, de proposito (ver branding.py).
@@ -1178,7 +1178,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass   # o player fechou ou pulou pra outro trecho
         except OSError as e:
-            sys.stderr.write(f"[12:00 Media Server] Falha lendo arquivo local: {e}\n")
+            sys.stderr.write(f"[Midnight Media Server] Falha lendo arquivo local: {e}\n")
 
     def _quer_full(self):
         """?full=1 pede a imagem original — miniatura e o padrao do grid."""
@@ -1266,9 +1266,9 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 try:
                     with open(cache_path, "wb") as f:
                         f.write(data)
-                    sys.stderr.write(f"[12:00 Media Server] Cached image: {cache_key} ({len(data)}B)\n")
+                    sys.stderr.write(f"[Midnight Media Server] Cached image: {cache_key} ({len(data)}B)\n")
                 except Exception as e:
-                    sys.stderr.write(f"[12:00 Media Server] Cache write failed: {e}\n")
+                    sys.stderr.write(f"[Midnight Media Server] Cache write failed: {e}\n")
 
                 if cache_path.exists():
                     # Gravado no cache: serve pelo caminho comum, que ja
@@ -1291,7 +1291,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                     continue
 
         # All retries failed — fallback to direct
-        sys.stderr.write(f"[12:00 Media Server] Image cache proxy failed after retries: {last_error}\n")
+        sys.stderr.write(f"[Midnight Media Server] Image cache proxy failed after retries: {last_error}\n")
         self._stream_file_direct(path)
 
     def _stream_video_direct(self, path):
@@ -1316,7 +1316,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 resp.read()
                 resp.close()
                 conn.close()
-                sys.stderr.write(f"[12:00 Media Server] rclone error {status} for {path}\n")
+                sys.stderr.write(f"[Midnight Media Server] rclone error {status} for {path}\n")
                 self._send_error("Video not available from storage", 502)
                 return
 
@@ -1480,7 +1480,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 return None
             raw = self._decode_subtitle(result.stdout)
         except Exception as e:
-            sys.stderr.write(f"[12:00 Media Server] Subtitle fetch failed: {e}\n")
+            sys.stderr.write(f"[Midnight Media Server] Subtitle fetch failed: {e}\n")
             return None
 
         # Cache local (sempre UTF-8)
@@ -1639,7 +1639,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
             with open(zip_path, "rb") as f:
                 shutil.copyfileobj(f, self.wfile)
         except Exception as e:
-            sys.stderr.write(f"[12:00 Media Server] Backup failed: {e}\n")
+            sys.stderr.write(f"[Midnight Media Server] Backup failed: {e}\n")
             self._send_error("Failed to generate backup")
         finally:
             if zip_path and os.path.exists(zip_path):
@@ -1690,7 +1690,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         """Baixa o backup .zip mais recente da nuvem e restaura."""
         try:
             # Lista pelo remote de backup: com uma key so de escrita restrita,
-            # ele so enxerga os arquivos que o proprio 12:00 Media Server criou.
+            # ele so enxerga os arquivos que o proprio Midnight Media Server criou.
             candidatos = []
             listou = False
             for pasta in destinos_backup():
@@ -1739,7 +1739,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                     )
                     if proc.returncode != 0:
                         msg = f"Falha ao baixar backup: {proc.stderr.decode(errors='replace')}"
-                        print(f"[12:00 Media Server] {msg}", flush=True)
+                        print(f"[Midnight Media Server] {msg}", flush=True)
                         # Log to DB for user to see on next refresh
                         _log_notification("error", msg)
                         return
@@ -1747,7 +1747,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                     # (ou mentir) em backend exotico.
                     if len(proc.stdout) > MAX_RESTORE_BYTES:
                         msg = "Backup baixado grande demais para restaurar"
-                        print(f"[12:00 Media Server] {msg}", flush=True)
+                        print(f"[Midnight Media Server] {msg}", flush=True)
                         _log_notification("error", msg)
                         return
 
@@ -1757,20 +1757,20 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                         nome_db = NOME_DB_BACKUP if NOME_DB_BACKUP in names else None
                         if nome_db is None:
                             msg = "Backup zip não contém media-server.db"
-                            print(f"[12:00 Media Server] {msg}", flush=True)
+                            print(f"[Midnight Media Server] {msg}", flush=True)
                             _log_notification("error", msg)
                             return
                         if z.getinfo(nome_db).file_size > MAX_RESTORE_BYTES:
                             msg = "O banco do backup e grande demais"
-                            print(f"[12:00 Media Server] {msg}", flush=True)
+                            print(f"[Midnight Media Server] {msg}", flush=True)
                             _log_notification("error", msg)
                             return
                         db_bytes = z.read(nome_db)
                         # Mesma checagem do restore por upload: sem isso, um zip
                         # qualquer (ou corrompido) sobrescrevia o banco vivo.
                         if not _looks_like_media_server_db(db_bytes):
-                            msg = "O banco do backup nao parece ser do 12:00 Media Server"
-                            print(f"[12:00 Media Server] {msg}", flush=True)
+                            msg = "O banco do backup nao parece ser do Midnight Media Server"
+                            print(f"[Midnight Media Server] {msg}", flush=True)
                             _log_notification("error", msg)
                             return
                         db_path = Path(DB_PATH)
@@ -1790,11 +1790,11 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                                 if _zip_member_ok(z, n):
                                     (subs_dir / Path(n).name).write_bytes(z.read(n))
                     msg = f"Backup restaurado com sucesso: {name}"
-                    print(f"[12:00 Media Server] {msg}", flush=True)
+                    print(f"[Midnight Media Server] {msg}", flush=True)
                     _log_notification("success", msg)
                 except Exception as e:
                     msg = f"Falha ao restaurar da nuvem: {e}"
-                    print(f"[12:00 Media Server] {msg}", flush=True)
+                    print(f"[Midnight Media Server] {msg}", flush=True)
                     _log_notification("error", msg)
 
             threading.Thread(target=_do_restore, daemon=True).start()
@@ -2241,7 +2241,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         try:
             _scanner.prune_unconfigured_cloud()
         except Exception as e:
-            print(f"[12:00 Media Server] Falha ao podar catalogo da nuvem: {e}",
+            print(f"[Midnight Media Server] Falha ao podar catalogo da nuvem: {e}",
                   flush=True)
         self._send_json({"status": "ok"})
 
@@ -2468,7 +2468,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 db_bytes = z.read(nome_db)
                 if not _looks_like_media_server_db(db_bytes):
                     self._send_error(
-                        "O arquivo nao e um banco valido do 12:00 Media Server", 400)
+                        "O arquivo nao e um banco valido do Midnight Media Server", 400)
                     return
                 db_path = Path(DB_PATH)
                 if db_path.exists():
@@ -2488,7 +2488,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                             (subs_dir / Path(name).name).write_bytes(z.read(name))
             self._send_json({"status": "ok", "message": "Backup restaurado com sucesso"})
         except Exception as e:
-            sys.stderr.write("[12:00 Media Server] restore falhou: %r\n" % (e,))
+            sys.stderr.write("[Midnight Media Server] restore falhou: %r\n" % (e,))
             self._send_error("Falha ao restaurar o backup")
 
     def do_GET(self):
@@ -2860,7 +2860,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 # Start background download (forces VFS caching via rclone serve HTTP)
                 def _do_cache_download(file_path, total_bytes):
                     try:
-                        print(f"[12:00 Media Server] Cache download starting: {file_path} ({total_bytes}B)", flush=True)
+                        print(f"[Midnight Media Server] Cache download starting: {file_path} ({total_bytes}B)", flush=True)
 
                         with _download_progress_lock:
                             _download_progress[file_path] = {"percent": 0, "status": "downloading", "total": total_bytes, "downloaded": 0}
@@ -2870,7 +2870,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                             _mark_file_cached(file_path)
                             with _download_progress_lock:
                                 _download_progress[file_path] = {"percent": 100, "status": "done"}
-                            print(f"[12:00 Media Server] Cache marked (no size info): {file_path}", flush=True)
+                            print(f"[Midnight Media Server] Cache marked (no size info): {file_path}", flush=True)
                             return
 
                         # Use HTTP range requests against rclone serve to force VFS caching
@@ -2898,7 +2898,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                                                 "total": total_bytes, "downloaded": downloaded
                                             }
                             except Exception as chunk_err:
-                                print(f"[12:00 Media Server] Cache chunk error at {downloaded}: {chunk_err}", flush=True)
+                                print(f"[Midnight Media Server] Cache chunk error at {downloaded}: {chunk_err}", flush=True)
                                 # Retry once
                                 try:
                                     req2 = urllib.request.Request(rclone_url, method="GET")
@@ -2922,9 +2922,9 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                         _mark_file_cached(file_path)
                         with _download_progress_lock:
                             _download_progress[file_path] = {"percent": 100, "status": "done"}
-                        print(f"[12:00 Media Server] Cache download complete: {file_path}", flush=True)
+                        print(f"[Midnight Media Server] Cache download complete: {file_path}", flush=True)
                     except Exception as e:
-                        print(f"[12:00 Media Server] Cache download error: {e}", flush=True)
+                        print(f"[Midnight Media Server] Cache download error: {e}", flush=True)
                         with _download_progress_lock:
                             _download_progress[file_path] = {"percent": 0, "status": "error"}
 
@@ -3072,7 +3072,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                                 entry.unlink()
                                 removed += 1
                     if removed > 0:
-                        print(f"[12:00 Media Server] Removed {removed} VFS cache entries for {folder_path}", flush=True)
+                        print(f"[Midnight Media Server] Removed {removed} VFS cache entries for {folder_path}", flush=True)
                     else:
                         # Fallback: clear entire VFS cache for this folder path using simple hash search
                         for entry in vfs_cache.iterdir():
@@ -3085,7 +3085,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                                             cached_file.unlink()
                                             removed += 1
                         if removed > 0:
-                            print(f"[12:00 Media Server] Removed {removed} VFS cache entries (deep) for {folder_path}", flush=True)
+                            print(f"[Midnight Media Server] Removed {removed} VFS cache entries (deep) for {folder_path}", flush=True)
 
                 self._send_json({"status": "ok"})
             except Exception as e:

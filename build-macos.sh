@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 12:00 Media Server — compila o wrapper nativo do macOS.
+# Midnight Media Server — compila o wrapper nativo do macOS.
 # O wrapper dá nome legível ao processo no Activity Monitor / Login Items
 # (em vez de "python3") e propaga sinais para o servidor python filho.
 # Compatível com bash 3.2 (nativo do macOS).
@@ -10,7 +10,7 @@ SRC="$DIR/media-server.c"
 BIN="$DIR/media-server"
 
 if [ ! -f "$SRC" ]; then
-    echo "✗ $SRC não encontrado. Rode este script dentro da pasta do 12:00 Media Server."
+    echo "✗ $SRC não encontrado. Rode este script dentro da pasta do Midnight Media Server."
     exit 1
 fi
 

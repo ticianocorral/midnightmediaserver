@@ -132,7 +132,7 @@ def _migrate_auth_if_needed():
         novo = _v2_to_v3(raw)
         if novo:
             _save_auth(novo)
-            print("[12:00 Media Server] Contas migradas para conta unica + perfis.", flush=True)
+            print("[Midnight Media Server] Contas migradas para conta unica + perfis.", flush=True)
 
 
 def _auth_configured():

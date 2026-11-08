@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Instalador visual do 12:00 Media Server (Windows, Linux e macOS).
+"""Instalador visual do Midnight Media Server (Windows, Linux e macOS).
 
 Um assistente que abre no navegador (a mesma pagina nos tres sistemas, so com a
 biblioteca padrao do Python — nada de Tk nem de pacote extra). Passos:
@@ -34,7 +34,7 @@ from http.cookiejar import CookieJar
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-NOME = "12:00 Media Server"
+NOME = "Midnight Media Server"
 PORTA = int(os.environ.get("MEDIA_SERVER_PORT", "9187"))
 HOME = Path.home()
 CACHE = HOME / ".cache" / "media-server"

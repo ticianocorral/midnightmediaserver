@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bump-version.sh — Atualiza a versão do 12:00 Media Server (SemVer: MAJOR.MINOR.PATCH)
+# bump-version.sh — Atualiza a versão do Midnight Media Server (SemVer: MAJOR.MINOR.PATCH)
 #
 # Uso:
 #   ./bump-version.sh <major|minor|patch|none> "Título do changelog" ["item1|item2|item3"]

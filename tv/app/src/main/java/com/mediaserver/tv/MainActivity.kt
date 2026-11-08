@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
- * A interface e a propria web do 12:00 Media Server, carregada com ?tv=1 — o modo que
+ * A interface e a propria web do Midnight Media Server, carregada com ?tv=1 — o modo que
  * torna tudo navegavel pelo controle. Reconstruir as telas em Kotlin daria uma
  * segunda interface para manter; assim a TV herda cada novidade da web.
  *
@@ -91,7 +91,7 @@ class MainActivity : AppCompatActivity() {
         // o botao Atualizar, que tambem re-escaneia a rede.
         lifecycleScope.launch {
             if (!Servidor.responde(base)) {
-                Log.w("12:00 Media Server", "servidor salvo $base nao responde")
+                Log.w("Midnight Media Server", "servidor salvo $base nao responde")
                 mostrarAviso()
             }
         }
@@ -152,10 +152,10 @@ class MainActivity : AppCompatActivity() {
             val dados = try {
                 JSONObject(json)
             } catch (e: Exception) {
-                Log.w("12:00 Media Server", "play(): json invalido: $json")
+                Log.w("Midnight Media Server", "play(): json invalido: $json")
                 return
             }
-            Log.i("12:00 Media Server", "play(): url=${dados.optString("url")} legenda=${dados.optString("legenda")} posicao=${dados.optLong("posicao", 0L)}")
+            Log.i("Midnight Media Server", "play(): url=${dados.optString("url")} legenda=${dados.optString("legenda")} posicao=${dados.optLong("posicao", 0L)}")
             val i = Intent(this@MainActivity, PlayerActivity::class.java)
                 .putExtra(PlayerActivity.EXTRA_URL, dados.optString("url"))
                 .putExtra(PlayerActivity.EXTRA_LEGENDA, dados.optString("legenda"))

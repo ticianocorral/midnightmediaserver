@@ -22,7 +22,7 @@ import webbrowser
 
 from .config import CACHE_DIR, PORT, env
 
-NOME = "12:00 Media Server"
+NOME = "Midnight Media Server"
 ROTULO_MAC = "com.mediaserver"
 
 

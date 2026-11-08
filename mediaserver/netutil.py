@@ -112,7 +112,7 @@ def _ensure_ssl_cert(cert_dir, local_ip):
             missing = [t for t in required if t not in existing.stdout]
             if not missing:
                 return cert_path, key_path
-            print(f"[12:00 Media Server] SSL cert outdated (missing {', '.join(missing)}), "
+            print(f"[Midnight Media Server] SSL cert outdated (missing {', '.join(missing)}), "
                   f"regenerating...", flush=True)
             cert_path.unlink(missing_ok=True)
             key_path.unlink(missing_ok=True)
@@ -121,7 +121,7 @@ def _ensure_ssl_cert(cert_dir, local_ip):
 
     # Prefer mkcert (CA-trusted = Cast SDK works)
     if shutil.which("mkcert"):
-        print("[12:00 Media Server] Generating CA-trusted SSL certificate via mkcert...", flush=True)
+        print("[Midnight Media Server] Generating CA-trusted SSL certificate via mkcert...", flush=True)
         try:
             subprocess.run(
                 ["mkcert", "-key-file", str(key_path), "-cert-file", str(cert_path),
@@ -129,13 +129,13 @@ def _ensure_ssl_cert(cert_dir, local_ip):
                 check=True, capture_output=True, timeout=15,
             )
             key_path.chmod(0o600)
-            print(f"[12:00 Media Server] mkcert cert created: {cert_path}", flush=True)
+            print(f"[Midnight Media Server] mkcert cert created: {cert_path}", flush=True)
             return cert_path, key_path
         except Exception as e:
-            print(f"[12:00 Media Server] mkcert failed ({e}), falling back to openssl...", flush=True)
+            print(f"[Midnight Media Server] mkcert failed ({e}), falling back to openssl...", flush=True)
 
     # Fallback: openssl self-signed (Cast SDK may not work)
-    print("[12:00 Media Server] Generating self-signed SSL certificate via openssl...", flush=True)
+    print("[Midnight Media Server] Generating self-signed SSL certificate via openssl...", flush=True)
     san = ",".join([f"DNS:{n}" for n in hostnames] + [f"IP:{local_ip}"])
     try:
         subprocess.run(
@@ -151,11 +151,11 @@ def _ensure_ssl_cert(cert_dir, local_ip):
             check=True, capture_output=True, timeout=15,
         )
         key_path.chmod(0o600)
-        print(f"[12:00 Media Server] Self-signed cert created: {cert_path}", flush=True)
+        print(f"[Midnight Media Server] Self-signed cert created: {cert_path}", flush=True)
         return cert_path, key_path
     except Exception as e:
-        print(f"[12:00 Media Server] WARNING: Could not generate SSL cert: {e}", flush=True)
-        print("[12:00 Media Server] Chromecast discovery will require HTTPS.", flush=True)
+        print(f"[Midnight Media Server] WARNING: Could not generate SSL cert: {e}", flush=True)
+        print("[Midnight Media Server] Chromecast discovery will require HTTPS.", flush=True)
         return None, None
 
 
@@ -202,11 +202,11 @@ def start_https_server(handler_class, host, https_port, cert_path, key_path):
         thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         thread.start()
         ACTIVE_HTTPS_PORT = https_port
-        print(f"[12:00 Media Server] HTTPS on https://localhost:{https_port}", flush=True)
+        print(f"[Midnight Media Server] HTTPS on https://localhost:{https_port}", flush=True)
         return httpd
     except Exception as e:
-        print(f"[12:00 Media Server] WARNING: Could not start HTTPS server: {e}", flush=True)
-        print("[12:00 Media Server] Continuing with HTTP only.", flush=True)
+        print(f"[Midnight Media Server] WARNING: Could not start HTTPS server: {e}", flush=True)
+        print("[Midnight Media Server] Continuing with HTTP only.", flush=True)
         return None
 
 
@@ -232,7 +232,7 @@ def find_free_port():
         pids = _pids_on_port(port)
         me = str(os.getpid())
         pids = [p for p in pids if p != me]
-        print(f"[12:00 Media Server] Porta {port} ocupada por {', '.join(pids) or '?'}. "
+        print(f"[Midnight Media Server] Porta {port} ocupada por {', '.join(pids) or '?'}. "
               f"Matando instância anterior...", flush=True)
         for pid in pids:
             try:
@@ -248,5 +248,5 @@ def find_free_port():
             s.close()
             return port
         except OSError:
-            print(f"[12:00 Media Server] ERRO: Porta {port} ainda está ocupada. Saia a instância anterior com: pkill -9 -f 'python.*server.py'", flush=True)
+            print(f"[Midnight Media Server] ERRO: Porta {port} ainda está ocupada. Saia a instância anterior com: pkill -9 -f 'python.*server.py'", flush=True)
             sys.exit(1)
