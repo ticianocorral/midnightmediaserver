@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --blue: #2a2a2e; --blue2: #0e0e10; --yellow: #efe6d0; --red: #f02828; --cream: #faf6ea; --ink: #111;
+    --bg: #0e0e10; --bg2: #17171a; --panel: #2a2a2e; --edge: #3b3b40; --cream: #efe6d0; --paper: #f6efdc; --red: #f02828; --ink: #111;
     --font: 'Jost', Futura, 'Century Gothic', 'Segoe UI', sans-serif;
     --display: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
     --comic: 'Bangers', Impact, cursive;
@@ -19,105 +19,114 @@
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
-  body {
-    font-family: var(--font); color: var(--ink); line-height: 1.5; font-size: 17px; background: var(--cream);
-    background-image: radial-gradient(rgba(232,17,45,.13) 1.6px, transparent 1.8px); background-size: 14px 14px;
-  }
+  body { font-family: var(--font); background: var(--bg); color: var(--cream); line-height: 1.55; font-size: 17px; }
   a { color: inherit; text-decoration: none; }
   :focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
   .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
 
-  /* faixa de oferta rolando */
-  .marquee { background: var(--red); color: var(--yellow); font-family: var(--display); letter-spacing: .06em; text-transform: uppercase; font-size: 18px; overflow: hidden; white-space: nowrap; border-bottom: 4px solid var(--ink); }
-  .marquee div { display: inline-block; padding: 7px 0; animation: roll 28s linear infinite; }
+  /* faixa de etiquetas rolando */
+  .marquee { background: var(--red); color: var(--cream); font-family: var(--display); letter-spacing: .08em; text-transform: uppercase; font-size: 17px; overflow: hidden; white-space: nowrap; border-bottom: 4px solid #000; }
+  .marquee div { display: inline-block; padding: 7px 0; animation: roll 30s linear infinite; }
   .marquee span { margin: 0 22px; }
   @keyframes roll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-  header.top { background: var(--blue); border-bottom: 6px solid var(--yellow); }
+  header.top { background: var(--bg2); border-bottom: 4px solid var(--cream); }
   header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 76px; gap: 16px; }
   header.top img { height: 48px; display: block; }
-  header.top nav { display: flex; gap: 8px; font-family: var(--display); letter-spacing: .05em; text-transform: uppercase; font-size: 16px; }
-  header.top nav a { color: #fff; padding: 6px 12px; border: 2px solid transparent; }
-  header.top nav a:hover { background: var(--yellow); color: var(--ink); border-color: var(--ink); transform: rotate(-2deg); }
+  header.top .right { display: flex; align-items: center; gap: 18px; }
+  .osd { font-family: var(--mono); font-weight: 700; font-size: 15px; letter-spacing: .12em; color: var(--red); text-shadow: 0 0 8px rgba(240,40,40,.55); animation: blink 2.4s steps(2) infinite; }
+  @keyframes blink { 0%, 70% { opacity: 1; } 71%, 100% { opacity: .35; } }
+  header.top nav { display: flex; gap: 6px; font-family: var(--display); letter-spacing: .06em; text-transform: uppercase; font-size: 16px; }
+  header.top nav a { padding: 6px 12px; border: 2px solid transparent; }
+  header.top nav a:hover { background: var(--cream); color: var(--ink); border-color: #000; transform: rotate(-2deg); }
 
-  /* herói: cartaz */
-  .hero { padding: 64px 0 80px; background: var(--blue); border-bottom: 6px solid var(--ink); }
-  .hero .wrap { display: grid; grid-template-columns: 1.15fr .85fr; gap: 48px; align-items: center; }
-  .hero-text { color: #fff; }
-  .kicker { display: inline-block; background: var(--yellow); color: var(--ink); font-family: var(--comic); font-size: 24px; letter-spacing: .05em; padding: 2px 14px; border: 3px solid var(--ink); transform: rotate(-2.5deg); box-shadow: 4px 4px 0 var(--ink); }
-  .kicker.open { background: var(--red); color: #fff; transform: rotate(2deg); margin-left: 8px; }
-  h1 { margin-top: 18px; font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: clamp(42px, 7vw, 76px); line-height: .98; letter-spacing: .01em; text-shadow: 4px 4px 0 var(--ink); }
+  /* cada bloco repousa numa prateleira */
+  section, .hero { position: relative; }
+  section::after, .hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 18px; background: var(--edge); border-top: 3px solid var(--cream); border-bottom: 5px solid #000; }
+
+  .hero { padding: 64px 0 92px; background: var(--bg2); overflow: hidden; }
+  .hero::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(255,255,255,.028) 0 1px, transparent 1px 3px); }
+  .hero .wrap { position: relative; display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+  .kicker { display: inline-block; background: var(--cream); color: var(--ink); font-family: var(--comic); font-size: 24px; letter-spacing: .05em; padding: 2px 14px; border: 3px solid #000; border-top: 7px solid var(--red); transform: rotate(-2.5deg); box-shadow: 4px 4px 0 #000; }
+  .kicker.open { background: var(--red); color: #fff; border-top-color: #000; transform: rotate(2deg); margin-left: 8px; }
+  h1 { margin-top: 18px; font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: clamp(42px, 7vw, 76px); line-height: .98; letter-spacing: .01em; text-shadow: 4px 4px 0 #000; }
   h1 em { font-style: normal; color: var(--red); display: block; }
   .lead { margin-top: 18px; font-size: 19px; font-weight: 500; max-width: 33em; color: #d8d2c2; }
   .cta { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 16px; }
-  .btn {
-    display: inline-block; padding: 12px 24px; font-family: var(--display); font-size: 20px; letter-spacing: .05em; text-transform: uppercase;
-    background: #fff; color: var(--ink); border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); transition: transform .12s ease, box-shadow .12s ease;
-  }
-  .btn:hover { transform: translate(-2px,-2px) rotate(-1deg); box-shadow: 7px 7px 0 var(--ink); }
-  .btn:active { transform: translate(4px,4px); box-shadow: 1px 1px 0 var(--ink); }
+  .btn { display: inline-block; padding: 12px 24px; font-family: var(--display); font-size: 20px; letter-spacing: .05em; text-transform: uppercase; background: var(--cream); color: var(--ink); border: 3px solid #000; box-shadow: 5px 5px 0 #000; transition: transform .12s ease, box-shadow .12s ease; }
+  .btn:hover { transform: translate(-2px,-2px) rotate(-1deg); box-shadow: 7px 7px 0 #000; }
+  .btn:active { transform: translate(4px,4px); box-shadow: 1px 1px 0 #000; }
   .btn.primary { background: var(--red); color: #fff; }
   .badges { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 8px; }
-  .badges span { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink); background: var(--yellow); border: 2px solid var(--ink); padding: 2px 9px; }
+  .badges span { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink); background: var(--cream); border: 2px solid #000; padding: 2px 9px; }
 
-  .shelf { position: relative; background: #1d1d20; border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 18px 16px 6px; transform: rotate(1.5deg); }
+  /* estante do herói */
+  .shelf { position: relative; background: #1d1d20; border: 4px solid #000; outline: 2px solid var(--edge); padding: 18px 16px 6px; transform: rotate(1.5deg); }
   .shelf .vcr-top { display: block; width: 62%; max-width: 250px; height: auto; margin: 0 auto -2px; }
-  .shelf .row { display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding: 0 4px; min-height: 134px; }
-  .shelf .board { height: 14px; background: #3b3b40; border: 3px solid var(--ink); border-top-color: var(--yellow); margin: 0 -8px 16px; box-shadow: 0 5px 0 rgba(0,0,0,.45); }
-  .tape { position: relative; flex: 0 0 auto; width: 30px; height: var(--h, 120px); background: #17171a; border: 2px solid var(--ink); outline: 1px solid #3b3b40; display: flex; justify-content: center; align-items: center; transform: rotate(var(--r, 0deg)); transform-origin: bottom center; }
-  .tape::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 10px; background: var(--c, var(--red)); border-bottom: 2px solid var(--ink); }
-  .tape b { writing-mode: vertical-rl; transform: rotate(180deg); background: var(--yellow); color: var(--ink); font-family: var(--display); font-weight: 400; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 2px; margin-top: 12px; max-height: calc(100% - 20px); overflow: hidden; white-space: nowrap; }
-  .burst {
-    position: absolute; top: -30px; right: -22px; width: 104px; height: 104px; display: grid; place-items: center; text-align: center;
-    background: var(--red); color: var(--yellow); font-family: var(--comic); font-size: 21px; line-height: .95; letter-spacing: .03em; transform: rotate(14deg);
-    clip-path: polygon(50% 0, 61% 14%, 79% 6%, 80% 25%, 98% 28%, 88% 44%, 100% 58%, 83% 66%, 87% 85%, 68% 84%, 58% 100%, 46% 86%, 28% 96%, 25% 77%, 6% 73%, 15% 56%, 0 44%, 17% 34%, 13% 15%, 32% 18%);
-    filter: drop-shadow(3px 3px 0 var(--ink));
-  }
+  .row { display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding: 0 4px; min-height: 134px; }
+  .board { height: 14px; background: var(--edge); border: 3px solid #000; border-top-color: var(--cream); margin: 0 -8px 16px; box-shadow: 0 5px 0 rgba(0,0,0,.45); }
+  .tape { position: relative; flex: 0 0 auto; width: 30px; height: var(--h, 120px); background: #17171a; border: 2px solid #000; outline: 1px solid var(--edge); display: flex; justify-content: center; align-items: center; transform: rotate(var(--r, 0deg)); transform-origin: bottom center; }
+  .tape::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 10px; background: var(--c, var(--red)); border-bottom: 2px solid #000; }
+  .tape b { writing-mode: vertical-rl; transform: rotate(180deg); background: var(--cream); color: var(--ink); font-family: var(--display); font-weight: 400; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 2px; margin-top: 12px; max-height: calc(100% - 20px); overflow: hidden; white-space: nowrap; }
+  .burst { position: absolute; top: -30px; right: -22px; width: 104px; height: 104px; display: grid; place-items: center; text-align: center; background: var(--red); color: var(--cream); font-family: var(--comic); font-size: 21px; line-height: .95; letter-spacing: .03em; transform: rotate(14deg); clip-path: polygon(50% 0, 61% 14%, 79% 6%, 80% 25%, 98% 28%, 88% 44%, 100% 58%, 83% 66%, 87% 85%, 68% 84%, 58% 100%, 46% 86%, 28% 96%, 25% 77%, 6% 73%, 15% 56%, 0 44%, 17% 34%, 13% 15%, 32% 18%); filter: drop-shadow(3px 3px 0 #000); }
 
-  section { padding: 70px 0; border-top: 5px dashed var(--ink); }
-  section.alt { background: var(--yellow); }
-  h2 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 5vw, 46px); text-transform: uppercase; letter-spacing: .02em; line-height: 1.05; color: var(--blue); text-shadow: 3px 3px 0 rgba(17,17,17,.18); }
-  .sub { margin-top: 10px; font-weight: 500; max-width: 40em; }
-  .grid { margin-top: 38px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
-  .card { position: relative; background: #fff; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 26px 20px 20px; }
-  .card:nth-child(3n+1) { transform: rotate(-.8deg); } .card:nth-child(3n+2) { transform: rotate(.6deg); } .card:nth-child(3n) { transform: rotate(-.3deg); }
-  .card::before { content: "★ NOVIDADE"; position: absolute; top: -13px; left: 14px; background: var(--red); color: #fff; font-family: var(--display); font-size: 13px; letter-spacing: .1em; padding: 1px 9px; border: 2px solid var(--ink); }
-  .card:nth-child(even)::before { content: "★ LANÇAMENTO"; background: var(--blue); }
-  .card:nth-child(3n)::before { content: "★ EM DESTAQUE"; background: var(--ink); color: var(--yellow); }
+  section { padding: 70px 0 96px; background: var(--bg); }
+  section.alt { background: var(--bg2); }
+  /* título = etiqueta colada na lombada */
+  h2 { display: inline-block; background: var(--cream); color: var(--ink); font-family: var(--display); font-weight: 400; font-size: clamp(26px, 4.4vw, 40px); text-transform: uppercase; letter-spacing: .03em; line-height: 1.05; padding: 8px 20px 6px; border: 3px solid #000; border-top: 9px solid var(--red); box-shadow: 5px 5px 0 #000; transform: rotate(-.8deg); }
+  .sub { margin-top: 18px; font-weight: 500; max-width: 40em; color: #b9b3a4; }
+
+  /* cada recurso = capa de VHS (lombada à esquerda) */
+  .grid { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; counter-reset: fita; }
+  .card { counter-increment: fita; position: relative; background: var(--paper); color: var(--ink); border: 3px solid #000; border-top: 9px solid var(--red); box-shadow: 6px 6px 0 var(--edge); padding: 16px 16px 16px 54px; min-height: 170px; }
+  .card:nth-child(3n+1) { transform: rotate(-.7deg); } .card:nth-child(3n+2) { transform: rotate(.5deg); } .card:nth-child(3n) { transform: rotate(-.3deg); }
+  .card::before { content: "FITA " counter(fita, decimal-leading-zero); position: absolute; left: 0; top: 0; bottom: 0; width: 36px; background: #17171a; color: var(--cream); border-right: 3px solid #000; writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; line-height: 36px; font-family: var(--display); font-size: 13px; letter-spacing: .16em; }
+  .card::after { content: "VHS ▪ HI-FI"; position: absolute; right: 10px; bottom: 8px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .1em; color: #6f6a60; }
   .card h3 { font-family: var(--display); font-weight: 400; font-size: 22px; letter-spacing: .03em; text-transform: uppercase; color: var(--red); margin-bottom: 4px; }
-  .card p { font-size: 15.5px; }
+  .card p { font-size: 15.5px; padding-bottom: 14px; }
 
-  .steps { margin-top: 38px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; counter-reset: s; }
-  .step { counter-increment: s; background: #fff; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 20px; position: relative; }
-  .step::before { content: counter(s); display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 8px; border-radius: 50%; background: var(--red); color: var(--yellow); border: 3px solid var(--ink); font-family: var(--comic); font-size: 32px; box-shadow: 3px 3px 0 var(--ink); }
+  /* passos = fitas cassete */
+  .steps { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; counter-reset: s; }
+  .step { counter-increment: s; position: relative; color: var(--ink); border: 3px solid #000; outline: 2px solid var(--edge); padding: 18px 18px 96px; box-shadow: 6px 6px 0 #000; background: linear-gradient(var(--paper) 0 calc(100% - 78px), #17171a calc(100% - 78px)); }
+  .step::before { content: "LADO " counter(s, upper-alpha); display: inline-block; background: var(--red); color: #fff; font-family: var(--display); font-size: 14px; letter-spacing: .12em; padding: 1px 10px; border: 2px solid #000; margin-bottom: 10px; }
+  .step::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 10px; height: 58px;
+    background:
+      radial-gradient(circle at 24% 50%, var(--cream) 0 8px, #000 9px 10px, #2a2a2e 11px 22px, transparent 23px),
+      radial-gradient(circle at 76% 50%, var(--cream) 0 8px, #000 9px 10px, #2a2a2e 11px 22px, transparent 23px),
+      linear-gradient(90deg, transparent 40%, #2a2a2e 40% 60%, transparent 60%); background-size: 100% 100%, 100% 100%, 100% 22px; background-repeat: no-repeat; background-position: 0 0, 0 0, 0 50%; }
   .step h3 { font-family: var(--display); font-weight: 400; font-size: 22px; letter-spacing: .03em; text-transform: uppercase; margin-bottom: 4px; }
   .step p { font-size: 15.5px; }
 
-  .install { margin-top: 34px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-  .box { background: #fff; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 22px; }
-  .box h3 { font-family: var(--display); font-weight: 400; font-size: 21px; letter-spacing: .04em; text-transform: uppercase; color: var(--blue); margin-bottom: 10px; }
-  pre { background: var(--ink); border: 3px solid var(--ink); padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px; color: var(--yellow); line-height: 1.55; }
-  .box p { font-size: 15px; margin-top: 10px; }
-  .note { margin-top: 26px; font-weight: 600; background: #fff; border: 3px dashed var(--red); padding: 12px 16px; }
+  /* contador de fitas (display de LED do videocassete) */
+  .coupon { margin-top: 40px; background: #040405; border: 4px solid var(--edge); outline: 3px solid #000; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+  .coupon strong { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 3.6vw, 32px); text-transform: uppercase; letter-spacing: .04em; color: var(--cream); }
+  .coupon .price { font-family: var(--mono); font-weight: 700; font-size: 42px; letter-spacing: .1em; color: var(--red); text-shadow: 0 0 12px rgba(240,40,40,.6); line-height: 1; }
+  .coupon small { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #8a8478; }
 
-  /* cupom */
-  .coupon { margin-top: 40px; background: var(--cream); border: 4px dashed var(--red); padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
-  .coupon strong { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 4vw, 36px); text-transform: uppercase; letter-spacing: .03em; color: var(--red); }
-  .coupon .price { font-family: var(--comic); font-size: 46px; color: var(--blue); line-height: 1; }
-  .coupon small { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .install { margin-top: 36px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .box { min-width: 0; background: var(--bg); border: 3px solid var(--edge); outline: 2px solid #000; padding: 22px; box-shadow: 6px 6px 0 #000; }
+  .box h3 { display: inline-block; background: var(--cream); color: var(--ink); border-top: 6px solid var(--red); border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000; font-family: var(--display); font-weight: 400; font-size: 18px; letter-spacing: .06em; text-transform: uppercase; padding: 3px 12px 1px; margin-bottom: 12px; }
+  pre { background: #000; border: 2px solid var(--edge); padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px; color: var(--cream); line-height: 1.55; }
+  .box p { font-size: 15px; margin-top: 12px; color: #b9b3a4; }
+  .note { margin-top: 26px; font-weight: 600; border: 3px dashed var(--red); padding: 12px 16px; background: var(--bg); }
 
-  footer { background: var(--blue2); color: #a8a296; border-top: 6px solid var(--yellow); padding: 28px 0; font-size: 14px; }
-  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-  footer a { text-decoration: underline; } footer a:hover { color: var(--yellow); }
-  footer .rewind { color: var(--yellow); font-family: var(--display); letter-spacing: .06em; text-transform: uppercase; }
+  footer { background: #08080a; color: #a8a296; padding: 26px 0 30px; font-size: 14px; border-top: 4px solid var(--cream); }
+  footer .row { min-height: 0; align-items: flex-end; padding-bottom: 0; margin-bottom: 18px; }
+  .tape.mini { width: 22px; }
+  .tape.mini::after { content: ""; position: absolute; left: 3px; right: 3px; top: 26px; height: 34%; background: var(--cream); }
+  footer .wrap.f { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  footer a { text-decoration: underline; } footer a:hover { color: var(--cream); }
+  footer .rewind { color: var(--cream); font-family: var(--display); letter-spacing: .06em; text-transform: uppercase; }
 
   @media (max-width: 820px) {
-    .hero { padding: 44px 0 56px; }
+    .hero { padding: 44px 0 70px; }
     .hero .wrap, .install { grid-template-columns: 1fr; }
     .grid, .steps { grid-template-columns: 1fr; }
     header.top nav { display: none; }
-    section { padding: 50px 0; }
+    section { padding: 50px 0 76px; }
     .shelf { margin: 8px 12px 0 0; }
+    .row { min-height: 110px; }
+    .tape { width: 26px; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } html { scroll-behavior: auto; } .marquee { white-space: normal; } }
 </style>
@@ -132,12 +141,15 @@
 <header class="top">
   <div class="wrap">
     <a href="#"><img src="assets/vcr-logo.svg" alt="Midnight Media Server"></a>
+    <div class="right">
+    <span class="osd" aria-hidden="true">▶ PLAY</span>
     <nav>
       <a href="#recursos">Recursos</a>
       <a href="#como-funciona">Como funciona</a>
       <a href="#instalar">Instalar</a>
       <a href="https://github.com/ticianocorral/midnightmediaserver">GitHub</a>
     </nav>
+    </div>
   </div>
 </header>
 
@@ -244,7 +256,8 @@ Instalador-Media-Server-Linux.sh</pre>
 </main>
 
 <footer>
-  <div class="wrap">
+  <div class="wrap"><div class="row" aria-hidden="true"><i class="tape mini" style="--h:64px;--c:#f02828"></i><i class="tape mini" style="--h:72px;--c:#efe6d0"></i><i class="tape mini" style="--h:60px;--c:#8a8a90"></i><i class="tape mini" style="--h:70px;--c:#f02828"></i><i class="tape mini" style="--h:66px;--c:#fff"></i><i class="tape mini" style="--h:74px;--c:#efe6d0"></i><i class="tape mini" style="--h:62px;--c:#f02828"></i><i class="tape mini" style="--h:70px;--c:#8a8a90"></i><i class="tape mini" style="--h:66px;--c:#efe6d0"></i><i class="tape mini" style="--h:72px;--c:#f02828"></i><i class="tape mini" style="--h:60px;--c:#fff"></i><i class="tape mini" style="--h:68px;--c:#efe6d0"></i><i class="tape mini" style="--h:74px;--c:#f02828"></i><i class="tape mini" style="--h:64px;--c:#8a8a90"></i><i class="tape mini" style="--h:70px;--c:#efe6d0"></i><i class="tape mini" style="--h:62px;--c:#f02828"></i></div></div>
+  <div class="wrap f">
     <span><span class="rewind">Cada fita no seu lugar.</span> · Midnight Media Server · Licença MIT</span>
     <span><a href="https://github.com/ticianocorral/midnightmediaserver">Código no GitHub</a> · <a href="https://github.com/ticianocorral/midnightmediaserver/releases">Versões</a> · <a href="press/">Press kit</a></span>
   </div>
