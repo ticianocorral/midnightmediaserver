@@ -10,7 +10,7 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="${MEDIA_SERVER_REPO:-ticianocorral/12mediaserver}"
+REPO="${MEDIA_SERVER_REPO:-ticianocorral/midnightmediaserver}"
 REF="${MEDIA_SERVER_REF:-main}"
 
 # ── Qual caixa de diálogo temos? ─────────────────────────────

@@ -18,8 +18,8 @@ O Midnight Media Server escaneia as suas pastas, lê metadados de arquivos NFO (
 | Requisitos | Python 3.9+; rclone (instalado pelo instalador) |
 | Licença | MIT |
 | Versão | 1.24 |
-| Código | https://github.com/ticianocorral/12mediaserver |
-| Downloads | https://github.com/ticianocorral/12mediaserver/releases |
+| Código | https://github.com/ticianocorral/midnightmediaserver |
+| Downloads | https://github.com/ticianocorral/midnightmediaserver/releases |
 
 ## Destaques
 - Nuvem (rclone), HD externo e pendrive no mesmo catálogo
@@ -54,4 +54,4 @@ Tipografia: **Jost** (Google Fonts), pesos 400 a 700.
 - `assets/icon-192.png`, `assets/icon-512.png` — ícone do app em PNG
 
 ## Contato
-Abra uma issue em https://github.com/ticianocorral/12mediaserver/issues.
+Abra uma issue em https://github.com/ticianocorral/midnightmediaserver/issues.

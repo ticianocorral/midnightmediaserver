@@ -28,7 +28,7 @@
 
 ### Instaladores nativos (recomendado)
 
-Python e rclone vêm embutidos; não é preciso instalar nada antes. Baixe em [Releases](https://github.com/ticianocorral/12mediaserver/releases):
+Python e rclone vêm embutidos; não é preciso instalar nada antes. Baixe em [Releases](https://github.com/ticianocorral/midnightmediaserver/releases):
 
 | Sistema | Arquivo | Como instalar |
 |---|---|---|
@@ -41,8 +41,8 @@ O servidor sobe em segundo plano e abre `http://localhost:9187`. Os instaladores
 ### Linha de comando (macOS Intel, Linux, Windows)
 
 ```bash
-git clone https://github.com/ticianocorral/12mediaserver.git
-cd 12mediaserver
+git clone https://github.com/ticianocorral/midnightmediaserver.git
+cd midnightmediaserver
 bash install.sh            # Windows: install-windows.bat
 ```
 
