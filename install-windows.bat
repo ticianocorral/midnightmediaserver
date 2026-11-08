@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul
 setlocal enabledelayedexpansion
-title 12:00 Media Server - Instalador Windows
+title Midnight Media Server - Instalador Windows
 
 echo.
 echo  ================================================
-echo   12:00 Media Server - Instalador (Windows)
+echo   Midnight Media Server - Instalador (Windows)
 echo   Netflix-style player para suas nuvens e HDs
 echo  ================================================
 echo.
@@ -13,7 +13,7 @@ echo.
 set "DIR=%~dp0"
 if not exist "%DIR%server.py" (
     echo  [ERRO] server.py nao encontrado em %DIR%
-    echo  Execute este instalador dentro da pasta do 12:00 Media Server.
+    echo  Execute este instalador dentro da pasta do Midnight Media Server.
     pause
     exit /b 1
 )
@@ -92,7 +92,7 @@ echo  Verificando conexao com a nuvem...
 rclone listremotes 2>nul | findstr /r "^[a-zA-Z0-9]" >nul
 if errorlevel 1 (
     echo  [AVISO] Nuvem ainda nao configurada.
-    echo  Configure depois em Ajustes ^> Nuvem, dentro do 12:00 Media Server:
+    echo  Configure depois em Ajustes ^> Nuvem, dentro do Midnight Media Server:
     echo  use um remote que ja exista no rclone ou crie um novo pelo assistente.
 ) else (
     echo  [OK] rclone pronto (conecte a nuvem em Ajustes ^> Nuvem)
@@ -117,7 +117,7 @@ echo  [OK] Criado %DIR%Media-Server.bat
 echo       (duplo clique nele para iniciar o servidor)
 
 REM ─── 6. Iniciar junto com o Windows? (opcional) ────────
-set /p AUTOSTART="  Iniciar o 12:00 Media Server junto com o Windows? (s/N): "
+set /p AUTOSTART="  Iniciar o Midnight Media Server junto com o Windows? (s/N): "
 if /i "%AUTOSTART%"=="s" (
     schtasks /Create /F /TN "Media Server" /SC ONLOGON /RL LIMITED /TR "\"%DIR%Media-Server.bat\""
     if errorlevel 1 (
@@ -128,7 +128,7 @@ if /i "%AUTOSTART%"=="s" (
 )
 
 REM ─── 7. Iniciar agora? ─────────────────────────────────
-set /p INICIAR="  Iniciar o 12:00 Media Server agora? (s/N): "
+set /p INICIAR="  Iniciar o Midnight Media Server agora? (s/N): "
 if /i "%INICIAR%"=="s" (
     start "" cmd /c ""%DIR%Media-Server.bat""
 )

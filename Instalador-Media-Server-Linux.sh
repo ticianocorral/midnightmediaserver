@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────
-#  12:00 Media Server — Instalador visual para Linux
+#  Midnight Media Server — Instalador visual para Linux
 #
 #  Diálogos gráficos via zenity (GNOME) ou kdialog (KDE); sem
 #  ambiente gráfico, cai para o terminal mesmo — nunca falha.
@@ -47,7 +47,7 @@ info() {
 }
 
 # ── Boas-vindas ──────────────────────────────────────────────
-pergunta "12:00 Media Server — Instalador" "🎬 <b>Bem-vindo ao 12:00 Media Server</b>
+pergunta "Midnight Media Server — Instalador" "🎬 <b>Bem-vindo ao Midnight Media Server</b>
 
 Seus filmes com cara de Netflix — self-hosted, leve e instantâneo.
 
@@ -99,7 +99,7 @@ fi
 
 # ── Encerramento ─────────────────────────────────────────────
 URL="http://localhost:${MEDIA_SERVER_PORT:-9187}"
-if pergunta "Instalação concluída" "✅ <b>O 12:00 Media Server está no ar</b>
+if pergunta "Instalação concluída" "✅ <b>O Midnight Media Server está no ar</b>
 
 Abra $URL — o código de instalação de 6 dígitos aparece no log
 (~/.cache/media-server/media-server.log) ou na janela do instalador.

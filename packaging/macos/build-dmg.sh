@@ -14,7 +14,7 @@ RAIZ_DMG="$(mktemp -d)"
 cp -R "$APP" "$RAIZ_DMG/"
 ln -s /Applications "$RAIZ_DMG/Applications"
 cat > "$RAIZ_DMG/LEIA-ME.txt" <<TXT
-12:00 Media Server
+Midnight Media Server
 
 1. Arraste "Media Server" para a pasta Aplicativos.
 2. Abra o app. Na primeira vez o macOS pode avisar que o desenvolvedor nao foi
@@ -26,5 +26,5 @@ Para desinstalar: apague o app e o arquivo ~/Library/LaunchAgents/com.mediaserve
 TXT
 mkdir -p "$SAIDA"
 hdiutil create -volname "Media Server" -srcfolder "$RAIZ_DMG" -ov -format UDZO \
-    "$SAIDA/12-00-Media-Server-${VERSAO}-macOS-${ARQ}.dmg"
+    "$SAIDA/Midnight-Media-Server-${VERSAO}-macOS-${ARQ}.dmg"
 rm -rf "$RAIZ_DMG"

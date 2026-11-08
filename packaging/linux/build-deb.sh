@@ -17,7 +17,7 @@ cp "$ICONES/icone-512.png" "$PKG/usr/share/icons/hicolor/512x512/apps/media-serv
 cat > "$PKG/usr/share/applications/media-server.desktop" <<DESK
 [Desktop Entry]
 Type=Application
-Name=12:00 Media Server
+Name=Midnight Media Server
 Comment=Seus filmes e series, num catalogo so seu
 Exec=/opt/media-server/media-server
 Icon=media-server
@@ -29,7 +29,7 @@ DESK
 cat > "$PKG/etc/xdg/autostart/media-server.desktop" <<DESK
 [Desktop Entry]
 Type=Application
-Name=12:00 Media Server (servidor)
+Name=Midnight Media Server (servidor)
 Exec=/opt/media-server/media-server --servidor
 Icon=media-server
 Terminal=false
@@ -42,8 +42,8 @@ Version: ${VERSAO}
 Section: video
 Priority: optional
 Architecture: amd64
-Maintainer: 12:00 Media Server <noreply@users.noreply.github.com>
-Description: 12:00 Media Server
+Maintainer: Midnight Media Server <noreply@users.noreply.github.com>
+Description: Midnight Media Server
  Servidor de filmes e series auto-hospedado: nuvem (rclone), HD externo e
  pendrive num catalogo no estilo streaming. Python e rclone embutidos.
 CTRL
@@ -59,4 +59,4 @@ POSTRM
 chmod 755 "$PKG/DEBIAN/postrm"
 
 mkdir -p "$SAIDA"
-dpkg-deb --root-owner-group --build "$PKG" "$SAIDA/12-00-media-server_${VERSAO}_amd64.deb"
+dpkg-deb --root-owner-group --build "$PKG" "$SAIDA/midnight-media-server_${VERSAO}_amd64.deb"

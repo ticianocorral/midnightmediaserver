@@ -1,5 +1,5 @@
 @echo off
-rem 12:00 Media Server - instalador visual para Windows (duplo clique).
+rem Midnight Media Server - instalador visual para Windows (duplo clique).
 rem Abre um assistente no navegador; so precisa do Python 3 (python.org).
 rem Ao instalar o Python, marque "Add python.exe to PATH".
 cd /d "%~dp0"

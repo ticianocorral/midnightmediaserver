@@ -225,7 +225,7 @@ def start_rclone_serve():
         # rclone tentando pra sempre. Quem so usa pasta local pagava isso a
         # cada subida do servidor.
         if not remote_configurado():
-            print("[12:00 Media Server] Nuvem nao configurada — "
+            print("[Midnight Media Server] Nuvem nao configurada — "
                   "usando apenas fontes locais. Configure em Ajustes > Nuvem.",
                   flush=True)
             return None
@@ -236,10 +236,10 @@ def start_rclone_serve():
             ureq_check.urlopen(f"http://localhost:{RCLONE_SERVE_PORT}/", timeout=2)
             try:
                 ureq_check.urlopen(f"http://localhost:{RCLONE_SERVE_PORT}/?format=json", timeout=5)
-                print(f"[12:00 Media Server] rclone serve already running on localhost:{RCLONE_SERVE_PORT}", flush=True)
+                print(f"[Midnight Media Server] rclone serve already running on localhost:{RCLONE_SERVE_PORT}", flush=True)
                 return "external"
             except Exception:
-                print(f"[12:00 Media Server] rclone serve responde mas a nuvem está inacessível — tentando reiniciar", flush=True)
+                print(f"[Midnight Media Server] rclone serve responde mas a nuvem está inacessível — tentando reiniciar", flush=True)
                 _kill_rclone_on_port(RCLONE_SERVE_PORT)
                 time.sleep(1)
         except Exception:
@@ -266,7 +266,7 @@ def start_rclone_serve():
                 stderr=subprocess.DEVNULL,
             )
             rclone_server_proc = proc
-            print(f"[12:00 Media Server] Starting rclone serve http on localhost:{RCLONE_SERVE_PORT}...", end=" ", flush=True)
+            print(f"[Midnight Media Server] Starting rclone serve http on localhost:{RCLONE_SERVE_PORT}...", end=" ", flush=True)
 
             # Wait for rclone serve to be ready (up to 25s — cold start pode
             # demorar enquanto o rclone inicializa o VFS e conecta na nuvem)
@@ -286,10 +286,10 @@ def start_rclone_serve():
                 print("timed out, streams may use fallback", flush=True)
             return proc
         except FileNotFoundError:
-            print("[12:00 Media Server] WARNING: rclone not found, streams will use fallback method", flush=True)
+            print("[Midnight Media Server] WARNING: rclone not found, streams will use fallback method", flush=True)
             return None
         except Exception as e:
-            print(f"[12:00 Media Server] WARNING: could not start rclone serve: {e}", flush=True)
+            print(f"[Midnight Media Server] WARNING: could not start rclone serve: {e}", flush=True)
             return None
 
 
@@ -320,7 +320,7 @@ def start_rclone_webgui():
     global rclone_webgui_proc
     if not RCLONE_GUI_ENABLED:
         return {"status": "error", "error": (
-            "Configurador desativado por padrao. Inicie o 12:00 Media Server com "
+            "Configurador desativado por padrao. Inicie o Midnight Media Server com "
             "MEDIA_SERVER_RCLONE_GUI=1 e abra pelo proprio computador.")}
     with _webgui_lock:
         if rclone_webgui_proc is not None and rclone_webgui_proc.poll() is None:

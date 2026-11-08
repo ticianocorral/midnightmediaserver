@@ -12,14 +12,14 @@
 
 [Setup]
 AppId={{6B1E0C6A-12AA-4C0D-9F6B-120000000001}
-AppName=12:00 Media Server
+AppName=Midnight Media Server
 AppVersion={#Versao}
-AppPublisher=12:00 Media Server
+AppPublisher=Midnight Media Server
 DefaultDirName={localappdata}\Programs\Media Server
-DefaultGroupName=12:00 Media Server
+DefaultGroupName=Midnight Media Server
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-OutputBaseFilename=Instalador-12-00-Media-Server-{#Versao}-Windows
+OutputBaseFilename=Instalador-Midnight-Media-Server-{#Versao}-Windows
 SetupIconFile={#Icone}
 UninstallDisplayIcon={app}\media-server.exe
 Compression=lzma2
@@ -38,13 +38,13 @@ Name: "atalho"; Description: "Criar um atalho na Área de Trabalho"; GroupDescri
 Source: "{#Origem}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{autoprograms}\12:00 Media Server"; Filename: "{app}\media-server.exe"
-Name: "{autodesktop}\12:00 Media Server"; Filename: "{app}\media-server.exe"; Tasks: atalho
+Name: "{autoprograms}\Midnight Media Server"; Filename: "{app}\media-server.exe"
+Name: "{autodesktop}\Midnight Media Server"; Filename: "{app}\media-server.exe"; Tasks: atalho
 ; Inicio automatico: o servidor sobe escondido ao entrar no Windows.
-Name: "{userstartup}\12:00 Media Server (servidor)"; Filename: "{app}\media-server.exe"; Parameters: "--servidor"; Tasks: iniciar
+Name: "{userstartup}\Midnight Media Server (servidor)"; Filename: "{app}\media-server.exe"; Parameters: "--servidor"; Tasks: iniciar
 
 [Run]
-Filename: "{app}\media-server.exe"; Description: "Abrir o 12:00 Media Server agora"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\media-server.exe"; Description: "Abrir o Midnight Media Server agora"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM media-server.exe"; Flags: runhidden; RunOnceId: "ParaServidor"

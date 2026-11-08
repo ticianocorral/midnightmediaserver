@@ -1,10 +1,10 @@
-# 12:00 Media Server na Android TV
+# Midnight Media Server na Android TV
 
-App para abrir o 12:00 Media Server na TV com o controle remoto.
+App para abrir o Midnight Media Server na TV com o controle remoto.
 
 ## Como funciona
 
-A interface **é a própria web do 12:00 Media Server**, carregada numa WebView com
+A interface **é a própria web do Midnight Media Server**, carregada numa WebView com
 `?tv=1` — o modo que torna tudo navegável pelas setas do controle. Reconstruir
 as telas em Kotlin criaria uma segunda interface para manter; assim a TV herda
 cada novidade da web (coleções, séries) sem nenhum trabalho aqui.
@@ -59,7 +59,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## Primeiro uso
 
-O app varre a rede e lista os 12:00 Media Server que achar; escolha o seu. Depois
+O app varre a rede e lista os Midnight Media Server que achar; escolha o seu. Depois
 aparece a tela de login normal — usuário e senha, uma vez só. O cookie vale 90
 dias e é gravado em disco (`CookieManager.flush()` no `onPause`), então não é
 preciso repetir a cada abertura.

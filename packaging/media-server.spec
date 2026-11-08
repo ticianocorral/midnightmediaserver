@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Empacota o 12:00 Media Server com PyInstaller (pasta, nao arquivo unico: abre
+# Empacota o Midnight Media Server com PyInstaller (pasta, nao arquivo unico: abre
 # mais rapido e nao desempacota nada a cada subida).
 #
 # Variaveis de ambiente (preenchidas pelo workflow):
@@ -60,7 +60,7 @@ if sys.platform == "darwin":
         bundle_identifier="com.mediaserver.app",
         info_plist={
             "CFBundleName": "Media Server",
-            "CFBundleDisplayName": "12:00 Media Server",
+            "CFBundleDisplayName": "Midnight Media Server",
             "CFBundleShortVersionString": VERSAO,
             "CFBundleVersion": VERSAO,
             "LSUIElement": True,   # servidor em segundo plano: sem icone no Dock

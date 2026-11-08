@@ -110,7 +110,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    Log.e("12:00 Media ServerPlayer", "erro de reproducao: $error")
+                    Log.e("Midnight Media ServerPlayer", "erro de reproducao: $error")
                     android.widget.Toast.makeText(
                         this@PlayerActivity,
                         "Falha ao tocar: ${error.errorCodeName}",
@@ -166,7 +166,7 @@ class PlayerActivity : AppCompatActivity() {
                 )
             }
         } catch (e: Exception) {
-            Log.w("12:00 Media Server", "fila de episodios invalida: $e")
+            Log.w("Midnight Media Server", "fila de episodios invalida: $e")
         }
         return lista
     }
@@ -301,7 +301,7 @@ class PlayerActivity : AppCompatActivity() {
                     val opcoes = BitmapFactory.Options().apply { inSampleSize = amostra }
                     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opcoes)
                 } catch (e: Exception) {
-                    Log.w("12:00 Media Server", "capa nao carregou: $e")
+                    Log.w("Midnight Media Server", "capa nao carregou: $e")
                     null
                 }
             }

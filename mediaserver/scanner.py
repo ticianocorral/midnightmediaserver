@@ -416,7 +416,7 @@ def _realinhar_progresso(conn):
             realinhados += 1
     if realinhados:
         conn.commit()
-        print(f"[12:00 Media Server] {realinhados} progresso(s) realinhado(s) após "
+        print(f"[Midnight Media Server] {realinhados} progresso(s) realinhado(s) após "
               "mudanças no acervo.", flush=True)
     return realinhados
 
@@ -428,7 +428,7 @@ def _report(label, root_path, stats, elapsed, conn):
         "WHERE has_video=1 AND depth>0 AND path LIKE ? ESCAPE '\\'",
         (like_root,)).fetchone()["c"]
     print(
-        f"[12:00 Media Server] {label}: {movies} filmes em {elapsed:.1f}s "
+        f"[Midnight Media Server] {label}: {movies} filmes em {elapsed:.1f}s "
         f"(+{stats['added']} novos, ~{stats['changed']} alterados, "
         f"-{stats['removed']} removidos, {stats['unchanged']} inalterados)",
         flush=True
@@ -437,7 +437,7 @@ def _report(label, root_path, stats, elapsed, conn):
 
 def scan_cloud(progress_base=0.0, progress_span=1.0):
     """Varredura incremental da nuvem via uma unica listagem recursiva."""
-    print("[12:00 Media Server] Escaneando a nuvem (incremental)...", flush=True)
+    print("[Midnight Media Server] Escaneando a nuvem (incremental)...", flush=True)
     start = time.time()
     _set_progress(phase="listing_root", source_current="Nuvem")
 
@@ -447,7 +447,7 @@ def scan_cloud(progress_base=0.0, progress_span=1.0):
     tree = run_rclone_cmd(["lsjson", "--recursive", "--fast-list",
                            _rc_remote(logical_root)])
     if not isinstance(tree, list):
-        print(f"[12:00 Media Server] Falha ao listar a nuvem: {tree}", flush=True)
+        print(f"[Midnight Media Server] Falha ao listar a nuvem: {tree}", flush=True)
         log_notification("error", "Nao foi possivel listar a nuvem.")
         return False
 
@@ -470,14 +470,14 @@ def scan_source(source, progress_base=0.0, progress_span=1.0):
     """
     name = source["name"]
     if not _sources.is_online(source):
-        print(f"[12:00 Media Server] Fonte '{name}' offline ({source['root']}) — "
+        print(f"[Midnight Media Server] Fonte '{name}' offline ({source['root']}) — "
               f"catalogo preservado, nada foi escaneado.", flush=True)
         log_notification(
             "warning",
             f"A fonte \"{name}\" esta desconectada. O catalogo dela foi mantido.")
         return False
 
-    print(f"[12:00 Media Server] Escaneando '{name}' ({source['root']})...", flush=True)
+    print(f"[Midnight Media Server] Escaneando '{name}' ({source['root']})...", flush=True)
     start = time.time()
     _set_progress(phase="listing_root", source_current=name)
 
@@ -509,7 +509,7 @@ def prune_orphan_sources():
         orphans = [r["path"] for r in rows if r["path"] not in known]
         for path in orphans:
             _remove_folder_tree(conn, path)
-            print(f"[12:00 Media Server] Removida do catalogo a fonte desconhecida {path}",
+            print(f"[Midnight Media Server] Removida do catalogo a fonte desconhecida {path}",
                   flush=True)
         if orphans:
             conn.commit()
@@ -540,7 +540,7 @@ def prune_unconfigured_cloud():
             return 0
         _remove_folder_tree(conn, raiz)
         conn.commit()
-        print(f"[12:00 Media Server] Nuvem nao configurada — o catalogo remoto ({raiz}) "
+        print(f"[Midnight Media Server] Nuvem nao configurada — o catalogo remoto ({raiz}) "
               "saiu do acervo. Reconfigure em Ajustes > Nuvem e clique em "
               "Atualizar para reindexar.", flush=True)
         return 1
@@ -579,7 +579,7 @@ def scan_all(source_id=None):
     try:
         _realinhar_progresso(get_db())
     except Exception as e:
-        print(f"[12:00 Media Server] Realinhamento de progresso falhou: {e}", flush=True)
+        print(f"[Midnight Media Server] Realinhamento de progresso falhou: {e}", flush=True)
     _set_progress(phase="done", percent=100)
     return True
 
@@ -655,7 +655,7 @@ def start_background_scan(source_id=None):
             scan_all(source_id)
         except Exception as e:
             _set_progress(phase="error")
-            print(f"[12:00 Media Server] Scan error: {e}", flush=True)
+            print(f"[Midnight Media Server] Scan error: {e}", flush=True)
         finally:
             with _scan_lock:
                 _scan_in_progress = False

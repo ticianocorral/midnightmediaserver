@@ -18,7 +18,7 @@ import java.net.URL
 import kotlin.coroutines.resume
 
 /**
- * Onde mora o 12:00 Media Server e como achar.
+ * Onde mora o Midnight Media Server e como achar.
  *
  * A descoberta e uma varredura da propria faixa da rede: para cada endereco
  * .1 a .254 batemos em /api/auth/status, que e publica e responde um JSON
@@ -56,7 +56,7 @@ object Servidor {
     }
 
     /**
-     * True quando o endereco responde algo que so o 12:00 Media Server responderia.
+     * True quando o endereco responde algo que so o Midnight Media Server responderia.
      * Nao basta "abriu a porta": qualquer servico poderia estar ali.
      */
     suspend fun responde(base: String): Boolean = withContext(Dispatchers.IO) {
@@ -100,7 +100,7 @@ object Servidor {
         return faixas.distinct()
     }
 
-    /** Endereco base de cada 12:00 Media Server achado na rede. */
+    /** Endereco base de cada Midnight Media Server achado na rede. */
     suspend fun procurar(): List<String> = coroutineScope {
         val achados = mutableListOf<String>()
         for (faixa in faixasLocais()) {

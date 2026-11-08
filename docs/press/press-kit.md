@@ -1,18 +1,18 @@
-# 12:00 Media Server — Press kit
+# Midnight Media Server — Press kit
 
 ## Em uma frase
 Servidor de filmes e séries auto-hospedado: transforma a sua nuvem, um HD externo ou um pendrive num catálogo no estilo streaming.
 
 ## Descrição curta (até 280 caracteres)
-O 12:00 Media Server é um servidor web auto-hospedado que organiza filmes e séries da sua nuvem (qualquer remote do rclone), de HDs externos e de pendrives num catálogo bonito, rápido e responsivo, com Chromecast, AirPlay e perfis de conta.
+O Midnight Media Server é um servidor web auto-hospedado que organiza filmes e séries da sua nuvem (qualquer remote do rclone), de HDs externos e de pendrives num catálogo bonito, rápido e responsivo, com Chromecast, AirPlay e perfis de conta.
 
 ## Descrição longa
-O 12:00 Media Server escaneia as suas pastas, lê metadados de arquivos NFO (formato Kodi e tinyMediaManager) e serve tudo por uma interface web que funciona no computador, no celular e na TV. O streaming é direto, sem download prévio, e o catálogo fica em cache para uma navegação instantânea. Há contas por pessoa, perfil infantil, coleções e tags criadas na própria interface, séries com temporadas e episódios, backup e restauração, e envio para a TV por Chromecast e AirPlay, com conversão automática de formatos que a TV não toca. O app é leve, gratuito e de código aberto (MIT).
+O Midnight Media Server escaneia as suas pastas, lê metadados de arquivos NFO (formato Kodi e tinyMediaManager) e serve tudo por uma interface web que funciona no computador, no celular e na TV. O streaming é direto, sem download prévio, e o catálogo fica em cache para uma navegação instantânea. Há contas por pessoa, perfil infantil, coleções e tags criadas na própria interface, séries com temporadas e episódios, backup e restauração, e envio para a TV por Chromecast e AirPlay, com conversão automática de formatos que a TV não toca. O app é leve, gratuito e de código aberto (MIT).
 
 ## Ficha técnica
 | | |
 |---|---|
-| Nome | 12:00 Media Server |
+| Nome | Midnight Media Server |
 | Categoria | Servidor de mídia auto-hospedado |
 | Plataformas | Windows, macOS e Linux (e app para Android TV) |
 | Requisitos | Python 3.9+; rclone (instalado pelo instalador) |

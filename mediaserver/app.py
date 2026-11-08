@@ -72,14 +72,14 @@ def main():
     try:
         _scanner.prune_orphan_sources()
     except Exception as e:
-        print(f"[12:00 Media Server] Falha ao podar fontes orfas: {e}", flush=True)
+        print(f"[Midnight Media Server] Falha ao podar fontes orfas: {e}", flush=True)
 
     # O mesmo para a nuvem: desconfigurada, o catalogo remoto antigo nao sairia
     # nunca — o scan incremental nao visita fonte que deixou de existir.
     try:
         _scanner.prune_unconfigured_cloud()
     except Exception as e:
-        print(f"[12:00 Media Server] Falha ao podar catalogo da nuvem: {e}", flush=True)
+        print(f"[Midnight Media Server] Falha ao podar catalogo da nuvem: {e}", flush=True)
 
     # No auto-scan on startup — user must click refresh manually
     conn = get_db()
@@ -87,14 +87,14 @@ def main():
     conn.close()
 
     if count == 0:
-        print("[12:00 Media Server] Cache vazio. Clique em 🔄 (Atualizar) para escanear as fontes.", flush=True)
+        print("[Midnight Media Server] Cache vazio. Clique em 🔄 (Atualizar) para escanear as fontes.", flush=True)
     else:
         cache_age = ""
         t = get_cache_time()
         if t:
             age_mins = (int(time.time()) - int(t)) // 60
             cache_age = f" (cached {age_mins}m ago)"
-        print(f"[12:00 Media Server] Cache loaded from {db_path_abs}{cache_age}", flush=True)
+        print(f"[Midnight Media Server] Cache loaded from {db_path_abs}{cache_age}", flush=True)
 
     port = find_free_port()
     server = http.server.ThreadingHTTPServer((BIND_HOST, port), MediaServerHandler)
@@ -136,7 +136,7 @@ def main():
     # Build banner
     banner = f"""
 ╔══════════════════════════════════════════════╗
-║            12:00 Media Server                ║
+║          Midnight Media Server               ║
 ║                                              ║
 ║  🌐 http://localhost:{port}                     ║
 ║  🌐 http://{local_ip}:{port}                     ║"""
@@ -176,7 +176,7 @@ def main():
 
     # Shutdown imediato — não espera threads de stream terminarem
     def shutdown(sig, frame):
-        print("\n[12:00 Media Server] Desligando...")
+        print("\n[Midnight Media Server] Desligando...")
         os._exit(0)
 
     signal.signal(signal.SIGINT, shutdown)
@@ -190,7 +190,7 @@ def main():
     finally:
         _rclone.shutdown()
         server.server_close()
-        print("[12:00 Media Server] Servidor parado.")
+        print("[Midnight Media Server] Servidor parado.")
 
 
 if __name__ == "__main__":

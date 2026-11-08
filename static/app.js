@@ -3099,7 +3099,7 @@
     }
     var mediaPath = new URL(video.src, _getBaseUrl()).searchParams.get('path') || '';
     var titleEl = document.getElementById('playerMovieName');
-    var titulo = titleEl ? titleEl.textContent : '12:00 Media Server';
+    var titulo = titleEl ? titleEl.textContent : 'Midnight Media Server';
     try {
       var ok = await _castEnviarMidia(info, mediaPath, currentSubtitlePath,
                                       titulo, _castArt, video.currentTime);
@@ -3147,7 +3147,7 @@
     // ficha (arte, ano, estudio) em vez de uma tela vazia com o titulo.
     // Episódio entra com a ficha da série: o arquivo não tem pôster próprio.
     var meta = new chrome.cast.media.MovieMediaMetadata();
-    meta.title = titulo || '12:00 Media Server';
+    meta.title = titulo || 'Midnight Media Server';
     arte = arte || {};
     if (arte.year) meta.releaseDate = String(arte.year) + '-01-01';
     if (arte.studio) meta.studio = arte.studio;
@@ -3585,11 +3585,11 @@
 
   // O que o sistema mostra como "tocando agora" (AirPlay, tela de bloqueio,
   // central de mídia): o título da página é a fonte clássica no WebKit — era
-  // ele que fazia a TV anunciar "12:00 Media Server" — e o title do <video> cobre o
+  // ele que fazia a TV anunciar "Midnight Media Server" — e o title do <video> cobre o
   // widget do macOS. A Media Session, quando existe, fala a mesma língua.
   function _publicarNomeNaTela(nome) {
     const video = document.getElementById('videoPlayer');
-    document.title = nome || '12:00 Media Server';
+    document.title = nome || 'Midnight Media Server';
     if (video) video.title = nome || '';
     try {
       if (nome && window.MediaMetadata && 'mediaSession' in navigator) {
@@ -3600,7 +3600,7 @@
 
   function _limparNomeNaTela() {
     const video = document.getElementById('videoPlayer');
-    document.title = '12:00 Media Server';
+    document.title = 'Midnight Media Server';
     if (video) video.title = '';
     try {
       if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
@@ -3632,7 +3632,7 @@
 
     // Nome do vídeo na tela. No AirPlay quem anuncia é o sistema — pelo título
     // da PÁGINA (e pelo title do <video>) — e o título da página era
-    // "12:00 Media Server": a TV mostrava o nome do app no lugar do filme.
+    // "Midnight Media Server": a TV mostrava o nome do app no lugar do filme.
     const nomeNaTela = movieName.replace(/\.[^.]+$/, '').replace(/[._]/g, ' ');
     movieTitle.textContent = nomeNaTela;
     _publicarNomeNaTela(nomeNaTela);
@@ -6449,7 +6449,7 @@
       html += '<button class="rclone-action-btn" onclick="_loadRcloneStatus()"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Atualizar status</button>';
       html += '</div>';
     } else {
-      html += '<div class="rclone-help">O rclone não foi encontrado. Rode o instalador do 12:00 Media Server '
+      html += '<div class="rclone-help">O rclone não foi encontrado. Rode o instalador do Midnight Media Server '
         + '(ele baixa o rclone sozinho) ou instale manualmente:<br>'
         + '<b>Linux:</b> <code>sudo pacman -S rclone</code> ou <code>sudo apt install rclone</code><br>'
         + '<b>macOS:</b> <code>brew install rclone</code><br>'

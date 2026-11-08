@@ -308,7 +308,7 @@ def _escrever_atomico(caminho, dados_bytes):
 
 def _baixar_imagem(url):
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "12:00 Media Server"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Midnight Media Server"})
         with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
             dados = resp.read(_MAX_IMG_BYTES + 1)
         if len(dados) > _MAX_IMG_BYTES:

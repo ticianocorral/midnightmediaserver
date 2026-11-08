@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🎬 12:00 Media Server</h1>
+  <h1>🎬 Midnight Media Server</h1>
   <p><strong>Seu catálogo de filmes e séries no estilo Netflix — da nuvem, de HD externo ou de pendrive. Auto-hospedado e leve.</strong></p>
   <p>
     <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.9+">
@@ -32,9 +32,9 @@ Python e rclone vêm embutidos; não é preciso instalar nada antes. Baixe em [R
 
 | Sistema | Arquivo | Como instalar |
 |---|---|---|
-| Windows 10/11 | `Instalador-12-00-Media-Server-<versão>-Windows.exe` | Duplo clique (sem administrador) |
-| macOS (Apple Silicon) | `12-00-Media-Server-<versão>-macOS-arm64.dmg` | Arraste para Aplicativos; 1ª vez: botão direito › Abrir |
-| Linux (Debian/Ubuntu, 64 bits) | `12-00-media-server_<versão>_amd64.deb` | `sudo apt install ./12-00-media-server_*.deb` |
+| Windows 10/11 | `Instalador-Midnight-Media-Server-<versão>-Windows.exe` | Duplo clique (sem administrador) |
+| macOS (Apple Silicon) | `Midnight-Media-Server-<versão>-macOS-arm64.dmg` | Arraste para Aplicativos; 1ª vez: botão direito › Abrir |
+| Linux (Debian/Ubuntu, 64 bits) | `midnight-media-server_<versão>_amd64.deb` | `sudo apt install ./midnight-media-server_*.deb` |
 
 O servidor sobe em segundo plano e abre `http://localhost:9187`. Os instaladores não são assinados: o macOS e o SmartScreen avisam "desenvolvedor não verificado". `mkcert` e `ffmpeg` são opcionais (Chromecast e conversão para a TV).
 

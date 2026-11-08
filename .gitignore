@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────
-#  12:00 Media Server — .gitignore
+#  Midnight Media Server — .gitignore
 #  Segurança: nada de secrets, cache, ou
 #  artifacts locais no repositório.
 # ──────────────────────────────────────────
@@ -32,7 +32,7 @@ venv/
 *.AppImage
 *.AppImage.home
 
-# 💾 Cache do 12:00 Media Server
+# 💾 Cache do Midnight Media Server
 .cache/
 cache/
 downloads/

@@ -1,5 +1,5 @@
 # ============================================================
-#  12:00 Media Server — Instalador visual para Windows
+#  Midnight Media Server — Instalador visual para Windows
 #
 #  Assistente gráfico (WinForms) que verifica pré-requisitos,
 #  instala o app e deixa ele rodando. Não precisa de PowerShell
@@ -107,7 +107,7 @@ function Get-Projeto {
         return
     }
     $dest = Join-Path $env:USERPROFILE 'Media-Server'
-    Write-Log "Baixando o 12:00 Media Server ($($Script:REPO)@$($Script:REF)) para $dest..."
+    Write-Log "Baixando o Midnight Media Server ($($Script:REPO)@$($Script:REF)) para $dest..."
     $zip = Join-Path $env:TEMP 'media-server.zip'
     Invoke-WebRequest -Uri "https://github.com/$($Script:REPO)/archive/refs/heads/$($Script:REF).zip" -OutFile $zip -UseBasicParsing
     if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
@@ -153,7 +153,7 @@ function Install-App {
 # ── Interface ────────────────────────────────────────────────
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = '12:00 Media Server — Instalador'
+$form.Text = 'Midnight Media Server — Instalador'
 $form.Size = New-Object System.Drawing.Size(620, 480)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
@@ -162,7 +162,7 @@ $form.BackColor = [System.Drawing.Color]::FromArgb(18, 18, 22)
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 9.5)
 
 $lbTitulo = New-Object System.Windows.Forms.Label
-$lbTitulo.Text = '🎬 12:00 Media Server'
+$lbTitulo.Text = '🎬 Midnight Media Server'
 $lbTitulo.Font = New-Object System.Drawing.Font('Segoe UI', 22, [System.Drawing.FontStyle]::Bold)
 $lbTitulo.ForeColor = [System.Drawing.Color]::FromArgb(229, 9, 20)
 $lbTitulo.Location = New-Object System.Drawing.Point(24, 18)
@@ -183,7 +183,7 @@ $pnOpcoes.Size = New-Object System.Drawing.Size(556, 250)
 $form.Controls.Add($pnOpcoes)
 
 $chkAutostart = New-Object System.Windows.Forms.CheckBox
-$chkAutostart.Text = 'Iniciar o 12:00 Media Server junto com o Windows'
+$chkAutostart.Text = 'Iniciar o Midnight Media Server junto com o Windows'
 $chkAutostart.Checked = $true
 $chkAutostart.ForeColor = [System.Drawing.Color]::Gainsboro
 $chkAutostart.Location = New-Object System.Drawing.Point(4, 10)
@@ -191,7 +191,7 @@ $chkAutostart.Size = New-Object System.Drawing.Size(540, 24)
 $pnOpcoes.Controls.Add($chkAutostart)
 
 $chkAbrir = New-Object System.Windows.Forms.CheckBox
-$chkAbrir.Text = 'Abrir o 12:00 Media Server no navegador ao terminar'
+$chkAbrir.Text = 'Abrir o Midnight Media Server no navegador ao terminar'
 $chkAbrir.Checked = $true
 $chkAbrir.ForeColor = [System.Drawing.Color]::Gainsboro
 $chkAbrir.Location = New-Object System.Drawing.Point(4, 40)
@@ -277,7 +277,7 @@ $btnInstalar.Add_Click({
         Write-Log 'Abra http://localhost:9187 — o código de instalação'
         Write-Log 'aparece na janela do servidor (Media-Server.bat).'
         $Script:Instalado = $true
-        $btnInstalar.Text = 'Abrir 12:00 Media Server'
+        $btnInstalar.Text = 'Abrir Midnight Media Server'
         $btnInstalar.Enabled = $true
     } catch {
         Write-Log ''

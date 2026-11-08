@@ -1,4 +1,4 @@
-// 12:00 Media Server — wrapper nativo (nome legível no Activity Monitor / Login Items).
+// Midnight Media Server — wrapper nativo (nome legível no Activity Monitor / Login Items).
 // Fica vivo como pai e roda o servidor python como filho, propagando sinais.
 // Compilado: clang -O2 -o media-server media-server.c
 #include <unistd.h>
