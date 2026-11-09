@@ -459,7 +459,28 @@ def _tamanho_arvore(p):
     return total
 
 
+_USO_CACHE = {"em": 0.0, "valor": None}
+
+
 def get_cache_usage():
+    """Uso em disco de cada cache, em bytes (resultado guardado por 60 s).
+
+    Percorre as arvores de cache inteiras (milhares de posters); a interface
+    consulta a cada 30 s por cliente, e a cada 1,5 s durante um scan."""
+    import time as _t
+    agora = _t.monotonic()
+    if _USO_CACHE["valor"] is not None and agora - _USO_CACHE["em"] < 60:
+        return _USO_CACHE["valor"]
+    valor = _calcular_uso_cache()
+    _USO_CACHE["em"], _USO_CACHE["valor"] = agora, valor
+    return valor
+
+
+def invalidar_uso_cache():
+    _USO_CACHE["valor"] = None
+
+
+def _calcular_uso_cache():
     """Uso em disco de cada cache, em bytes."""
     total = 0
     details = {}
@@ -508,3 +529,14 @@ def looks_like_media_server_db(raw):
                 os.unlink(tmp)
             except OSError:
                 pass
+
+
+def partir_caminho(caminho):
+    """"/pasta/sub/arq.mkv" -> ("/pasta/sub", "arq.mkv"), igual a folder_path e name.
+
+    Serve para consultar `folder_path = ? AND name = ?`, que usa o indice unico
+    (folder_path, name). `folder_path || '/' || name = ?` obriga o SQLite a
+    varrer a tabela files inteira a cada chamada.
+    """
+    pasta, _, nome = str(caminho).rpartition("/")
+    return pasta, nome
