@@ -13,6 +13,7 @@ import mimetypes
 import threading
 import sys
 import hashlib
+import re
 import hmac
 import time
 import shutil
@@ -23,6 +24,7 @@ from pathlib import Path
 from .config import (
     PROJECT_ROOT,
     PORT,
+    HTTPS_PORT_BASE,
     BACKUP_FOLDER,
     NOME_DB_BACKUP,
     PREFIXO_BACKUP,
@@ -47,6 +49,7 @@ from .config import (
 from .netsec import (
     host_allowed as _host_allowed,
     origin_allowed as _origin_allowed,
+    origin_mesmo_servidor as _origin_mesmo_servidor,
 )
 from .paths import (
     CaminhoInvalido, destino_backup, destinos_backup, rc_remote as _rc_remote, remote_configurado,
@@ -219,6 +222,13 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 raise
             self.close_connection = True
 
+    def end_headers(self):
+        # Impede a pagina de ser embutida em iframe de outro site (clickjacking).
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
+        self.send_header("Referrer-Policy", "same-origin")
+        super().end_headers()
+
     def log_message(self, format, *args):
         # O http.server chama isto com aridades diferentes: log_request manda
         # 3 argumentos, send_error manda 2. O acesso fixo a args[2] estourava
@@ -226,7 +236,10 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         # saia e o cliente ficava com a conexao fechada, sem nada. Era o que
         # acontecia com qualquer HEAD (nao existia do_HEAD).
         try:
-            sys.stderr.write("[Midnight Media Server] " + " ".join(str(a) for a in args) + "\n")
+            linha = " ".join(str(a) for a in args)
+            # O token de midia (?t=) e uma credencial por arquivo: nao vai pro log.
+            linha = re.sub(r"([?&]t=)[^&\s\"]+", r"\1***", linha)
+            sys.stderr.write("[Midnight Media Server] " + linha + "\n")
         except Exception:
             pass
 
@@ -273,6 +286,13 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         em loopback e endereco localhost (nao o IP da rede)."""
         cliente = self.client_address[0] if self.client_address else ""
         host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]").lower()
+        # Atras de nginx/caddy/cloudflared na mesma maquina todo cliente chega
+        # como 127.0.0.1 com Host "localhost": qualquer um da internet veria o
+        # codigo de instalacao e criaria o admin. Header de proxy = nao e local.
+        for h in ("X-Forwarded-For", "X-Forwarded-Host", "Forwarded", "X-Real-IP",
+                  "CF-Connecting-IP", "True-Client-IP"):
+            if self.headers.get(h):
+                return False
         return cliente in ("127.0.0.1", "::1") and host in ("localhost", "127.0.0.1", "::1")
 
     def _pagina_de_setup(self):
@@ -693,13 +713,17 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
             self._send_json({"status": "error", "error": "Perfil não encontrado"}, 404)
             return
         chave = "%s|pin|%s" % (self._client_ip(), pid)
+        # Contador por perfil, alem do por IP: so o IP deixava quem troca de
+        # endereco (IPv6 temporario) testar os 10 mil PINs sem parar.
+        chave_perfil = "pin|%s" % pid
         if perfil.get("pin"):
-            if _login_blocked(chave):
+            if _login_blocked(chave) or _login_blocked(chave_perfil):
                 self._send_json({"status": "error", "error":
                                  "Muitas tentativas. Espere alguns minutos."}, 429)
                 return
             if not _pin_confere(pid, str(body.get("pin", ""))):
                 _record_login_failure(chave)
+                _record_login_failure(chave_perfil)
                 self._send_json({"status": "error", "error": "PIN incorreto"}, 401)
                 return
             _clear_login_failures(chave)
@@ -784,8 +808,11 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 return
             if perfil.get("pin"):
                 chave = "%s|pin|%s" % (self._client_ip(), pid)
-                if _login_blocked(chave) or not _pin_confere(pid, str(body.get("current", ""))):
+                chave_perfil = "pin|%s" % pid
+                if (_login_blocked(chave) or _login_blocked(chave_perfil)
+                        or not _pin_confere(pid, str(body.get("current", "")))):
                     _record_login_failure(chave)
+                    _record_login_failure(chave_perfil)
                     self._send_json({"status": "error", "error": "PIN atual incorreto"}, 401)
                     return
         novo = body.get("pin")
@@ -835,6 +862,12 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         terceiro). Chromecast e <video> nao mandam Origin e passam normalmente."""
         if not _host_allowed(self.headers.get("Host")):
             self._send_error("Host nao permitido", 403)
+            return False
+        if (self.command == "POST" and self.headers.get("Origin")
+                and not _origin_mesmo_servidor(
+                    self.headers.get("Origin"), self.headers.get("Host"),
+                    [PORT] + list(range(HTTPS_PORT_BASE, HTTPS_PORT_BASE + 50)))):
+            self._send_error("Origem nao permitida", 403)
             return False
         if not _origin_allowed(self.headers.get("Origin")):
             # O receiver do Chromecast busca a faixa de legenda COM CORS — e
