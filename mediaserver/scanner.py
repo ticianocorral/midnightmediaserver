@@ -444,8 +444,14 @@ def scan_cloud(progress_base=0.0, progress_span=1.0):
     logical_root = _branding.logical_root()
     # --fast-list lista a nuvem inteira em poucas requisicoes, bem mais
     # rapido que andar diretorio por diretorio
-    tree = run_rclone_cmd(["lsjson", "--recursive", "--fast-list",
-                           _rc_remote(logical_root)])
+    try:
+        destino = _rc_remote(logical_root)
+    except ValueError as e:
+        # Sem nuvem configurada: falha so desta fonte. Deixar a excecao subir
+        # abortava scan_all e as fontes locais nem eram varridas.
+        print(f"[Midnight Media Server] Nuvem indisponivel: {e}", flush=True)
+        return False
+    tree = run_rclone_cmd(["lsjson", "--recursive", "--fast-list", destino])
     if not isinstance(tree, list):
         print(f"[Midnight Media Server] Falha ao listar a nuvem: {tree}", flush=True)
         log_notification("error", "Nao foi possivel listar a nuvem.")
