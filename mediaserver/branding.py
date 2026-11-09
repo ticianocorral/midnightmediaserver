@@ -151,7 +151,7 @@ _RAIO_SVG = 6
 _FUNDO = (0x05, 0x05, 0x05)
 # Troque ao mudar o desenho: entra no nome do arquivo em cache, entao PNGs de
 # versoes anteriores deixam de ser servidos.
-_VERSAO_ICONE = "v4"
+_VERSAO_ICONE = "v5"
 
 # Segmentos a b c d e f g de um digito (x, y, largura, altura) num quadro 6x11,
 # e quais acendem em cada digito de "12".
@@ -160,10 +160,17 @@ _SEG = {"a": (1, 0, 4, 1), "b": (5, 1, 1, 4), "c": (5, 6, 1, 4), "d": (1, 10, 4,
 _ACESOS = {1: "bc", 2: "abdeg"}
 # Escala dos digitos e posicao do par centralizado no quadro de 32.
 _DIGITOS = [1, 2]
-_ESC_DIGITO = 1.9
-_X_DIGITOS = 2.7
-_Y_DIGITOS = 5.55
+_ESC_DIGITO = 1.7
+_X_DIGITOS = 4.1
+_Y_DIGITOS = 3.6
 _PASSO_DIGITO = 8
+# "AM" (12:00 AM, meia-noite) em blocos de LED, no canto inferior direito, com a
+# borda direita alinhada ao ultimo digito. Glifos 3x5; (coluna, linha) acesos.
+_AM_PX = 0.9
+_AM_GLIFOS = (
+    ("010", "101", "111", "101", "101"),   # A
+    ("101", "111", "111", "101", "101"),   # M
+)
 
 # tamanho, arredondado (cantos vivos = icone comum; sem isso = maskable, que o
 # Android recorta por cima), fator (encolhe o desenho pra caber na zona segura
@@ -194,6 +201,14 @@ def _retangulos(tamanho, fator):
                 _Y_DIGITOS + sy * _ESC_DIGITO,
                 sw * _ESC_DIGITO, sh * _ESC_DIGITO,
                 "aceso" if nome in _ACESOS[digito] else "apagado")
+    direita = _X_DIGITOS + (_PASSO_DIGITO + 6) * _ESC_DIGITO
+    gx = direita - 7 * _AM_PX
+    gy = _Y_DIGITOS + 11 * _ESC_DIGITO + 1.6
+    for gi, glifo in enumerate(_AM_GLIFOS):
+        for r, linha in enumerate(glifo):
+            for c, bit in enumerate(linha):
+                if bit == "1":
+                    add(gx + (gi * 4 + c) * _AM_PX, gy + r * _AM_PX, _AM_PX, _AM_PX, "aceso")
     return rects
 
 

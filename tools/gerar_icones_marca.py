@@ -1,9 +1,9 @@
 """Gera os icones de marca que nao vem do branding.py.
 
-  favicon.svg / favicon.ico  so o "12" digital (7 segmentos), sem o videocassete;
+  favicon.svg / favicon.ico  o "12" digital (7 segmentos) + "AM" (12:00 AM), sem o videocassete;
                              copias em docs/assets e docs/press/assets.
-  app da TV (APK)            banner (launcher da Android TV) e ic_launcher (o
-                             proprio banner), a partir do wordmark horizontal (static/wordmark.svg).
+  app da TV (APK)            banner (launcher da Android TV, o wordmark) e ic_launcher
+                             (o icone do app: 12 digital + AM), a partir do wordmark horizontal (static/wordmark.svg).
 
 Uso: python3 tools/gerar_icones_marca.py   (requer Pillow)
 """
@@ -27,33 +27,52 @@ FONTE = "/System/Library/Fonts/Supplemental/Arial Black.ttf"
 SEG = {"a": (1, 0, 4, 1), "b": (5, 1, 1, 4), "c": (5, 6, 1, 4), "d": (1, 10, 4, 1),
        "e": (0, 6, 1, 4), "f": (0, 1, 1, 4), "g": (1, 5, 4, 1)}
 ACESOS = {"1": "bc", "2": "abdeg"}
+# Posicao do par "12" e do "AM" (12:00 AM, meia-noite) no quadro de 32 do icone.
+# Mesmo desenho de mediaserver/branding.py (icone do app, PWA, Mac, Windows, Linux).
+ESC, X0, Y0, GAP = 1.7, 4.1, 3.6, 8
+AM_PX = 0.9
+AM_GLIFOS = (("010", "101", "111", "101", "101"), ("101", "111", "111", "101", "101"))
+
+
+def am_blocos():
+    """(x, y, lado) de cada bloco aceso do AM, alinhado a direita do ultimo digito."""
+    direita = X0 + (GAP + 6) * ESC
+    gx, gy = direita - 7 * AM_PX, Y0 + 11 * ESC + 1.6
+    return [(gx + (gi * 4 + c) * AM_PX, gy + r * AM_PX, AM_PX)
+            for gi, g in enumerate(AM_GLIFOS) for r, linha in enumerate(g)
+            for c, bit in enumerate(linha) if bit == "1"]
 
 
 # ── favicon: so o "12" ───────────────────────────────────────
 def favicon_svg():
-    esc, x0, y0, gap = 1.9, 2.7, 5.55, 8
+    esc, x0, y0, gap = ESC, X0, Y0, GAP
     pecas = ['<rect width="32" height="32" rx="6" fill="#050505"/>']
     for i, dig in enumerate("12"):
         for nome, (x, y, w, h) in SEG.items():
             cor = ACESO if nome in ACESOS[dig] else APAGADO
             pecas.append('<rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" rx="0.4" fill="%s"/>'
                          % (x0 + (i * gap + x) * esc, y0 + y * esc, w * esc, h * esc, cor))
+    for x, y, l in am_blocos():
+        pecas.append('<rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" rx="0.15" fill="%s"/>'
+                     % (x, y, l, l, ACESO))
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">\n  '
             + "\n  ".join(pecas) + "\n</svg>\n")
 
 
-def favicon_png(lado):
+def favicon_png(lado, redondo=True):
     k = lado * SS / 32
     img = Image.new("RGBA", (int(32 * k),) * 2, (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, 32 * k - 1, 32 * k - 1], radius=6 * k, fill="#050505")
-    esc, x0, y0, gap = 1.9, 2.7, 5.55, 8
+    d.rounded_rectangle([0, 0, 32 * k - 1, 32 * k - 1], radius=(6 if redondo else 0) * k, fill="#050505")
+    esc, x0, y0, gap = ESC, X0, Y0, GAP
     for i, dig in enumerate("12"):
         for nome, (x, y, w, h) in SEG.items():
             cor = ACESO if nome in ACESOS[dig] else APAGADO
             px, py = x0 + (i * gap + x) * esc, y0 + y * esc
             d.rounded_rectangle([px * k, py * k, (px + w * esc) * k, (py + h * esc) * k],
                                 radius=0.4 * esc * k, fill=cor)
+    for x, y, l in am_blocos():
+        d.rounded_rectangle([x * k, y * k, (x + l) * k, (y + l) * k], radius=0.15 * k, fill=ACESO)
     return img.resize((lado, lado), Image.LANCZOS)
 
 
@@ -126,12 +145,9 @@ def banner(w=640, h=360):
 
 
 def icone(lado):
-    """O proprio banner, inteiro, centralizado num quadrado do mesmo fundo."""
-    img = Image.new("RGBA", (lado, lado), FUNDO)
-    b = banner().convert("RGBA")
-    b = b.resize((lado, max(1, round(lado * b.height / b.width))), Image.LANCZOS)
-    img.alpha_composite(b, (0, (lado - b.height) // 2))
-    return img
+    """Launcher da TV: o mesmo icone do app (12 digital + AM), em quadrado.
+    O banner (640x360) continua sendo o wordmark."""
+    return favicon_png(lado, redondo=False)
 
 
 if __name__ == "__main__":
