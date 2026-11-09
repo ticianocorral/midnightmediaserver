@@ -2062,7 +2062,7 @@
     html += `
         <div class="movie-card-overlay">
           <div class="movie-card-title">${escHtml(nameClean)}</div>
-          <div class="movie-card-subtitle">${formatSize(size)}${year ? ' • ' + year : ''}</div>
+          <div class="movie-card-subtitle">${formatSize(size)}${year ? ' • ' + escHtml(year) : ''}</div>
         </div>
       </div>`;
     return html;
@@ -2192,7 +2192,7 @@
       let metaParts = [];
       if (nfo && nfo.runtime) metaParts.push('<span><span class="label">Duração</span> ' + escHtml(nfo.runtime) + ' min</span>');
       if (nfo && nfo.mpaa) metaParts.push('<span><span class="label">Classificação</span> ' + escHtml(nfo.mpaa) + '</span>');
-      if (year) metaParts.push('<span><span class="label">Ano</span> ' + year + '</span>');
+      if (year) metaParts.push('<span><span class="label">Ano</span> ' + escHtml(year) + '</span>');
       if (nfo && nfo.premiered) metaParts.push('<span><span class="label">Estreia</span> ' + escHtml(nfo.premiered) + '</span>');
       if (nfo && nfo.country && nfo.country.length > 0) metaParts.push('<span><span class="label">País</span> ' + escHtml(nfo.country.join(', ')) + '</span>');
       if (nfo && nfo.source) metaParts.push('<span><span class="label">Fonte</span> ' + escHtml(nfo.source) + '</span>');
@@ -2239,7 +2239,7 @@
           ${posterImg}
         </div>
         <div class="movie-info-details">
-          ${year ? '<div class="badge">' + year + '</div>' : ''}
+          ${year ? '<div class="badge">' + escHtml(year) + '</div>' : ''}
           <h1>${escHtml(titleClean)}</h1>
           ${nfoHtml}
 
@@ -2250,7 +2250,7 @@
           </div>
 
           <div class="movie-info-actions">
-            ${videoPath ? '<button class="btn-play" onclick="playFromInfo(decodeURIComponent(\'' + enc(videoPath) + '\'), decodeURIComponent(\'' + enc(escHtml(titleClean)) + '\') ' + (subtitle ? ', decodeURIComponent(\'' + enc(folderPath + '/' + subtitle.Name) + '\')' : '') + ')"><svg class="icon-svg"><use href="#i-play"></use></svg> Assistir</button>' : '<button class="btn-play" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-play"></use></svg> Indisponível</button>'}
+            ${videoPath ? '<button class="btn-play" onclick="playFromInfo(decodeURIComponent(\'' + enc(videoPath) + '\'), decodeURIComponent(\'' + enc(titleClean) + '\') ' + (subtitle ? ', decodeURIComponent(\'' + enc(folderPath + '/' + subtitle.Name) + '\')' : '') + ')"><svg class="icon-svg"><use href="#i-play"></use></svg> Assistir</button>' : '<button class="btn-play" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-play"></use></svg> Indisponível</button>'}
             ${isLocalPath(folderPath)
                 ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-hard-drive"></use></svg> Local</span>'
                 : (_isCached(folderPath) ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-download"></use></svg> Baixado</span>' : '')}
@@ -4787,10 +4787,16 @@
     window.location.replace('/');
   }
 
+  // Escapa tambem aspas: escHtml e usado dentro de atributos (alt="...",
+  // title="...", data-*), e textContent->innerHTML so escapava & < >, deixando
+  // um titulo/pasta com `x" onload="...` fechar o atributo e rodar script.
   function escHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // Encoda para URL E escapa aspas — seguro para embutir em atributos onclick

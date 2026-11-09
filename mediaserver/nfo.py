@@ -155,7 +155,10 @@ def _fetch_nfo_raw(folder_path):
             return raw.decode("latin-1", errors="replace")
 
     nfo_path = f"{folder_path.strip('/')}/{folder_path.strip('/').split('/')[-1]}.nfo"
-    remote_path = _rc_remote(nfo_path)
+    try:
+        remote_path = _rc_remote(nfo_path)
+    except ValueError:
+        return None
     try:
         result = subprocess.run(
             ["rclone", "cat", remote_path],

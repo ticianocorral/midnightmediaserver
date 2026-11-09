@@ -154,9 +154,25 @@ def rc(logical_path):
     return _strip_logical_root(logical_path)
 
 
+class CaminhoInvalido(ValueError):
+    """Path que nao pode virar destino do rclone (sem nuvem ou com '..')."""
+
+
 def rc_remote(logical_path):
-    """Path logico -> destino completo pro rclone ("b2:acervo/Acao/...")."""
-    return remote_atual() + ":" + prefixo_nuvem() + rc(logical_path)
+    """Path logico -> destino completo pro rclone ("b2:acervo/Acao/...").
+
+    Levanta CaminhoInvalido quando nao ha nuvem configurada: sem remote o
+    destino viraria ":<path>", que o rclone le como backend on-the-fly
+    (":local:/etc/..." le qualquer arquivo da maquina). Tambem recusa
+    segmentos '..', que escapam da pasta do acervo em remotes local/alias/sftp.
+    """
+    remote = remote_atual()
+    if not remote:
+        raise CaminhoInvalido("nuvem nao configurada")
+    rel = rc(logical_path)
+    if any(seg in ("..", ".") for seg in rel.replace("\\", "/").split("/")):
+        raise CaminhoInvalido("path com '..'")
+    return remote + ":" + prefixo_nuvem() + rel
 
 
 def serve_path(logical_path):
