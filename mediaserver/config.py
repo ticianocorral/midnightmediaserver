@@ -84,6 +84,10 @@ SOURCES_PATH = CACHE_DIR / "sources.json"
 # num backup do catalogo.
 BRANDING_PATH = CACHE_DIR / "branding.json"
 SECRET_PATH = CACHE_DIR / "secret.key"
+# Sessoes encerradas pelo "Sair": id -> validade (sem isso o cookie roubado valia ate 90 dias).
+SESSOES_REVOGADAS_PATH = CACHE_DIR / "sessoes-revogadas.json"
+# Falhas de login/PIN recentes: sobrevivem a reiniciar o servidor (antes o contador zerava).
+TENTATIVAS_LOGIN_PATH = CACHE_DIR / "tentativas-login.json"
 # Conexão da nuvem feita pelo wizard da UI: qual remote rclone usar e a pasta
 # de dentro dele onde mora o acervo. Segredos (quando o wizard cria um remote
 # novo) ficam obscurecidos no rclone.conf; aqui fica so o endereço.

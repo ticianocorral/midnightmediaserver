@@ -28,7 +28,7 @@ import time
 from .log import aviso
 
 from .config import (
-    AUTH_PATH, SECRET_PATH, SESSION_MAX_AGE, CAST_TOKEN_MAX_AGE,
+    AUTH_PATH, SECRET_PATH, SESSOES_REVOGADAS_PATH, TENTATIVAS_LOGIN_PATH, SESSION_MAX_AGE, CAST_TOKEN_MAX_AGE,
     MIN_PASSWORD_LEN, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW,
 )
 
@@ -474,10 +474,75 @@ def _sign(msg):
                     hashlib.sha256).hexdigest()
 
 
-def _issue_session(profile_id="", manage_until=0):
+# ── Sessoes encerradas ───────────────────────────────────────
+# O cookie e assinado e sem estado, entao "Sair" so apagava o cookie no navegador: uma copia
+# roubada continuava valendo ate 90 dias. Cada sessao agora tem um id ("s") e o "Sair" o poe
+# nesta lista (id -> validade), guardada em disco e podada quando a sessao ja teria expirado.
+_revogadas = None
+_MAX_REVOGADAS = 5000
+
+
+def _sid_do_token(token, payload):
+    # cookies emitidos antes desta versao nao tem "s": o hash do proprio token os identifica
+    return str(payload.get("s") or "t" + hashlib.sha256(token.encode("utf-8")).hexdigest()[:20])
+
+
+def _revogadas_carregadas():
+    global _revogadas
+    if _revogadas is None:
+        try:
+            dados = json.loads(SESSOES_REVOGADAS_PATH.read_text(encoding="utf-8"))
+            _revogadas = {str(k): float(v) for k, v in dados.items()} if isinstance(dados, dict) else {}
+        except (OSError, ValueError):
+            _revogadas = {}
+    return _revogadas
+
+
+def _gravar_revogadas(agora):
+    for k in [k for k, v in _revogadas.items() if v < agora]:        # ja expiraria sozinha
+        del _revogadas[k]
+    while len(_revogadas) > _MAX_REVOGADAS:                           # teto: descarta as que expiram antes
+        del _revogadas[min(_revogadas, key=_revogadas.get)]
+    tmp = SESSOES_REVOGADAS_PATH.with_name(SESSOES_REVOGADAS_PATH.name + ".tmp")
+    try:
+        fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(_revogadas, f)
+        os.replace(tmp, SESSOES_REVOGADAS_PATH)
+    except OSError as e:
+        aviso("sessoes revogadas nao gravou em disco (valem so ate reiniciar)", e)
+
+
+def _ler_payload(token):
+    """Payload do cookie se a assinatura confere (sem checar validade/epocas), senao None."""
+    if not token or "." not in token:
+        return None
+    raw, sig = token.rsplit(".", 1)
+    if not hmac.compare_digest(sig, _sign(raw)):
+        return None
+    try:
+        return json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
+    except (ValueError, TypeError):
+        return None
+
+
+def _revogar_sessao(token):
+    """Encerra de verdade a sessao deste cookie ("Sair"). False se o cookie nao e valido."""
+    payload = _ler_payload(token)
+    if payload is None:
+        return False
+    agora = time.time()
+    with _auth_lock:
+        _revogadas_carregadas()[_sid_do_token(token, payload)] = float(payload.get("e", agora))
+        _gravar_revogadas(agora)
+    return True
+
+
+def _issue_session(profile_id="", manage_until=0, sid=None):
     conta = _account() or {}
     perfil = _get_profile(profile_id) or {}
     payload = {
+        "s": sid or secrets.token_hex(8),               # id da sessao (trocar de perfil mantem o id)
         "u": conta.get("username", ""),
         "e": int(time.time()) + SESSION_MAX_AGE,
         "g": _global_epoch(),
@@ -510,6 +575,10 @@ def _session_info(token):
         return None
     if float(payload.get("e", 0)) < time.time():
         return None
+    with _auth_lock:
+        sid = _sid_do_token(token, payload)
+        if sid in _revogadas_carregadas():
+            return None
     if int(payload.get("g", -1)) != _global_epoch():
         return None
     conta = _account()
@@ -524,7 +593,7 @@ def _session_info(token):
         if not p or int(payload.get("pe", -1)) != int(p.get("epoch", 0)):
             return None
         perfil = p
-    return {"account": conta["username"], "profile": perfil,
+    return {"account": conta["username"], "profile": perfil, "sid": sid,
             "manage": float(payload.get("m", 0)) > time.time()}
 
 
@@ -558,17 +627,63 @@ def _valid_media_token(media_path, token):
     return hmac.compare_digest(sig, _sign("m|%s|%d" % (media_path, exp)))
 
 
+_tentativas_lidas = False
+
+
+def _tentativas_garantir():
+    """Carrega do disco, uma vez, as falhas recentes (o limite de tentativas sobrevive a reinicio:
+    sem isso, quem errava o PIN 8 vezes zerava o contador so de o servidor reiniciar)."""
+    global _tentativas_lidas
+    if _tentativas_lidas:
+        return
+    _tentativas_lidas = True
+    try:
+        dados = json.loads(TENTATIVAS_LOGIN_PATH.read_text(encoding="utf-8"))
+        agora = time.time()
+        for chave, ts in (dados.items() if isinstance(dados, dict) else []):
+            vivas = [float(t) for t in ts if float(t) > agora - LOGIN_WINDOW]
+            if vivas:
+                _login_attempts.setdefault(str(chave), []).extend(vivas)
+    except (OSError, ValueError, TypeError):
+        pass
+
+
+def _tentativas_gravar():
+    agora = time.time()
+    limpo = {k: [t for t in v if t > agora - LOGIN_WINDOW] for k, v in _login_attempts.items()}
+    limpo = {k: v for k, v in limpo.items() if v}
+    tmp = TENTATIVAS_LOGIN_PATH.with_name(TENTATIVAS_LOGIN_PATH.name + ".tmp")
+    try:
+        fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(limpo, f)
+        os.replace(tmp, TENTATIVAS_LOGIN_PATH)
+    except OSError as e:
+        aviso("tentativas de login nao gravaram em disco (valem so ate reiniciar)", e)
+
+
 def _login_blocked(ip):
-    now = time.time()
-    hits = [t for t in _login_attempts.get(ip, []) if t > now - LOGIN_WINDOW]
-    _login_attempts[ip] = hits
-    return len(hits) >= LOGIN_MAX_ATTEMPTS
+    with _auth_lock:
+        _tentativas_garantir()
+        now = time.time()
+        hits = [t for t in _login_attempts.get(ip, []) if t > now - LOGIN_WINDOW]
+        _login_attempts[ip] = hits
+        return len(hits) >= LOGIN_MAX_ATTEMPTS
 
 
 def _record_login_failure(ip):
-    _login_attempts.setdefault(ip, []).append(time.time())
+    with _auth_lock:
+        _tentativas_garantir()
+        _login_attempts.setdefault(ip, []).append(time.time())
+        _tentativas_gravar()
 
 
 def _clear_login_failures(ip):
     """Zera o rate limit do IP apos uma entrada bem-sucedida."""
-    _login_attempts.pop(ip, None)
+    with _auth_lock:
+        _tentativas_garantir()
+        existia = _login_attempts.pop(ip, None)
+        if existia:
+            _tentativas_gravar()
+
+

@@ -16,6 +16,7 @@ import time
 import urllib.request
 from pathlib import Path
 
+from . import rclone_auth
 from .config import (
     CACHED_FILES_PATH, PROJECT_ROOT, RCLONE_GUI_ENABLED, env,
     RCLONE_SERVE_PORT, RCLONE_WEBGUI_PORT,
@@ -174,7 +175,8 @@ def _urlopen_ok(url, timeout=2):
     """True se a URL responder HTTP sem erro."""
     try:
         import urllib.request as _ur
-        _ur.urlopen(url, timeout=timeout)
+        # com a credencial do rclone local: o serve/rcd agora exigem senha
+        _ur.urlopen(_ur.Request(url, headers=rclone_auth.cabecalho()), timeout=timeout)
         return True
     except (OSError, ValueError, http.client.HTTPException):
         return False
@@ -238,9 +240,10 @@ def start_rclone_serve():
         # Já existe um serve respondendo (ex.: iniciado externamente)?
         try:
             import urllib.request as ureq_check
-            ureq_check.urlopen(f"http://localhost:{RCLONE_SERVE_PORT}/", timeout=2)
+            _cab = rclone_auth.cabecalho()
+            ureq_check.urlopen(ureq_check.Request(f"http://localhost:{RCLONE_SERVE_PORT}/", headers=_cab), timeout=2)
             try:
-                ureq_check.urlopen(f"http://localhost:{RCLONE_SERVE_PORT}/?format=json", timeout=5)
+                ureq_check.urlopen(ureq_check.Request(f"http://localhost:{RCLONE_SERVE_PORT}/?format=json", headers=_cab), timeout=5)
                 print(f"[Midnight Media Server] rclone serve already running on localhost:{RCLONE_SERVE_PORT}", flush=True)
                 return "external"
             except Exception:
@@ -273,6 +276,8 @@ def start_rclone_serve():
                  "--log-level", "ERROR"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                # senha aleatoria por execucao, pelo ambiente (argumento apareceria no `ps`)
+                env={**os.environ, **rclone_auth.env_serve()},
             )
             rclone_server_proc = proc
             print(f"[Midnight Media Server] Starting rclone serve http on localhost:{RCLONE_SERVE_PORT}...", end=" ", flush=True)
@@ -324,6 +329,11 @@ def restart_rclone_serve():
     return {"status": "ok", "serve_running": True, "external": proc == "external"}
 
 
+def _url_da_gui():
+    """URL da GUI do rclone com a credencial (so o admin recebe; senha aleatoria por execucao)."""
+    return "http://%s:%s@127.0.0.1:%d/" % (rclone_auth.USUARIO, rclone_auth.senha(), RCLONE_WEBGUI_PORT)
+
+
 def start_rclone_webgui():
     """Sobe o 'rclone rcd --rc-web-gui' (configurador oficial do rclone) na porta 5572."""
     global rclone_webgui_proc
@@ -335,21 +345,21 @@ def start_rclone_webgui():
         if rclone_webgui_proc is not None and rclone_webgui_proc.poll() is None:
             return {
                 "status": "ok", "running": True, "local_only": True,
-                "url": f"http://127.0.0.1:{RCLONE_WEBGUI_PORT}/",
+                "url": _url_da_gui(),
             }
-        # Sem usuario/senha: a GUI so escuta em 127.0.0.1, entao nao ha
-        # credencial para vazar por HTTP.
-        _webgui_credentials["user"] = ""
-        _webgui_credentials["pass"] = ""
+        # A API rc (que entrega `config/dump` com as credenciais da nuvem) exige a senha
+        # aleatoria desta execucao; antes era --rc-no-auth, aberta a qualquer processo local.
+        _webgui_credentials["user"] = rclone_auth.USUARIO
+        _webgui_credentials["pass"] = rclone_auth.senha()
         try:
             proc = subprocess.Popen(
                 ["rclone", "rcd",
                  "--rc-web-gui",
                  "--rc-web-gui-no-open-browser",
-                 "--rc-addr", f"127.0.0.1:{RCLONE_WEBGUI_PORT}",
-                 "--rc-no-auth"],
+                 "--rc-addr", f"127.0.0.1:{RCLONE_WEBGUI_PORT}"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env={**os.environ, **rclone_auth.env_rc()},
             )
         except FileNotFoundError:
             return {"status": "error", "error": "rclone não está instalado."}
@@ -366,7 +376,7 @@ def start_rclone_webgui():
             return {"status": "error", "error": f"rclone rcd encerrou com código {proc.returncode}."}
         return {
             "status": "ok", "running": True, "local_only": True,
-            "url": f"http://127.0.0.1:{RCLONE_WEBGUI_PORT}/",
+            "url": _url_da_gui(),
         }
 
 
