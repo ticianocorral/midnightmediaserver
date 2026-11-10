@@ -5,6 +5,7 @@ consultas (le do banco, com fallback pra nuvem).
 """
 
 import json
+import re
 import subprocess
 import sys
 import time
@@ -16,6 +17,16 @@ from .db import get_db
 from .paths import rc_remote as _rc_remote
 from . import localfs as _localfs
 from . import sources as _sources
+
+def _numero(valor, decimais):
+    """Normaliza nota/votos de NFO para numero em texto, ou None (qualquer outra coisa)."""
+    if valor is None:
+        return None
+    t = str(valor).strip().replace(",", ".") if decimais else re.sub(r"[.,\s]", "", str(valor).strip())
+    if not re.fullmatch(r"\d{1,9}(\.\d{1,3})?" if decimais else r"\d{1,12}", t):
+        return None
+    return t
+
 
 def _parse_nfo(xml_text):
     """Parse Kodi-style NFO XML into a dict of metadata."""
@@ -46,6 +57,9 @@ def _parse_nfo(xml_text):
         return text("rating"), None
 
     rating_val, rating_votes = rating_info()
+    # nota e votos so existem como numero: texto livre do NFO nao segue para a interface
+    rating_val = _numero(rating_val, decimais=True)
+    rating_votes = _numero(rating_votes, decimais=False)
 
     # Actors
     actors = []

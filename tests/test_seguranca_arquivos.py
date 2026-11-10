@@ -117,3 +117,27 @@ def test_wizard_passa_chave_valor_em_um_argumento(monkeypatch):
     criar = chamadas[0]
     assert "account=--config=/tmp/x" in criar and "key=-x" in criar
     assert "--config=/tmp/x" not in criar and "-x" not in criar           # nunca como argumento solto
+
+
+# ── NFO: nota e votos so como numero ─────────────────────────
+@pytest.mark.parametrize("bruto,esperado", [
+    ("7.5", "7.5"), ("7,5", "7.5"), ("9", "9"),
+    ("8<img src=x onerror=alert(1)>", None), ("", None), (None, None), ("1e9", None), ("12345678901", None),
+])
+def test_nota_do_nfo_so_numero(bruto, esperado):
+    from mediaserver import nfo
+    assert nfo._numero(bruto, decimais=True) == esperado
+
+
+@pytest.mark.parametrize("bruto,esperado", [("1.234", "1234"), ("12345", "12345"), ("<svg onload=1>", None), ("", None), (None, None)])
+def test_votos_do_nfo_so_numero(bruto, esperado):
+    from mediaserver import nfo
+    assert nfo._numero(bruto, decimais=False) == esperado
+
+
+def test_nfo_malicioso_nao_leva_html_em_nota_nem_votos():
+    from mediaserver import nfo
+    xml = ("<movie><title>T</title><rating>8<img src=x onerror=1></rating>"
+           "<ratings><rating><value>9</value><votes>1<svg onload=1></votes></rating></ratings></movie>")
+    meta = nfo._parse_nfo(xml.replace("<img src=x onerror=1>", "&lt;img src=x onerror=1&gt;").replace("<svg onload=1>", "&lt;svg onload=1&gt;"))
+    assert "<" not in str(meta["rating"]) and "<" not in str(meta["votes"])

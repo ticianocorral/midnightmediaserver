@@ -289,8 +289,8 @@
         const stars = starFull.repeat(full) + (half ? starFull : '') + starEmpty.repeat(Math.max(0, 5 - full - half));
         nfoHtml += `<div class="movie-rating">
           <span class="stars">${stars}</span>
-          <span class="num">${nfo.rating}</span>
-          ${nfo.votes ? '<span class="votes">(' + nfo.votes + ' votos)</span>' : ''}
+          <span class="num">${escHtml(nfo.rating)}</span>
+          ${nfo.votes ? '<span class="votes">(' + escHtml(nfo.votes) + ' votos)</span>' : ''}
         </div>`;
       }
 
