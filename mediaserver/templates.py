@@ -320,9 +320,17 @@ _PROFILES_JS = """
     pinAlvo = p; $('#pinNome').textContent = p.name; limparPin('#pinEntrada'); $('#pinMsg').textContent = '';
     abrir('#modalPin'); setTimeout(function () { $('#pinEntrada input').focus(); }, 50);
   }
-  function selecionar(id, pin) {
-    return api('/api/profiles/select', { id: id, pin: pin }).then(function (d) {
-      if (d.status === 'ok') { entrar(); return; }
+  var selecaoPendente = null;      // saindo do perfil infantil: falta a senha da conta
+  function selecionar(id, pin, senha) {
+    return api('/api/profiles/select', { id: id, pin: pin, password: senha || '' }).then(function (d) {
+      if (d.status === 'ok') { selecaoPendente = null; fechar('#modalSenha'); entrar(); return; }
+      if (d.precisaSenha) {
+        selecaoPendente = { id: id, pin: pin };
+        fechar('#modalPin');
+        $('#senhaConta').value = ''; $('#senhaMsg').textContent = senha ? 'Senha incorreta' : '';
+        abrir('#modalSenha'); setTimeout(function () { $('#senhaConta').focus(); }, 50);
+        return;
+      }
       $('#pinMsg').textContent = d.error || 'Não foi possível entrar.'; limparPin('#pinEntrada');
       var i = $('#pinEntrada input'); if (i) i.focus();
     });
@@ -360,10 +368,12 @@ _PROFILES_JS = """
   function alternarGerenciar() {
     if (estado.editando) { estado.editando = false; desenhar(); return; }
     if (estado.podeGerenciar) { estado.editando = true; desenhar(); return; }
+    selecaoPendente = null;
     $('#senhaConta').value = ''; $('#senhaMsg').textContent = ''; abrir('#modalSenha');
     setTimeout(function () { $('#senhaConta').focus(); }, 50);
   }
   function confirmarSenha() {
+    if (selecaoPendente) { selecionar(selecaoPendente.id, selecaoPendente.pin, $('#senhaConta').value); return; }
     api('/api/profiles/unlock', { password: $('#senhaConta').value }).then(function (d) {
       if (d.status !== 'ok') { $('#senhaMsg').textContent = d.error || 'Senha incorreta'; return; }
       fechar('#modalSenha'); return api('/api/profiles').then(function (dd) { estado.editando = true; aplicar(dd); });
@@ -446,7 +456,7 @@ _PROFILES_JS = """
     $('#btnGerenciar').addEventListener('click', alternarGerenciar);
     $('#btnSair').addEventListener('click', sairDaConta);
     $('#pinCancelar').addEventListener('click', function () { fechar('#modalPin'); });
-    $('#senhaCancelar').addEventListener('click', function () { fechar('#modalSenha'); });
+    $('#senhaCancelar').addEventListener('click', function () { selecaoPendente = null; fechar('#modalSenha'); });
     $('#senhaOk').addEventListener('click', confirmarSenha);
     $('#senhaConta').addEventListener('keydown', function (e) { if (e.key === 'Enter') confirmarSenha(); });
     $('#edCancelar').addEventListener('click', function () { fechar('#modalEdicao'); });
@@ -454,7 +464,7 @@ _PROFILES_JS = """
     $('#edExcluir').addEventListener('click', excluirPerfil);
     $('#edInfantil').addEventListener('change', function () { $('#edAdminLinha').style.display = this.checked ? 'none' : ''; });
     $('#edNome').addEventListener('keydown', function (e) { if (e.key === 'Enter') salvarEdicao(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') ['#modalPin', '#modalSenha', '#modalEdicao'].forEach(fechar); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { selecaoPendente = null; ['#modalPin', '#modalSenha', '#modalEdicao'].forEach(fechar); } });
     api('/api/profiles').then(function (d) {
       if (d.status !== 'ok') { window.location.replace('/'); return; }
       estado.editando = false; aplicar(d);

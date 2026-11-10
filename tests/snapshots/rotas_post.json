@@ -15,7 +15,7 @@
   "admin": 404,
   "anon": 401,
   "comum": 404,
-  "infantil": 404
+  "infantil": 403
  },
  "/api/clear-cache": {
   "admin": 200,
@@ -105,7 +105,7 @@
   "admin": 200,
   "anon": 401,
   "comum": 200,
-  "infantil": 200
+  "infantil": 403
  },
  "/api/restore/b2": {
   "admin": 400,
@@ -147,7 +147,7 @@
   "admin": 200,
   "anon": 401,
   "comum": 200,
-  "infantil": 200
+  "infantil": 403
  },
  "/api/watched": {
   "admin": 400,
