@@ -49,8 +49,18 @@ class CacheRotas:
     """Scan, backup/restauracao e cache de video."""
 
     # API: Refresh cache (escaneia todas as fontes, ou so uma)
+    def _bloqueia_infantil(self):
+        """Perfil infantil nao dispara trabalho pesado (scan, download, limpeza de cache):
+        gasta CPU, banda e disco do servidor e nao faz parte do que ele precisa."""
+        if self._so_infantil():
+            self._send_json({"status": "error", "error": "Indisponível neste perfil"}, 403)
+            return True
+        return False
+
     def _get_api_refresh(self, path, params):
         """GET /api/refresh"""
+        if self._bloqueia_infantil():
+            return
         source_id = params.get("source", [""])[0].strip() or None
         self._send_json({"status": _scanner.start_background_scan(source_id)})
         return
@@ -58,7 +68,12 @@ class CacheRotas:
     # API: Scan progress
     def _get_api_scan_progress(self, path, params):
         """GET /api/scan-progress"""
-        self._send_json(_scanner.get_progress())
+        prog = _scanner.get_progress()
+        if self._so_infantil():
+            # os campos *_current trazem o nome do filme/fonte sendo escaneado: nao pode
+            # mostrar ao perfil infantil titulos que ele nao tem permissao de ver
+            prog = {k: ("" if k.endswith("_current") else v) for k, v in prog.items()}
+        self._send_json(prog)
         return
 
     # API: Download backup (.zip)
@@ -161,6 +176,8 @@ class CacheRotas:
     # API: Download a movie file to cache (forces VFS caching in background)
     def _get_api_cache_download(self, path, params):
         """GET /api/cache-download"""
+        if self._bloqueia_infantil():
+            return
         folder_path = params.get("path", [""])[0]
         if not folder_path:
             self._send_json({"status": "error", "error": "Missing path"}, 400)
@@ -352,6 +369,8 @@ class CacheRotas:
     # API: Remove single movie from VFS cache
     def _get_api_uncache(self, path, params):
         """GET /api/uncache"""
+        if self._bloqueia_infantil():
+            return
         folder_path = params.get("path", [""])[0]
         if not folder_path:
             self._send_json({"status": "error", "error": "Missing path"}, 400)

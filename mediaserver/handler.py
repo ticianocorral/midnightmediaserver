@@ -741,6 +741,24 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
                 self._send_json({"status": "error", "error": "PIN incorreto"}, 401)
                 return
             _clear_login_failures(chave)
+        # Sair de um perfil INFANTIL para um que nao e infantil exige a senha da conta.
+        # Sem isso a crianca clicava no perfil do admin (sem PIN) e virava admin: via
+        # tudo, mudava ajustes e desligava o proprio filtro. O PIN e opcional; a senha
+        # da conta a crianca nao tem.
+        if self._so_infantil() and not perfil.get("infantil"):
+            ip = self._client_ip()
+            if _login_blocked(ip):
+                self._send_json({"status": "error", "error":
+                                 "Muitas tentativas. Espere alguns minutos."}, 429)
+                return
+            conta = (self._session_info() or {}).get("account", "")
+            if not _check_credentials(conta, str(body.get("password", ""))):
+                if body.get("password"):
+                    _record_login_failure(ip)
+                self._send_json({"status": "error", "precisaSenha": True, "error":
+                                 "Para sair do perfil infantil, digite a senha da conta."}, 401)
+                return
+            _clear_login_failures(ip)
         info = self._session_info() or {}
         self._start_session(pid, manage=bool(info.get("manage")))
         self._send_json({"status": "ok"})
