@@ -10,8 +10,8 @@ import os
 import sys
 import tempfile
 import threading
-import urllib.error
-import urllib.request
+import http.client
+import urllib.parse
 from pathlib import Path
 
 _HOME = tempfile.mkdtemp(prefix="ms-test-home-")
@@ -53,20 +53,24 @@ class Cliente:
             h["Content-Type"] = "application/json"
         if self.cookies:
             h["Cookie"] = "; ".join("%s=%s" % kv for kv in self.cookies.items())
-        r = urllib.request.Request(self.base + caminho, data=data, headers=h, method=metodo)
+        # http.client direto: independe de urllib, que alguns testes trocam por mock
+        host = urllib.parse.urlparse(self.base).netloc
+        h.setdefault("Host", host)
+        conn = http.client.HTTPConnection(host, timeout=15)
         try:
-            resp = urllib.request.urlopen(r, timeout=15)
-        except urllib.error.HTTPError as e:
-            resp = e
+            conn.request(metodo, caminho, body=data, headers=h)
+            resp = conn.getresponse()
+            corpo_resp = resp.read()
+        finally:
+            conn.close()
         for c in resp.headers.get_all("Set-Cookie") or []:
             nome, _, resto = c.partition("=")
             self.cookies[nome] = resto.split(";")[0]
-        corpo_resp = resp.read()
         try:
             js = json.loads(corpo_resp)
         except ValueError:
             js = None
-        return Resposta(getattr(resp, "status", None) or resp.code, resp.headers, corpo_resp, js)
+        return Resposta(resp.status, resp.headers, corpo_resp, js)
 
     def get(self, caminho, **kw):
         return self.req("GET", caminho, **kw)
