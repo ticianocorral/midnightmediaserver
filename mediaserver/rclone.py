@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import signal
+import http.client
 import subprocess
 import threading
 import time
@@ -175,7 +176,7 @@ def _urlopen_ok(url, timeout=2):
         import urllib.request as _ur
         _ur.urlopen(url, timeout=timeout)
         return True
-    except Exception:
+    except (OSError, ValueError, http.client.HTTPException):
         return False
 
 
@@ -194,7 +195,7 @@ def _porta_responde(url, timeout=2):
         return True
     except _ue.HTTPError:
         return True
-    except Exception:
+    except (OSError, ValueError, http.client.HTTPException):
         return False
 
 
@@ -432,7 +433,7 @@ def get_rclone_status():
         if res.returncode == 0 and res.stdout.strip():
             status["installed"] = True
             status["version"] = res.stdout.strip().splitlines()[0]
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         pass
 
     if not status["installed"]:
