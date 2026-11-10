@@ -1,0 +1,440 @@
+{
+ "/": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/all-movies": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/backup": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/backup/b2": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/backup/local": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/branding": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/branding/set": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/cache-download": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 405,
+  "infantil": 405
+ },
+ "/api/cache-download-progress": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/cache-manager": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/cache-status": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/check-cached": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/clear-cache": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/colecoes/create": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/colecoes/delete": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/colecoes/update": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/collection": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/collections": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/continue-watching": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/genero": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/generos": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/generos/atribuir": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/generos/create": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/generos/de": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/generos/delete": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/generos/renomear": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/genres": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/infantil/marcar": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/info": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/list": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/movie-detail": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/nuvem/conectar": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/nuvem/desconectar": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/nuvem/status": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/organizar/buscar": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/organizar/historico": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/organizar/itens": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/prepare-status": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/prepared": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/profiles": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/progress": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/rclone/providers": {
+  "admin": "RemoteDisconnected",
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/rclone/remotes": {
+  "admin": "RemoteDisconnected",
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/rclone/status": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/rclone/wizard": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/recent-movies": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/refresh": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 405,
+  "infantil": 405
+ },
+ "/api/restore/b2": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/scan-progress": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/scrape/capas": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/scrape/pendentes": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/scrape/search": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/scrape/status": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/search": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/serie": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/series": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/sources": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/sources/add": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/sources/detect": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/sources/remove": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/stream": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
+ "/api/subtitle": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 403
+ },
+ "/api/subtitle?path=%2Fx.mkv": {
+  "admin": 404,
+  "anon": 401,
+  "comum": 404,
+  "infantil": 403
+ },
+ "/api/uncache": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 405,
+  "infantil": 405
+ },
+ "/api/watched": {
+  "admin": 405,
+  "anon": 401,
+  "comum": 405,
+  "infantil": 405
+ },
+ "/branding.css": {
+  "admin": 200,
+  "anon": 200,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/ca.crt": {
+  "admin": 404,
+  "anon": 404,
+  "comum": 404,
+  "infantil": 404
+ },
+ "/favicon.ico": {
+  "admin": 200,
+  "anon": 200,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/icone-192.png": {
+  "admin": 200,
+  "anon": 200,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/manifest.webmanifest": {
+  "admin": 200,
+  "anon": 200,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/perfis": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/rota-que-nao-existe": {
+  "admin": 404,
+  "anon": 401,
+  "comum": 404,
+  "infantil": 404
+ },
+ "/static/app.js": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ }
+}
