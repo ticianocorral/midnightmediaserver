@@ -171,6 +171,10 @@ ADMIN_PATHS = frozenset({
     "/api/backup", "/api/backup/local", "/api/backup/b2",
     "/api/restore", "/api/restore/b2",
     "/api/infantil/marcar",
+    # Mexem no processo do rclone e no cache de todos os usuarios: derrubar o
+    # stream de quem esta assistindo, apagar o cache VFS, abrir a GUI do rclone.
+    "/api/rclone/webgui/start", "/api/rclone/webgui/stop",
+    "/api/rclone/serve/restart", "/api/clear-cache",
     "/api/colecoes/create", "/api/colecoes/update", "/api/colecoes/delete",
     "/api/generos/create", "/api/generos/delete", "/api/generos/atribuir",
     "/api/generos/renomear",

@@ -512,7 +512,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
             return
         # O prepare trabalha em fontes: local = path de disco; nuvem =
         # descriptor remoto (o prepare baixa e converte; ver _fonte_de).
-        fonte = _fonte_de(file_path)
+        fonte = self._fonte_de(file_path)
         if fonte is None:
             # Nuvem/fonte remota sem descriptor: fica como sempre foi —
             # o receptor recebe o arquivo original.
@@ -2197,6 +2197,11 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         marcar a série vale para todos os episódios. Aceita o path com ou sem
         a barra inicial do namespace lógico."""
         caminho = "/" + str(caminho_midia or "").strip("/")
+        # '..' e '.' sao resolvidos depois pelo disco e pelo rclone, mas aqui
+        # o filtro olha o texto: '/Local/hd/<marcado>/../<adulto>/x.mkv' teria
+        # o ancestral marcado e tocaria outro filme. Recusa em vez de normalizar.
+        if any(seg in ("..", ".") for seg in caminho.replace("\\", "/").split("/")):
+            return False
         alvos = [caminho]
         pasta = caminho.rsplit("/", 1)[0]
         while pasta and pasta != "/":
