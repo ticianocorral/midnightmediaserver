@@ -12,7 +12,24 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${MEDIA_SERVER_REPO:-ticianocorral/midnightmediaserver}"
-REF="${MEDIA_SERVER_REF:-main}"
+REF=""     # resolver_ref(): ultima release (ou MEDIA_SERVER_REF)
+
+# ─── Qual versao instalar ───────────────────────────────
+# Fixa na ULTIMA RELEASE, nao na branch main: quem roda "curl | bash" executa o que estiver la, e a
+# main muda a cada commit. MEDIA_SERVER_REF (tag ou branch) continua mandando quando definido.
+# Sem rede/API do GitHub, cai na main avisando.
+resolver_ref() {
+    if [ -n "${MEDIA_SERVER_REF:-}" ]; then REF="$MEDIA_SERVER_REF"; return 0; fi
+    local tag
+    tag="$(curl -fsSL -m 10 "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null \
+        | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)" || tag=""
+    if [[ "$tag" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+        REF="$tag"
+    else
+        REF="main"
+        echo "  ! Nao consegui descobrir a ultima release; usando a branch main." >&2
+    fi
+}
 
 aviso() {
     osascript -e "display dialog \"$1\" with title \"Midnight Media Server\" buttons {\"Continuar\"} default button 1 with icon note" >/dev/null
@@ -36,6 +53,7 @@ fi
 # ── Projeto ao lado ou baixar ────────────────────────────────
 if [ ! -f "$DIR/install.sh" ]; then
     aviso "O instalador oficial (install.sh) não está junto deste arquivo. Vou baixá-lo do GitHub — se o repositório for privado, baixe o projeto e rode este arquivo de dentro da pasta."
+    resolver_ref
     curl -fsSL "https://raw.githubusercontent.com/$REPO/$REF/install.sh" -o "$DIR/install.sh" \
         || { aviso "Não consegui baixar o install.sh (repositório privado?). Baixe o projeto e tente de novo."; exit 1; }
 fi

@@ -48,6 +48,7 @@ import time
 import urllib.parse
 import urllib.request
 from .log import aviso
+from . import rclone_auth
 from collections import deque
 from pathlib import Path
 
@@ -627,7 +628,8 @@ def _baixar_remoto(remoto, destino, chave, base=0, teto=40):
            % (RCLONE_SERVE_PORT, urllib.parse.quote(str(remoto).lstrip("/"),
                                                     safe="/")))
     try:
-        resp = urllib.request.urlopen(url, timeout=120)
+        resp = urllib.request.urlopen(
+            urllib.request.Request(url, headers=rclone_auth.cabecalho()), timeout=120)
     except Exception as e:
         print("[Midnight Media Server] Baixa da nuvem falhou (%s): %s" % (remoto, e),
               flush=True)

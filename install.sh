@@ -12,8 +12,25 @@
 set -euo pipefail
 
 REPO="${MEDIA_SERVER_REPO:-ticianocorral/midnightmediaserver}"
-REF="${MEDIA_SERVER_REF:-main}"
+REF=""     # definido por resolver_ref() so quando precisa baixar o projeto
 PORTA="${MEDIA_SERVER_PORT:-9187}"
+
+# ─── Qual versao instalar ───────────────────────────────
+# Fixa na ULTIMA RELEASE, nao na branch main: quem roda "curl | bash" executa o que estiver la, e a
+# main muda a cada commit. MEDIA_SERVER_REF (tag ou branch) continua mandando quando definido.
+# Sem rede/API do GitHub, cai na main avisando.
+resolver_ref() {
+    if [ -n "${MEDIA_SERVER_REF:-}" ]; then REF="$MEDIA_SERVER_REF"; return 0; fi
+    local tag
+    tag="$(curl -fsSL -m 10 "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null \
+        | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)" || tag=""
+    if [[ "$tag" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+        REF="$tag"
+    else
+        REF="main"
+        echo "  ! Nao consegui descobrir a ultima release; usando a branch main." >&2
+    fi
+}
 
 # ─── Cores ──────────────────────────────────────────────
 VERDE='\033[0;32m'
@@ -53,9 +70,14 @@ if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ] \
     ok "Rodando a partir de um clone existente: $DIR"
 else
     DIR="${MEDIA_SERVER_DIR:-$HOME/Media-Server}"
+    resolver_ref
     info "Baixando o Midnight Media Server (${REPO}@${REF})..."
     mkdir -p "$DIR"
-    URL_TARBALL="https://github.com/${REPO}/archive/refs/heads/${REF}.tar.gz"
+    # tag (v1.2.3) e branch moram em caminhos diferentes do GitHub
+    case "$REF" in
+        v[0-9]*) URL_TARBALL="https://github.com/${REPO}/archive/refs/tags/${REF}.tar.gz" ;;
+        *)       URL_TARBALL="https://github.com/${REPO}/archive/refs/heads/${REF}.tar.gz" ;;
+    esac
     if ! curl -fsSL "$URL_TARBALL" | tar -xz --strip-components=1 -C "$DIR" 2>/tmp/media-server-download.log; then
         erro "Não consegui baixar $URL_TARBALL"
         echo "  Isso costuma acontecer quando o repositório está privado no GitHub —"

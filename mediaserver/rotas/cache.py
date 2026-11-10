@@ -11,6 +11,7 @@ import threading
 import time
 import sqlite3
 from ..log import aviso
+from .. import rclone_auth
 from pathlib import Path
 from ..config import (
     RCLONE_SERVE_PORT,
@@ -240,7 +241,7 @@ class CacheRotas:
                         end = min(downloaded + CHUNK - 1, total_bytes - 1)
                         range_hdr = f"bytes={downloaded}-{end}"
                         try:
-                            req = urllib.request.Request(rclone_url, method="GET")
+                            req = urllib.request.Request(rclone_url, method="GET", headers=rclone_auth.cabecalho())
                             req.add_header("Range", range_hdr)
                             with urllib.request.urlopen(req, timeout=120) as resp:
                                 while True:

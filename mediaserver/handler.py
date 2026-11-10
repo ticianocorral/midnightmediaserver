@@ -22,6 +22,7 @@ import io
 import zipfile
 import sqlite3
 from .log import aviso
+from . import rclone_auth
 from pathlib import Path
 
 from .config import (
@@ -73,6 +74,7 @@ from .db import (
     looks_like_media_server_db as _looks_like_media_server_db,
 )
 from .auth import (
+    _revogar_sessao,
     _setup_code_value,
     _auth_configured,
     _norm_username,
@@ -356,8 +358,10 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         self._user_cache = _UNSET
         self._info_cache = _UNSET
         manage_ate = time.time() + GERENCIAR_SEGUNDOS if manage else 0
+        # trocar de perfil mantem o id da sessao: assim "Sair" encerra a sessao inteira
+        sid = (_session_info(self._cookies().get(SESSION_COOKIE)) or {}).get("sid")
         self._queue_cookie("%s=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s"
-                           % (SESSION_COOKIE, _issue_session(profile_id, manage_ate),
+                           % (SESSION_COOKIE, _issue_session(profile_id, manage_ate, sid),
                               SESSION_MAX_AGE, self._cookie_secure()))
 
     def _auth_gate(self, path, params):
@@ -493,6 +497,8 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
                                  "Apenas o administrador pode encerrar todas as sessões"}, 403)
                 return
             _revoke_all_sessions()
+        # "Sair" invalida a sessao no servidor, nao so o cookie no navegador
+        _revogar_sessao(self._cookies().get(SESSION_COOKIE))
         self._queue_cookie("%s=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax%s"
                            % (SESSION_COOKIE, self._cookie_secure()))
         self._send_json({"status": "ok"})
@@ -1329,7 +1335,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         last_error = None
         for attempt in range(3):
             try:
-                req = urllib.request.Request(rclone_url, method="GET")
+                req = urllib.request.Request(rclone_url, method="GET", headers=rclone_auth.cabecalho())
                 resp = urllib.request.urlopen(req, timeout=60)
 
                 data = resp.read()
@@ -1377,7 +1383,10 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         import http.client
         try:
             conn = http.client.HTTPConnection("localhost", RCLONE_SERVE_PORT, timeout=60)
-            conn.request("GET", "/" + safe_path, headers={"Range": range_header} if range_header else {})
+            _cab = dict(rclone_auth.cabecalho())
+            if range_header:
+                _cab["Range"] = range_header
+            conn.request("GET", "/" + safe_path, headers=_cab)
             resp = conn.getresponse()
 
             status = resp.status
