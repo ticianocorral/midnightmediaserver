@@ -23,6 +23,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: python -m pip install pytest
+      - run: python -m pip install pytest pyflakes
       # O app so usa a biblioteca padrao; pytest e a unica dependencia de teste.
       - run: python -m pytest tests -q
