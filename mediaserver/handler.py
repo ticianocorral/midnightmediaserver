@@ -2887,27 +2887,24 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/cache-manager":
             try:
                 movies = cached_all_movies(so_infantil=self._so_infantil())
+                # Um unico SELECT para o primeiro video de cada pasta. Antes eram
+                # 1 a 2 conexoes SQLite (com 3 PRAGMAs) por filme a cada abertura
+                # do app: 5.000 filmes = ate 10 mil conexoes.
+                conn_ck = get_db()
+                try:
+                    primeiro = {r["folder_path"]: r["name"] for r in conn_ck.execute(
+                        "SELECT folder_path, name FROM files WHERE file_type='video' "
+                        "AND rowid IN (SELECT MIN(rowid) FROM files "
+                        "WHERE file_type='video' GROUP BY folder_path)")}
+                finally:
+                    conn_ck.close()
                 result = []
                 for m in movies:
                     folder_path = m["path"]
-                    cached = False
-                    # Check if any video file in this folder is cached
-                    conn_ck = get_db()
-                    rows_ck = conn_ck.execute(
-                        "SELECT name FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                        (folder_path,)
-                    ).fetchall()
-                    if not rows_ck:
-                        rows_ck = conn_ck.execute(
-                            "SELECT name FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                            (folder_path.strip("/"),)
-                        ).fetchall()
-                    conn_ck.close()
-                    for row_ck in rows_ck:
-                        file_path = folder_path.strip("/") + "/" + row_ck["name"]
-                        if _is_file_cached(file_path):
-                            cached = True
-                            break
+                    nome = primeiro.get(folder_path)
+                    if nome is None:
+                        nome = primeiro.get(folder_path.strip("/"))
+                    cached = bool(nome) and _is_file_cached(folder_path.strip("/") + "/" + nome)
                     result.append({
                         "path": folder_path,
                         "name": m["name"],
