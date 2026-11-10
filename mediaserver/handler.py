@@ -12,6 +12,7 @@ import urllib.error
 import mimetypes
 import threading
 import sys
+import hashlib
 import hmac
 import time
 import shutil
@@ -32,6 +33,7 @@ from .config import (
     SUBS_CACHE_DIR,
     CACHED_FILES_PATH,
     IMAGE_EXTENSIONS,
+    SUBTITLE_EXTENSIONS,
     MAX_RESTORE_BYTES,
     MAX_JSON_BODY_BYTES,
     WRITE_ROUTES,
@@ -47,7 +49,7 @@ from .netsec import (
     origin_allowed as _origin_allowed,
 )
 from .paths import (
-    destino_backup, destinos_backup, rc_remote as _rc_remote, remote_configurado,
+    CaminhoInvalido, destino_backup, destinos_backup, rc_remote as _rc_remote, remote_configurado,
     serve_path as _serve_path,
 )
 from . import keepawake
@@ -160,6 +162,19 @@ def _bust_asset_cache(html):
             continue
         html = html.replace(f'"{asset}"', f'"{asset}?v={stamp}"')
     return html
+
+
+def _chave_de_cache(prefixo, path):
+    """Nome de arquivo de cache derivado do path, sem nada do path em si.
+
+    Antes era o path com '/' trocado por '_': no Windows '\\' continuava
+    valendo como separador e 'x\\..\\..\\auth.json' escapava da pasta de cache.
+    O hash nao tem separador nenhum; a extensao fica so pra facilitar a leitura.
+    """
+    ext = Path(str(path)).suffix.lower()
+    if not ext[1:].isalnum():
+        ext = ""
+    return prefixo + "_" + hashlib.sha256(str(path).encode("utf-8")).hexdigest() + ext
 
 
 def _zip_member_ok(z, name):
@@ -1234,7 +1249,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
 
     def _stream_image_cached(self, path):
         """Stream an image file, caching it locally on first access."""
-        cache_key = path.strip("/").replace("/", "_")
+        cache_key = _chave_de_cache("img", path)
         cache_path = IMAGE_CACHE_DIR / cache_key
 
         # Serve from local cache if available
@@ -1367,7 +1382,11 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
 
     def _stream_file_direct(self, path):
         """Fallback: stream directly via rclone cat (original method)."""
-        remote_path = _rc_remote(path)
+        try:
+            remote_path = _rc_remote(path)
+        except CaminhoInvalido:
+            self._send_error("File not found", 404)
+            return
 
         file_info = cached_get_file_info(path)
         file_size = file_info.get("Size", 0) if file_info else 0
@@ -1463,7 +1482,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
             except OSError:
                 return None
 
-        cache_key = "sub_" + path.strip("/").replace("/", "_").replace(" ", "_")
+        cache_key = _chave_de_cache("sub", path)
         cache_path = SUBS_CACHE_DIR / cache_key
         try:
             if cache_path.exists():
@@ -1492,6 +1511,10 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
 
     def _serve_subtitle(self, path):
         """Serve a subtitle file, converting SRT→VTT if needed."""
+        # So legenda: sem isso a rota lia qualquer arquivo que o rclone alcance.
+        if Path(str(path)).suffix.lower() not in SUBTITLE_EXTENSIONS:
+            self._send_error("Subtitle not found", 404)
+            return
         if _sources.under_local_root(path) and not _sources.is_local(path):
             self._send_error("Fonte local nao encontrada — ela foi removida?", 404)
             return

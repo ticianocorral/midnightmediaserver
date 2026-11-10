@@ -162,7 +162,11 @@ def run_rclone_cmd(args, timeout=60):
 
 def list_directory_raw(path):
     """List directory contents via rclone lsjson (uncached)."""
-    return run_rclone_cmd(["lsjson", _rc_remote(path)])
+    try:
+        remote = _rc_remote(path)
+    except ValueError as e:
+        return {"error": str(e)}
+    return run_rclone_cmd(["lsjson", remote])
 
 
 def _urlopen_ok(url, timeout=2):
