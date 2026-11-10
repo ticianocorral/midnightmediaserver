@@ -28,7 +28,6 @@ O Midnight Media Server escaneia as suas pastas, lê metadados de arquivos NFO (
 - Chromecast e AirPlay, com conversão automática para MP4 H.264/AAC
 - Contas, administradores e perfil infantil
 - Backup e restauração pela interface
-- Nome e cor da marca configuráveis
 
 ## Identidade visual
 O logo é um videocassete com o display de LED marcando 12:00, a hora que fica piscando em todo aparelho que ninguém ajustou.
