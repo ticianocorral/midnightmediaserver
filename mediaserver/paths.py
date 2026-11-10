@@ -29,7 +29,7 @@ def rclone_conf_path():
             line = line.strip()
             if line and not line.endswith(":"):
                 return Path(line)
-    except Exception:
+    except (OSError, ValueError, subprocess.SubprocessError):
         pass
     return Path.home() / ".config" / "rclone" / "rclone.conf"
 

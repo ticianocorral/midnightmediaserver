@@ -34,6 +34,8 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import http.client
+from .log import aviso
 from pathlib import Path
 from xml.sax.saxutils import escape as _xml_escape
 
@@ -314,7 +316,8 @@ def _baixar_imagem(url):
         if len(dados) > _MAX_IMG_BYTES:
             return None
         return dados
-    except Exception:
+    except (OSError, ValueError, http.client.HTTPException) as e:
+        aviso("scraper: imagem nao baixou (%s)" % url[:60], e)
         return None
 
 

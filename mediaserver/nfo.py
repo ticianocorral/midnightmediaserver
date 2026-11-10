@@ -8,6 +8,7 @@ import json
 import subprocess
 import sys
 import time
+from .log import aviso
 import xml.etree.ElementTree as ET
 
 from .config import MAX_NFO_BYTES
@@ -171,7 +172,8 @@ def _fetch_nfo_raw(folder_path):
                              % (MAX_NFO_BYTES, nfo_path))
             return None
         return result.stdout
-    except Exception:
+    except (OSError, ValueError, subprocess.SubprocessError) as e:
+        aviso("nfo: rclone cat falhou em %s" % nfo_path, e)
         return None
 
 

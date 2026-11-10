@@ -20,6 +20,8 @@ import time
 import shutil
 import io
 import zipfile
+import sqlite3
+from .log import aviso
 from pathlib import Path
 
 from .config import (
@@ -404,7 +406,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
             raw = self.rfile.read(length)
             self._body_lido += length
             return json.loads(raw)
-        except Exception:
+        except (OSError, ValueError):        # cliente caiu ou mandou JSON/UTF-8 invalido
             return None
 
     # ── Entrada ──────────────────────────────────────────────
@@ -1260,7 +1262,8 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
                     ("/" + "/".join(partes[:-1]), partes[-1])).fetchone()
             finally:
                 conn.close()
-        except Exception:
+        except (sqlite3.Error, OSError) as e:
+            aviso("imagem: nao deu para ler o tipo no banco", e)
             return ""
         return row["file_type"] if row else ""
 
@@ -1416,8 +1419,8 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
                         range_end = int(range_match[1]) if len(range_match) > 1 and range_match[1] else None
                         if range_end is not None and range_end >= file_size - 1:
                             _mark_file_cached(path)
-                except Exception:
-                    pass
+                except Exception as e:
+                    aviso("stream: nao deu para marcar o arquivo como em cache", e)
         except Exception as e:
             sys.stderr.write(f"[ERROR] Video stream failed: {e}\n")
             self._stream_file_direct(path)
@@ -1547,8 +1550,8 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         # Cache local (sempre UTF-8)
         try:
             cache_path.write_text(raw, encoding="utf-8")
-        except Exception:
-            pass
+        except (OSError, ValueError) as e:
+            aviso("legenda: cache em disco nao gravou (disco cheio ou sem permissao?)", e)
         return raw
 
     def _serve_subtitle(self, path):
@@ -1734,7 +1737,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
             if zip_path and os.path.exists(zip_path):
                 try:
                     os.unlink(zip_path)
-                except Exception:
+                except OSError:
                     pass
 
     def _backup_to_cloud(self):
@@ -1772,7 +1775,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
             if zip_path and os.path.exists(zip_path):
                 try:
                     os.unlink(zip_path)
-                except Exception:
+                except OSError:
                     pass
 
     def _handle_restore_from_cloud(self):
@@ -2396,7 +2399,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
             try:
                 self.rfile.read(restante)
                 return
-            except Exception:
+            except OSError:
                 pass
         self.close_connection = True
 

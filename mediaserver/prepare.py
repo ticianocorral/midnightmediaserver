@@ -47,6 +47,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
+from .log import aviso
 from collections import deque
 from pathlib import Path
 
@@ -309,7 +310,8 @@ def prepared_file(fonte):
         return None
     try:
         dados = json.loads(meta.read_text("utf-8"))
-    except Exception:
+    except (OSError, ValueError) as e:
+        aviso("prepare: metadado do cache ilegivel (%s)" % meta.name, e)
         return None
     if dados.get("prep") != _PREP_VERSION:
         return None
@@ -724,7 +726,8 @@ def _limpar_vencidos():
     for meta in CAST_CACHE_DIR.glob("*.json"):
         try:
             dados = json.loads(meta.read_text("utf-8"))
-        except Exception:
+        except (OSError, ValueError) as e:
+            aviso("prepare: metadado ilegivel na limpeza (%s)" % meta.name, e)
             continue
         if dados.get("prep") == _PREP_VERSION:
             continue
@@ -779,5 +782,6 @@ def _cleanup():
                 total -= tamanho
             except OSError:
                 pass
-    except Exception:
-        pass
+    except Exception as e:
+        # a limpeza roda numa thread de fundo e nunca pode morrer; mas avisa
+        aviso("prepare: limpeza de vencidos falhou", e)

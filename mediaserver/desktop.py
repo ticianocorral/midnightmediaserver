@@ -12,6 +12,7 @@ Rodando do codigo-fonte (python3 server.py) nada disto entra em cena: o
 comportamento de sempre continua.
 """
 
+import http.client
 import os
 import subprocess
 import sys
@@ -43,7 +44,7 @@ def servidor_responde(timeout=1.5):
         return True
     except urllib.error.HTTPError:
         return True   # respondeu (mesmo um erro): ha servidor ali
-    except Exception:
+    except (OSError, ValueError, http.client.HTTPException):
         return False
 
 

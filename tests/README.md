@@ -16,6 +16,7 @@ python3 -m pytest tests -q
 | `test_scanner.py` | detecção de filmes/séries, rescan idempotente, scan sem nuvem, uso do índice |
 | `test_http.py` | permissões por perfil, cabeçalhos, gzip, cache, legendas, token no log |
 | `test_pin.py` | limite de tentativas de PIN por perfil, mesmo trocando de IP |
+| `test_erros.py` | falhas contornadas pelo app: o valor devolvido nao muda, mas agora avisa no log |
 | `test_frontend.py` | `escHtml` (XSS) e sintaxe do `app.js` |
 
 Ao corrigir um bug, escreva primeiro o teste que falha.

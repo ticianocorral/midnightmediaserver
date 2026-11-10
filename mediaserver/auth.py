@@ -25,6 +25,7 @@ import re
 import secrets
 import threading
 import time
+from .log import aviso
 
 from .config import (
     AUTH_PATH, SECRET_PATH, SESSION_MAX_AGE, CAST_TOKEN_MAX_AGE,
@@ -74,7 +75,11 @@ def _auth_data():
     """Le auth.json no formato v3 (conta + perfis). Nao grava."""
     try:
         raw = json.loads(AUTH_PATH.read_text(encoding="utf-8"))
-    except Exception:
+    except FileNotFoundError:
+        return None                     # ainda nao ha conta: caminho normal
+    except (OSError, ValueError) as e:
+        # arquivo existe mas esta ilegivel: o app cai em "nao configurado".
+        aviso("auth.json ilegivel; o app vai pedir a criacao da conta de novo", e)
         return None
     if not raw:
         return None
@@ -126,7 +131,10 @@ def _migrate_auth_if_needed():
     """Persiste a conversao para o formato v3 uma unica vez, na subida."""
     try:
         raw = json.loads(AUTH_PATH.read_text(encoding="utf-8"))
-    except Exception:
+    except FileNotFoundError:
+        return
+    except (OSError, ValueError) as e:
+        aviso("auth.json ilegivel; migracao de formato ignorada", e)
         return
     if raw and raw.get("version") != 3:
         novo = _v2_to_v3(raw)

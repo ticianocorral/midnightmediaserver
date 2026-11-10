@@ -60,7 +60,7 @@ def origin_allowed(origin_header):
         return False
     try:
         return is_private_host(urllib.parse.urlparse(origin_header).hostname)
-    except Exception:
+    except ValueError:                       # urlparse recusa Origin malformado
         return False
 
 
@@ -79,7 +79,7 @@ def origin_mesmo_servidor(origin_header, host_header, portas_proprias=()):
         u = urllib.parse.urlparse(origin_header)
         o_host = (u.hostname or "").lower()
         o_port = u.port
-    except Exception:
+    except ValueError:                       # Origin malformado ou porta invalida
         return False
     h = (host_header or "").strip()
     if h.startswith("["):

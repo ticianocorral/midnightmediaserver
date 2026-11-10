@@ -9,6 +9,8 @@ import urllib.request
 import urllib.error
 import threading
 import time
+import sqlite3
+from ..log import aviso
 from pathlib import Path
 from ..config import (
     RCLONE_SERVE_PORT,
@@ -283,8 +285,8 @@ class CacheRotas:
                 conn_sz.close()
                 if row_sz and row_sz["size"] > 0:
                     file_size = row_sz["size"]
-            except Exception:
-                pass
+            except (sqlite3.Error, OSError) as e:
+                aviso("cache-download: tamanho do arquivo nao veio do banco", e)
 
             t = threading.Thread(target=_do_cache_download, args=(video_path, file_size), daemon=True)
             t.start()
@@ -380,8 +382,8 @@ class CacheRotas:
                 if row:
                     video_name = row[0]
                 conn.close()
-            except Exception:
-                pass
+            except (sqlite3.Error, OSError) as e:
+                aviso("uncache: nome do video nao veio do banco", e)
             
             # Remove from cached_files list
             with _cached_files_lock:
