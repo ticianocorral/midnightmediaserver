@@ -397,6 +397,18 @@
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
     {
+      version: '1.28.0',
+      title: 'Segurança, performance e refatoração',
+      changes: [
+        'Corrige leitura de arquivos da máquina via rclone quando não há nuvem configurada (crítico), XSS do catálogo e fuga da pasta de cache no Windows',
+        'Rotas do rclone e do cache só para admin; perfil infantil não burla mais com \'..\'; limite de PIN por perfil; cabeçalhos anti-iframe; Origin estrito em POST',
+        'Scanner linear (scan incremental 5x mais rápido), consultas por índice, gzip (catálogo de 348 KB para 26 KB), cache HTTP longo e rclone com menos memória',
+        'Miniaturas de pôster também no Linux e Windows (via ffmpeg) e gerenciador de cache bem mais rápido',
+        'Landing page nova (GitHub Pages) e frontend dividido em módulos sem JS inline',
+        'Erros antes engolidos em silêncio agora aparecem no log; 108 testes automatizados com CI',
+      ],
+    },
+    {
       version: '1.27.4',
       title: 'séries reconhecem episódios soltos e agrupam temporadas',
       changes: [
