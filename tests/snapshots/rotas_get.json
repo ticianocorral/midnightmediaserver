@@ -432,9 +432,9 @@
   "infantil": 404
  },
  "/static/app.js": {
-  "admin": 200,
+  "admin": 404,
   "anon": 401,
-  "comum": 200,
-  "infantil": 200
+  "comum": 404,
+  "infantil": 404
  }
 }

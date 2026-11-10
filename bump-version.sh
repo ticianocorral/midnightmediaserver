@@ -12,14 +12,14 @@
 #
 # Atualiza os 4 lugares que exibem a versão:
 #   1. Badge na sidebar (index.html: logo-version)
-#   2. Changelog do app (_CHANGELOG em static/app.js)
+#   2. Changelog do app (_CHANGELOG em static/app/09-metadados.js)
 #   3. README.md (Changelog)
 #   4. __version__ do pacote (mediaserver/__init__.py)
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 INDEX="$DIR/index.html"
-APPJS="$DIR/static/app.js"
+APPJS="$DIR/static/app/09-metadados.js"
 README="$DIR/README.md"
 INIT="$DIR/mediaserver/__init__.py"
 
@@ -93,7 +93,7 @@ entry = (
     "    },\n"
 )
 marker = "const _CHANGELOG = [\n"
-assert marker in appjs, "marker _CHANGELOG não encontrado em static/app.js"
+assert marker in appjs, "marker _CHANGELOG não encontrado em static/app/09-metadados.js"
 appjs = appjs.replace(marker, marker + entry, 1)
 
 # 5. README changelog
@@ -134,4 +134,4 @@ html = open('$INDEX').read()
 m = re.search(r'logo-version\"[^>]*>v([0-9.]+)', html)
 print('v' + m.group(1) if m else '?')
 ")"
-echo "   git add index.html static/app.js README.md mediaserver/__init__.py && git commit -m \"chore: $CUR_DISPLAY — $TITLE\""
+echo "   git add index.html static/app/09-metadados.js README.md mediaserver/__init__.py && git commit -m \"chore: $CUR_DISPLAY — $TITLE\""

@@ -141,15 +141,16 @@ mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 
 def _bust_asset_cache(html):
-    """Carimba os estaticos com o mtime do arquivo: /static/app.js?v=1787778.
+    """Carimba os estaticos com o mtime do arquivo: /static/app/01-base.js?v=1787778.
 
     Eles sao servidos com max-age=3600. Sem isso, uma atualizacao do frontend
     so chegaria ao navegador uma hora depois — ou com refresh forcado. Usa o
     mtime, e nao a versao do app, para quebrar o cache sempre que o conteudo
     muda de fato, inclusive entre releases.
     """
-    for asset in ("/static/app.js", "/static/styles.css",
-                  "/static/tv.js", "/static/tv.css"):
+    partes = sorted(p.name for p in (PROJECT_ROOT / "static" / "app").glob("*.js"))
+    for asset in (["/static/app/" + nome for nome in partes]
+                  + ["/static/styles.css", "/static/tv.js", "/static/tv.css"]):
         try:
             stamp = int((PROJECT_ROOT / asset.lstrip("/")).stat().st_mtime)
         except OSError:
@@ -158,7 +159,7 @@ def _bust_asset_cache(html):
     return html
 
 
-# static/ comprimido em gzip, por (arquivo, mtime, tamanho): o app.js tem 300 KB.
+# static/ comprimido em gzip, por (arquivo, mtime, tamanho): o JS do app soma 300 KB.
 _GZIP_ESTATICOS = {}
 
 

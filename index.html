@@ -613,6 +613,17 @@
     <div class="movie-info-content" id="movieInfoContent"></div>
   </div>
 
-<script src="/static/app.js"></script>
+<!-- app dividido em partes, carregadas nesta ordem (escopo global compartilhado) -->
+<script src="/static/app/01-base.js"></script>
+<script src="/static/app/02-catalogo.js"></script>
+<script src="/static/app/03-series-tags.js"></script>
+<script src="/static/app/04-filmes.js"></script>
+<script src="/static/app/05-player.js"></script>
+<script src="/static/app/06-cast.js"></script>
+<script src="/static/app/07-ajustes.js"></script>
+<script src="/static/app/08-cache.js"></script>
+<script src="/static/app/09-metadados.js"></script>
+<script src="/static/app/10-nuvem.js"></script>
+<script src="/static/app/11-init.js"></script>
 </body>
 </html>
