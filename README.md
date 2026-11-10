@@ -117,6 +117,21 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 ## 📋 Changelog
 
+### v1.28.1 — Correções de segurança
+
+- O perfil infantil não vira mais admin sem a senha da conta
+
+- Corrigido XSS no gerenciador de cache e na nota/votos da ficha
+
+- Leitura de arquivos de fora do acervo (NFO por symlink) e do ffmpeg com playlists disfarçadas bloqueadas
+
+- rclone local passa a exigir senha aleatória por execução
+
+- Sair invalida a sessão no servidor e o limite de tentativas de login sobrevive a reinício
+
+- Ícone 12:00 AM em todas as versões; instaladores de shell instalam a última release
+
+
 ### v1.28 — Segurança, performance e refatoração
 
 - Corrige leitura de arquivos da máquina via rclone quando não há nuvem configurada (crítico), XSS do catálogo e fuga da pasta de cache no Windows
