@@ -17,7 +17,7 @@ from .config import (
     IMAGE_EXTENSIONS, LOCAL_ROOT, SUBTITLE_EXTENSIONS,
     VIDEO_EXTENSIONS,
 )
-from .db import get_db, like_prefix as _like_prefix, log_notification, set_cache_time
+from .db import get_db, like_prefix as _like_prefix, log_notification, partir_caminho, set_cache_time
 from .paths import rc_remote as _rc_remote
 from .nfo import _fetch_nfo_raw, _parse_nfo, _save_nfo_to_db
 from .rclone import run_rclone_cmd
@@ -178,19 +178,20 @@ def _index_tree(conn, root_path, root_name, entries,
         if path.rsplit("/", 1)[0] == tv_dir:
             series_dirs[path] = e
     temporada_dirs = set()
-    for sp in series_dirs:
-        for path in dirs:
-            if path == sp or path.rsplit("/", 1)[0] != sp:
-                continue
-            tem_video = any(Path(n).suffix.lower() in VIDEO_EXTENSIONS
-                            for n in files_by_parent.get(path, {}))
-            if tem_video:
-                temporada_dirs.add(path)
+    for path in dirs:
+        # filha direta de uma serie (O(pastas), e nao O(series x pastas))
+        if path in series_dirs or path.rsplit("/", 1)[0] not in series_dirs:
+            continue
+        tem_video = any(Path(n).suffix.lower() in VIDEO_EXTENSIONS
+                        for n in files_by_parent.get(path, {}))
+        if tem_video:
+            temporada_dirs.add(path)
 
     # ── Deteção de filmes (fora da região tv; de baixo pra cima) ──
     # Pasta com video direto = filme; a menos que um descendente dela ja seja
     # — nesses casos os videos da ancestral viram soltos, nao "o filme pai".
     movie_dirs = set()
+    ancestrais_de_filme = set()   # toda pasta que contem algum filme (O(1) no teste)
     for path in sorted(dirs, key=lambda p: p.count("/"), reverse=True):
         if path == root_path or _regiao(path) == "tv":
             continue
@@ -198,9 +199,13 @@ def _index_tree(conn, root_path, root_name, entries,
                         for n in files_by_parent.get(path, {}))
         if not tem_video:
             continue
-        if any(m.startswith(path + "/") for m in movie_dirs):
+        if path in ancestrais_de_filme:
             continue
         movie_dirs.add(path)
+        anc = path
+        while "/" in anc:
+            anc = anc.rsplit("/", 1)[0]
+            ancestrais_de_filme.add(anc)
 
     # ── Estado atual no banco ───────────────────────────────────
     db_movies = {r["path"]: r for r in conn.execute(
@@ -217,11 +222,13 @@ def _index_tree(conn, root_path, root_name, entries,
         "SELECT path, has_video FROM folders WHERE path LIKE ? ESCAPE '\\'",
         (like_root,)).fetchall()}
     db_files = {}
+    db_nomes_por_pasta = {}   # pasta -> nomes: evita varrer db_files por filme
     for r in conn.execute(
             "SELECT folder_path, name, size, mod_time FROM files "
             "WHERE folder_path=? OR folder_path LIKE ? ESCAPE '\\'",
             (root_path, like_root)).fetchall():
         db_files[(r["folder_path"], r["name"])] = r
+        db_nomes_por_pasta.setdefault(r["folder_path"], set()).add(r["name"])
 
     # ── Pastas que sumiram da fonte ─────────────────────────────
     removed_prefixes = []
@@ -275,7 +282,7 @@ def _index_tree(conn, root_path, root_name, entries,
         alterado = novo
         live = files_by_parent.get(path, {})
         if not alterado:
-            db_keys = {name for (fp, name) in db_files if fp == path}
+            db_keys = db_nomes_por_pasta.get(path, set())
             live_keys = set(live)
             if db_keys != live_keys:
                 alterado = True
@@ -388,8 +395,8 @@ def _realinhar_progresso(conn):
         vivo_pasta = conn.execute(
             "SELECT 1 FROM folders WHERE path=? AND has_video=1", (velho,)).fetchone()
         vivo_arquivo = conn.execute(
-            """SELECT 1 FROM files WHERE folder_path || '/' || name = ?
-               AND file_type = 'video'""", (velho,)).fetchone()
+            """SELECT 1 FROM files WHERE folder_path = ? AND name = ?
+               AND file_type = 'video'""", partir_caminho(velho)).fetchone()
         if vivo_pasta or vivo_arquivo:
             continue  # o path ainda existe — nada a fazer
 

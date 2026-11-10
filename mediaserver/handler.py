@@ -12,7 +12,9 @@ import urllib.error
 import mimetypes
 import threading
 import sys
+import gzip
 import hashlib
+import re
 import hmac
 import time
 import shutil
@@ -23,6 +25,7 @@ from pathlib import Path
 from .config import (
     PROJECT_ROOT,
     PORT,
+    HTTPS_PORT_BASE,
     BACKUP_FOLDER,
     NOME_DB_BACKUP,
     PREFIXO_BACKUP,
@@ -47,6 +50,7 @@ from .config import (
 from .netsec import (
     host_allowed as _host_allowed,
     origin_allowed as _origin_allowed,
+    origin_mesmo_servidor as _origin_mesmo_servidor,
 )
 from .paths import (
     CaminhoInvalido, destino_backup, destinos_backup, rc_remote as _rc_remote, remote_configurado,
@@ -55,6 +59,8 @@ from .paths import (
 from . import keepawake
 from . import prepare
 from .db import (
+    partir_caminho,
+    invalidar_uso_cache,
     get_db,
     perfil_atual,
     set_perfil_atual,
@@ -164,6 +170,10 @@ def _bust_asset_cache(html):
     return html
 
 
+# static/ comprimido em gzip, por (arquivo, mtime, tamanho): o app.js tem 300 KB.
+_GZIP_ESTATICOS = {}
+
+
 def _chave_de_cache(prefixo, path):
     """Nome de arquivo de cache derivado do path, sem nada do path em si.
 
@@ -219,6 +229,13 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 raise
             self.close_connection = True
 
+    def end_headers(self):
+        # Impede a pagina de ser embutida em iframe de outro site (clickjacking).
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
+        self.send_header("Referrer-Policy", "same-origin")
+        super().end_headers()
+
     def log_message(self, format, *args):
         # O http.server chama isto com aridades diferentes: log_request manda
         # 3 argumentos, send_error manda 2. O acesso fixo a args[2] estourava
@@ -226,7 +243,10 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         # saia e o cliente ficava com a conexao fechada, sem nada. Era o que
         # acontecia com qualquer HEAD (nao existia do_HEAD).
         try:
-            sys.stderr.write("[Midnight Media Server] " + " ".join(str(a) for a in args) + "\n")
+            linha = " ".join(str(a) for a in args)
+            # O token de midia (?t=) e uma credencial por arquivo: nao vai pro log.
+            linha = re.sub(r"([?&]t=)[^&\s\"]+", r"\1***", linha)
+            sys.stderr.write("[Midnight Media Server] " + linha + "\n")
         except Exception:
             pass
 
@@ -273,6 +293,13 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         em loopback e endereco localhost (nao o IP da rede)."""
         cliente = self.client_address[0] if self.client_address else ""
         host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]").lower()
+        # Atras de nginx/caddy/cloudflared na mesma maquina todo cliente chega
+        # como 127.0.0.1 com Host "localhost": qualquer um da internet veria o
+        # codigo de instalacao e criaria o admin. Header de proxy = nao e local.
+        for h in ("X-Forwarded-For", "X-Forwarded-Host", "Forwarded", "X-Real-IP",
+                  "CF-Connecting-IP", "True-Client-IP"):
+            if self.headers.get(h):
+                return False
         return cliente in ("127.0.0.1", "::1") and host in ("localhost", "127.0.0.1", "::1")
 
     def _pagina_de_setup(self):
@@ -693,13 +720,17 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
             self._send_json({"status": "error", "error": "Perfil não encontrado"}, 404)
             return
         chave = "%s|pin|%s" % (self._client_ip(), pid)
+        # Contador por perfil, alem do por IP: so o IP deixava quem troca de
+        # endereco (IPv6 temporario) testar os 10 mil PINs sem parar.
+        chave_perfil = "pin|%s" % pid
         if perfil.get("pin"):
-            if _login_blocked(chave):
+            if _login_blocked(chave) or _login_blocked(chave_perfil):
                 self._send_json({"status": "error", "error":
                                  "Muitas tentativas. Espere alguns minutos."}, 429)
                 return
             if not _pin_confere(pid, str(body.get("pin", ""))):
                 _record_login_failure(chave)
+                _record_login_failure(chave_perfil)
                 self._send_json({"status": "error", "error": "PIN incorreto"}, 401)
                 return
             _clear_login_failures(chave)
@@ -784,8 +815,11 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 return
             if perfil.get("pin"):
                 chave = "%s|pin|%s" % (self._client_ip(), pid)
-                if _login_blocked(chave) or not _pin_confere(pid, str(body.get("current", ""))):
+                chave_perfil = "pin|%s" % pid
+                if (_login_blocked(chave) or _login_blocked(chave_perfil)
+                        or not _pin_confere(pid, str(body.get("current", "")))):
                     _record_login_failure(chave)
+                    _record_login_failure(chave_perfil)
                     self._send_json({"status": "error", "error": "PIN atual incorreto"}, 401)
                     return
         novo = body.get("pin")
@@ -835,6 +869,12 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         terceiro). Chromecast e <video> nao mandam Origin e passam normalmente."""
         if not _host_allowed(self.headers.get("Host")):
             self._send_error("Host nao permitido", 403)
+            return False
+        if (self.command == "POST" and self.headers.get("Origin")
+                and not _origin_mesmo_servidor(
+                    self.headers.get("Origin"), self.headers.get("Host"),
+                    [PORT] + list(range(HTTPS_PORT_BASE, HTTPS_PORT_BASE + 50)))):
+            self._send_error("Origem nao permitida", 403)
             return False
         if not _origin_allowed(self.headers.get("Origin")):
             # O receiver do Chromecast busca a faixa de legenda COM CORS — e
@@ -986,12 +1026,21 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         sys.stderr.write("[Midnight Media Server] %s: %r\n" % (self.path, e))
         self._send_json({"status": "error", "error": "Erro interno — veja o log do servidor"}, status)
 
+    def _aceita_gzip(self):
+        return "gzip" in (self.headers.get("Accept-Encoding") or "").lower()
+
     def _send_json(self, data, status=200):
         # Corpo montado antes dos cabecalhos: com HTTP/1.1 o Content-Length
         # e obrigatorio (ver protocol_version no topo da classe).
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        gz = len(body) > 1024 and self._aceita_gzip()
+        if gz:
+            body = gzip.compress(body, compresslevel=5, mtime=0)
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        if gz:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Cache-Control", "no-cache")
@@ -1611,14 +1660,38 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         mime, _ = mimetypes.guess_type(str(requested))
         if mime is None:
             mime = "application/octet-stream"
+        st = requested.stat()
+        # O index.html carimba os estaticos com ?v=<mtime> (_bust_asset_cache):
+        # URL com versao nunca muda de conteudo, entao o navegador pode guardar
+        # por um ano. Sem versao, continua 1h.
+        versionado = "v=" in urllib.parse.urlparse(self.path).query
+        corpo = None
+        if (self._aceita_gzip() and st.st_size > 1024
+                and (mime.startswith("text/") or mime in (
+                    "application/javascript", "text/javascript",
+                    "application/json", "image/svg+xml"))):
+            chave = (str(requested), st.st_mtime_ns, st.st_size)
+            corpo = _GZIP_ESTATICOS.get(chave)
+            if corpo is None:
+                corpo = gzip.compress(requested.read_bytes(), compresslevel=6, mtime=0)
+                if len(_GZIP_ESTATICOS) > 64:
+                    _GZIP_ESTATICOS.clear()
+                _GZIP_ESTATICOS[chave] = corpo
         self.send_response(200)
         self.send_header("Content-Type", mime)
-        self.send_header("Content-Length", str(requested.stat().st_size))
-        self.send_header("Cache-Control", "max-age=3600")
+        if corpo is not None:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Content-Length", str(len(corpo) if corpo is not None else st.st_size))
+        self.send_header("Cache-Control",
+                         "public, max-age=31536000, immutable" if versionado else "max-age=3600")
         self.end_headers()
         if not self._head_only:
-            with open(requested, "rb") as f:
-                shutil.copyfileobj(f, self.wfile)
+            if corpo is not None:
+                self.wfile.write(corpo)
+            else:
+                with open(requested, "rb") as f:
+                    shutil.copyfileobj(f, self.wfile)
 
     def _generate_backup_zip(self):
         """Generate backup zip to a temporary file. Returns path to temp file."""
@@ -2055,8 +2128,8 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 (alvo,)).fetchone()
             if not existe:
                 existe = conn.execute(
-                    """SELECT 1 FROM files WHERE folder_path || '/' || name = ?
-                       AND file_type = 'video'""", (alvo,)).fetchone()
+                    """SELECT 1 FROM files WHERE folder_path = ? AND name = ?
+                       AND file_type = 'video'""", partir_caminho(alvo)).fetchone()
             if not existe:
                 self._send_json({"status": "error",
                                  "error": "Filme não encontrado no catálogo."}, 404)
@@ -2223,8 +2296,8 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 (alvo,)).fetchone()
             if not existe:
                 existe = conn.execute(
-                    """SELECT 1 FROM files WHERE folder_path || '/' || name = ?
-                       AND file_type = 'video'""", (alvo,)).fetchone()
+                    """SELECT 1 FROM files WHERE folder_path = ? AND name = ?
+                       AND file_type = 'video'""", partir_caminho(alvo)).fetchone()
             if not existe:
                 self._send_json({"status": "error",
                                  "error": "Filme não encontrado no catálogo."}, 404)
@@ -3012,6 +3085,7 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/clear-cache":
             try:
                 import shutil as sh
+                invalidar_uso_cache()
                 # Clear VFS cache (downloaded videos)
                 vfs_cache = Path.home() / ".cache" / "rclone" / "vfs"
                 if vfs_cache.exists():
@@ -3286,8 +3360,8 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 # de série ou filme solto. Ambos viram linha na home.
                 fi = conn.execute(
                     """SELECT name, folder_path FROM files
-                       WHERE folder_path || '/' || name = ?
-                       AND file_type = 'video'""", (p_path,)).fetchone()
+                       WHERE folder_path = ? AND name = ?
+                       AND file_type = 'video'""", partir_caminho(p_path)).fetchone()
                 if not fi:
                     continue  # progresso órfão (arquivo saiu do acervo)
                 titulo = _titulo_limpo(fi["name"])

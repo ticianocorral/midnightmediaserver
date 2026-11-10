@@ -62,3 +62,30 @@ def origin_allowed(origin_header):
         return is_private_host(urllib.parse.urlparse(origin_header).hostname)
     except Exception:
         return False
+
+
+def origin_mesmo_servidor(origin_header, host_header, portas_proprias=()):
+    """POST: o Origin tem de ser o proprio servidor, nao qualquer IP privado.
+
+    origin_allowed aceita qualquer host de rede local; com SameSite=Lax outra
+    porta da mesma maquina (um app em localhost:3000) conta como "mesmo site" e
+    conseguia postar com o cookie do admin. Aqui o hostname do Origin tem de ser
+    o do Host, e a porta a do proprio servidor (HTTP ou HTTPS). Sem Origin (curl,
+    cliente nativo) passa, como no resto do modulo.
+    """
+    if not origin_header:
+        return True
+    try:
+        u = urllib.parse.urlparse(origin_header)
+        o_host = (u.hostname or "").lower()
+        o_port = u.port
+    except Exception:
+        return False
+    h = (host_header or "").strip()
+    if h.startswith("["):
+        h_host = (h[1:h.index("]")] if "]" in h else h[1:]).lower()
+    else:
+        h_host = h.split(":")[0].lower()
+    if not o_host or o_host != h_host:
+        return False
+    return o_port is None or o_port in set(portas_proprias)

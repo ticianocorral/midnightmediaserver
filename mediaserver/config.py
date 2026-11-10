@@ -97,6 +97,12 @@ ORGANIZAR_LOG_PATH = CACHE_DIR / "organizar-historico.json"
 
 for _d in (CACHE_DIR, IMAGE_CACHE_DIR, SUBS_CACHE_DIR, CAST_CACHE_DIR):
     _d.mkdir(parents=True, exist_ok=True)
+# Banco, auth.json e chave HMAC moram aqui: so o dono da conta entra na pasta
+# (sem isso, outros usuarios da maquina liam o historico e as contas).
+try:
+    CACHE_DIR.chmod(0o700)
+except OSError:
+    pass
 
 # ── Tipos de arquivo ─────────────────────────────────────────
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",

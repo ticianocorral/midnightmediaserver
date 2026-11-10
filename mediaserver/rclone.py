@@ -16,7 +16,7 @@ import urllib.request
 from pathlib import Path
 
 from .config import (
-    CACHED_FILES_PATH, PROJECT_ROOT, RCLONE_GUI_ENABLED,
+    CACHED_FILES_PATH, PROJECT_ROOT, RCLONE_GUI_ENABLED, env,
     RCLONE_SERVE_PORT, RCLONE_WEBGUI_PORT,
 )
 from .paths import rc_remote as _rc_remote, remote_configurado
@@ -259,12 +259,16 @@ def start_rclone_serve():
                  "--addr", f"127.0.0.1:{RCLONE_SERVE_PORT}",
                  "--read-only",
                  "--b2-chunk-size", "96M",
-                 "--buffer-size", "512M",
+                 # 512M por arquivo aberto estourava a RAM de um Raspberry Pi com 2
+                 # streams; 32M/128M sobram para 4K a 80 Mbps. O cache em disco so tinha
+                 # teto de idade (720h) e podia encher o cartao SD.
+                 "--buffer-size", env("RCLONE_BUFFER", "32M"),
                  "--vfs-cache-mode", "full",
                  "--vfs-cache-max-age", "720h",
+                 "--vfs-cache-max-size", env("VFS_MAX_SIZE", "20G"),
                  "--vfs-read-chunk-size", "4M",
                  "--vfs-read-chunk-size-limit", "off",
-                 "--vfs-read-ahead", "512M",
+                 "--vfs-read-ahead", env("RCLONE_READ_AHEAD", "128M"),
                  "--log-level", "ERROR"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
