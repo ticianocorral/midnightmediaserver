@@ -1180,7 +1180,7 @@
         ? '<span class="subtitle-swatch" style="background:' + op.color + '"></span> '
         : '';
       return '<button type="button" class="ctrl-sub-menu-item'
-        + (i === indiceAtual ? ' active' : '') + '" onclick="' + aoEscolher + '(' + i + ')">'
+        + (i === indiceAtual ? ' active' : '') + '"' + attrAcao(aoEscolher, [i]) + '>'
         + swatch + op.nome + '</button>';
     }).join('');
   }

@@ -104,3 +104,35 @@ def test_perfil_infantil_nao_burla_com_dot_dot(infantil):
         assert h._permitido_infantil("/Local/hd/Marcado/x.mkv") is True
         assert h._permitido_infantil("/Local/hd/Marcado/../Adulto/x.mkv") is False
         assert h._permitido_infantil("/Local/hd/Marcado\\..\\Adulto/x.mkv") is False
+
+
+def test_app_config_js_exige_sessao_e_traz_a_configuracao(servidor, admin):
+    from conftest import Cliente
+    assert Cliente(*servidor).get("/app-config.js").status == 401
+    r = admin.get("/app-config.js")
+    assert r.status == 200 and r.headers["Content-Type"].startswith("application/javascript")
+    corpo = r.raw.decode()
+    assert "window.__HTTP_BASE__=" in corpo and "window.__LOGICAL_ROOT__=" in corpo and "window.__NET__=" in corpo
+
+
+def test_pagina_principal_nao_tem_script_inline(admin):
+    html = admin.get("/").raw.decode()
+    assert '<script src="/app-config.js"></script>' in html
+    assert "<script>" not in html
+
+
+def test_csp_de_relatorio_esta_presente(servidor):
+    from conftest import Cliente
+    r = Cliente(*servidor).get("/login")
+    assert "script-src 'self'" in r.headers["Content-Security-Policy-Report-Only"]
+
+
+def test_tv_boot_e_carimbado_e_repassa_o_carimbo_aos_arquivos_da_tv(admin):
+    """O loader do modo TV virou arquivo: sem repassar o ?v=, um tv.js novo ficaria 1 h
+    atras do cache do navegador."""
+    import re
+    html = admin.get("/").raw.decode()
+    m = re.search(r'<script src="/static/tv-boot\.js\?v=(\d+)"></script>', html)
+    assert m, "tv-boot.js sem carimbo de versao"
+    boot = admin.get("/static/tv-boot.js?v=%s" % m.group(1)).raw.decode()
+    assert "_tvUrl(" in boot and "document.currentScript" in boot

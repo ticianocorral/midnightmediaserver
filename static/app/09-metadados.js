@@ -47,7 +47,7 @@
       + '"API Key (v3 auth)" em Configurações › API. A chave fica só neste computador.</div>'
       + '<div class="user-form" style="flex-direction:column;align-items:stretch">'
       + '<input type="password" id="scrapeKeyInput" placeholder="Cole a API Key aqui" autocomplete="off">'
-      + '<button class="rclone-action-btn primary" onclick="_scrapeSalvarChave()">Salvar chave</button></div>'
+      + '<button class="rclone-action-btn primary" data-act="_scrapeSalvarChave">Salvar chave</button></div>'
       + (msg ? '<div class="user-msg err">' + escHtml(msg) + '</div>' : '');
   }
 
@@ -63,7 +63,7 @@
     const abas = [['organizar', 'Organizar'], ['pendentes', 'Sem metadado'], ['historico', 'Histórico'], ['chave', 'Chave TMDB']];
     const barra = '<div class="user-form" style="gap:6px;margin-bottom:12px">'
       + abas.map(a => '<button class="user-btn' + (a[0] === aba ? ' active' : '')
-        + '" style="' + (a[0] === aba ? 'background:var(--primary);color:#fff' : '') + '" onclick="_scrapeAba(\'' + a[0] + '\')">' + a[1] + '</button>').join('')
+        + '" style="' + (a[0] === aba ? 'background:var(--primary);color:#fff' : '') + '"' + attrAcao('_scrapeAba', [a[0]]) + '>' + a[1] + '</button>').join('')
       + '</div><div id="scrapeCorpo"></div>';
     document.getElementById('scrapeBox').innerHTML = barra;
     if (aba === 'organizar') _orgTela();
@@ -90,7 +90,7 @@
       + '<div class="user-form"><select id="orgFonte" style="flex:1 1 auto">'
       + fontes.map(f => '<option value="' + escHtml(f.id) + '"' + (f.id === _org.source ? ' selected' : '') + '>'
         + escHtml(f.name) + '</option>').join('')
-      + '</select><button class="rclone-action-btn primary" onclick="_orgProcurar()">Procurar filmes</button></div>'
+      + '</select><button class="rclone-action-btn primary" data-act="_orgProcurar">Procurar filmes</button></div>'
       + '<div id="orgLista"></div>';
   }
 
@@ -112,7 +112,7 @@
     }
     const n = Object.keys(_org.escolha).length;
     let html = '<div class="rclone-help" style="margin-top:12px">' + _org.itens.length + ' fora do padrão. '
-      + '<button class="user-btn" onclick="_orgSugerir()">Sugerir para todos</button> '
+      + '<button class="user-btn" data-act="_orgSugerir">Sugerir para todos</button> '
       + '<span class="src-hint">A sugestão só marca quando título e ano batem; você revisa antes de aplicar.</span></div>';
     for (const it of _org.itens) {
       const esc = _org.escolha[it.origem];
@@ -124,15 +124,15 @@
                + (esc.sem_capa ? 'nenhuma' : (esc.poster_path ? 'escolhida' : 'padrão do TMDB')) + '</div>'
                : '<div class="src-hint">Palpite: ' + escHtml(it.titulo || '?') + (it.ano ? ' (' + it.ano + ')' : '') + '</div>')
         + '</div>'
-        + '<button class="user-btn" onclick="_orgBuscar(\'' + it.id + '\')">' + (esc ? 'Trocar filme' : 'Buscar') + '</button>'
-        + (esc ? '<button class="user-btn" onclick="_orgAbrirCapas(\'' + it.id + '\')">Capa</button>' : '')
-        + (esc ? '<button class="user-btn" title="Tirar da seleção" onclick="_orgLimpar(\'' + it.id + '\')">✕</button>' : '')
+        + '<button class="user-btn"' + attrAcao('_orgBuscar', [it.id]) + '>' + (esc ? 'Trocar filme' : 'Buscar') + '</button>'
+        + (esc ? '<button class="user-btn"' + attrAcao('_orgAbrirCapas', [it.id]) + '>Capa</button>' : '')
+        + (esc ? '<button class="user-btn" title="Tirar da seleção"' + attrAcao('_orgLimpar', [it.id]) + '>✕</button>' : '')
         + '<div id="orgBusca-' + it.id + '" style="flex:1 1 100%"></div>'
-        + (_org.capasAberto === it.id && esc ? '<div style="flex:1 1 100%"><button class="user-btn" onclick="_orgSemCapa(\'' + it.id + '\')">Não baixar capa</button></div>' : '')
+        + (_org.capasAberto === it.id && esc ? '<div style="flex:1 1 100%"><button class="user-btn"' + attrAcao('_orgSemCapa', [it.id]) + '>Não baixar capa</button></div>' : '')
         + '<div id="orgCapas-' + it.id + '" style="flex:1 1 100%"></div></div>';
     }
     html += '<div style="margin-top:14px;display:flex;gap:10px;align-items:center">'
-      + '<button class="rclone-action-btn primary"' + (n ? '' : ' disabled') + ' onclick="_orgAplicar()">Aplicar ' + n
+      + '<button class="rclone-action-btn primary"' + (n ? '' : ' disabled') + ' data-act="_orgAplicar">Aplicar ' + n
       + (n === 1 ? ' filme' : ' filmes') + '</button><span class="src-hint">Os arquivos são movidos e renomeados na própria fonte.</span></div>'
       + '<div id="orgResultado"></div>';
     lista.innerHTML = html;
@@ -163,18 +163,18 @@
     if (!it || !area) return;
     const campo = '<div class="user-form" style="margin:8px 0"><input type="text" id="orgQ-' + id + '" value="'
       + escHtml((d && d.consulta) || (it.titulo + (it.ano ? ' ' + it.ano : ''))) + '" style="flex:1 1 auto" '
-      + 'onkeydown="if(event.key===\'Enter\')_orgBuscar(\'' + id + '\', this.value)">'
-      + '<button class="user-btn" onclick="_orgBuscar(\'' + id + '\', document.getElementById(\'orgQ-' + id + '\').value)">Buscar</button>'
-      + '<button class="user-btn" onclick="_org.busca[\'' + id + '\']=null;document.getElementById(\'orgBusca-' + id + '\').innerHTML=\'\'">Fechar</button></div>';
+      + attrAcao('_orgBuscarTecla', [id, {$: 'this'}, {$: 'event'}], false, 'data-act-keydown') + '>'
+      + '<button class="user-btn"' + attrAcao('_orgBuscarDoCampo', [id]) + '>Buscar</button>'
+      + '<button class="user-btn"' + attrAcao('_orgFecharBusca', [id]) + '>Fechar</button></div>';
     if (!d || d.erro) { area.innerHTML = campo + '<div class="user-msg err">' + escHtml((d && d.erro) || 'Erro.') + '</div>'; return; }
     const c = d.candidatos || [];
     area.innerHTML = campo + (c.length ? c.map((x, i) =>
       '<div class="user-row" style="align-items:flex-start">'
-      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:44px;height:64px;object-fit:cover;border-radius:4px;flex:0 0 auto" onerror="this.remove()">' : '')
+      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:44px;height:64px;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
       + '<div class="src-main"><div class="user-name">' + escHtml(x.titulo) + (x.ano ? ' <span style="color:var(--text3);font-weight:400">(' + x.ano + ')</span>' : '') + '</div>'
       + '<div class="src-hint" style="margin:2px 0 0">' + escHtml((x.sinopse || '').slice(0, 130)) + ((x.sinopse || '').length > 130 ? '…' : '') + '</div>'
       + '<div class="src-hint" style="color:#a5d6a7">→ ' + escHtml(x.destino) + '/</div></div>'
-      + '<button class="user-btn" style="flex:0 0 auto" onclick="_orgEscolher(\'' + id + '\', ' + i + ')">Usar este</button></div>').join('')
+      + '<button class="user-btn" style="flex:0 0 auto"' + attrAcao('_orgEscolher', [id, i]) + '>Usar este</button></div>').join('')
       : '<div class="user-msg">Nenhum resultado. Ajuste o texto da busca.</div>');
   }
 
@@ -204,7 +204,7 @@
     el.innerHTML = '<div class="src-hint" style="margin:6px 0">Escolha a capa (português primeiro):</div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px">'
       + capas.map((c, i) => '<button type="button" title="' + escHtml((c.idioma || 'sem idioma') + ' · ' + (c.largura || '?') + '×' + (c.altura || '?')) + '" '
-        + 'onclick="_capaClicada(\'' + elId + '\',' + i + ')" style="padding:0;border:2px solid '
+        + attrAcao('_capaClicada', [elId, i]) + ' style="padding:0;border:2px solid '
         + (c.path === selecionado ? 'var(--cream)' : 'transparent') + ';border-radius:4px;background:none;cursor:pointer;overflow:hidden;position:relative">'
         + '<img src="' + c.thumb + '" alt="" loading="lazy" style="width:100%;display:block;aspect-ratio:2/3;object-fit:cover">'
         + (c.idioma ? '<span style="position:absolute;left:4px;bottom:4px;font-size:10px;background:rgba(0,0,0,.7);color:#fff;padding:1px 4px;border-radius:3px">' + escHtml(c.idioma) + '</span>' : '')
@@ -287,7 +287,7 @@
       + '<div class="user-name">' + new Date(o.ts * 1000).toLocaleString('pt-BR') + '</div>'
       + '<div class="src-hint">' + escHtml((o.filmes || []).join(', ')) + '</div></div>'
       + (o.desfeita ? '<span class="user-tag cloud">desfeita</span>'
-                    : '<button class="user-btn danger" onclick="_orgDesfazer(\'' + o.id + '\')">Desfazer</button>')
+                    : '<button class="user-btn danger"' + attrAcao('_orgDesfazer', [o.id]) + '>Desfazer</button>')
       + '</div>').join('');
   }
 
@@ -308,7 +308,7 @@
     box.innerHTML = '<div class="rclone-help">Escolha o filme certo no TMDB e depois a capa. A capa atual '
       + 'não é apagada: vira <b>poster.anterior.jpg</b> na pasta. Só a capa é baixada, sem fanart.</div>'
       + '<div class="user-form"><input type="text" id="capaQuery" value="' + escHtml((titulo || '').replace(/\s*\(\d{4}\)\s*$/, '').trim()) + '" style="flex:1 1 auto" '
-      + 'onkeydown="if(event.key===\'Enter\')_capaBuscar()"><button class="rclone-action-btn primary" onclick="_capaBuscar()">Buscar filme</button></div>'
+      + attrAcao('_capaBuscarTecla', [{$: 'event'}], false, 'data-act-keydown') + '><button class="rclone-action-btn primary" data-act="_capaBuscar">Buscar filme</button></div>'
       + '<div id="capaCands" style="margin-top:10px"></div><div id="capaGrade" style="margin-top:10px"></div><div id="capaMsg"></div>';
     window._capaAlvo = path;
     _capaBuscar();
@@ -322,9 +322,9 @@
     if (d.erro) { area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro) + '</div>'; return; }
     const c = d.candidatos || [];
     area.innerHTML = c.length ? c.map(x => '<div class="user-row" style="align-items:center">'
-      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:36px;height:52px;object-fit:cover;border-radius:4px;flex:0 0 auto" onerror="this.remove()">' : '')
+      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:36px;height:52px;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
       + '<div class="src-main"><div class="user-name">' + escHtml(x.titulo) + (x.ano ? ' (' + x.ano + ')' : '') + '</div></div>'
-      + '<button class="user-btn" onclick="_capaEscolherFilme(' + x.id + ')">Ver capas</button></div>').join('')
+      + '<button class="user-btn"' + attrAcao('_capaEscolherFilme', [x.id]) + '>Ver capas</button></div>').join('')
       : '<div class="user-msg">Nenhum resultado. Ajuste o texto da busca.</div>';
   }
 
@@ -357,16 +357,16 @@
       + 'catálogo do app (a nuvem não é alterada); em pastas locais também é gravado o .nfo e o pôster.</div>'
       + lista.map(it => '<div class="user-row"><span class="user-name">' + escHtml(it.name)
         + (it.tipo === 'serie' ? ' <span class="src-hint">(série)</span>' : '') + '</span>'
-        + '<button class="user-btn" onclick="_scrapeAbrirBusca(\'' + enc(it.path) + '\', \'' + enc(it.name) + '\')">Buscar</button></div>').join('');
+        + '<button class="user-btn"' + attrAcao('_scrapeAbrirBusca', [enc(it.path), enc(it.name)]) + '>Buscar</button></div>').join('');
   }
 
   function _scrapeAbrirBusca(pathEnc, nomeEnc) {
     const nome = decodeURIComponent(nomeEnc);
     document.getElementById('scrapeCorpo').innerHTML =
-      '<button class="user-btn" onclick="_scrapePendentes()">← Voltar</button>'
+      '<button class="user-btn" data-act="_scrapePendentes">← Voltar</button>'
       + '<div class="user-form" style="margin-top:10px"><input type="text" id="scrapeQuery" value="'
       + escHtml(nome.replace(/\s*\(\d{4}\)\s*$/, '').trim()) + '" style="flex:1 1 auto">'
-      + '<button class="rclone-action-btn primary" onclick="_scrapeBuscar(\'' + pathEnc + '\')">Buscar</button></div>'
+      + '<button class="rclone-action-btn primary"' + attrAcao('_scrapeBuscar', [pathEnc]) + '>Buscar</button></div>'
       + '<div id="scrapeResultados" style="margin-top:12px"></div>';
     _scrapeBuscar(pathEnc);
   }
@@ -380,10 +380,10 @@
     if (d.erro) { area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro) + '</div>'; return; }
     const c = d.candidatos || [];
     area.innerHTML = c.length ? c.map(x => '<div class="user-row" style="align-items:flex-start">'
-      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:44px;height:64px;object-fit:cover;border-radius:4px;flex:0 0 auto" onerror="this.remove()">' : '')
+      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:44px;height:64px;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
       + '<div class="src-main"><div class="user-name">' + escHtml(x.titulo) + (x.ano ? ' (' + x.ano + ')' : '') + '</div>'
       + '<div class="src-hint">' + escHtml((x.sinopse || '').slice(0, 140)) + '</div></div>'
-      + '<button class="user-btn" onclick="_scrapeAplicar(\'' + pathEnc + '\', ' + x.id + ')">Usar este</button></div>').join('')
+      + '<button class="user-btn"' + attrAcao('_scrapeAplicar', [pathEnc, x.id]) + '>Usar este</button></div>').join('')
       : '<div class="user-msg">Nenhum resultado. Ajuste o texto da busca.</div>';
   }
 

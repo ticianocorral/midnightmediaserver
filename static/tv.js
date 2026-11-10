@@ -5,7 +5,7 @@
  *
  * O trabalho pesado (escolher o vizinho na direcao da seta) fica com o polyfill
  * de spatial navigation do W3C. Este arquivo cuida do que e especifico daqui:
- * tornar focavel o que so tem onclick, ativar com Enter, e sair da frente
+ * tornar focavel o que so tem data-act (o antigo onclick), ativar com Enter, e sair da frente
  * enquanto o player esta aberto.
  */
 (function () {
@@ -21,13 +21,13 @@
   document.documentElement.classList.add('modo-tv');
 
   // ── O que vira focavel ───────────────────────────────────────
-  // Regra por comportamento, nao por lista de classes: tudo que tem onclick e
+  // Regra por comportamento, nao por lista de classes: tudo que tem data-act (acao de clique) e
   // nao e focavel por natureza. Assim telas novas (series, colecoes) entram
   // sozinhas, sem ninguem lembrar de atualizar este arquivo.
   // Ligado enquanto o player esta aberto: as setas passam a ser dele.
   var playerAberto = null;
 
-  var CLICAVEL = '[onclick]:not(button):not(a):not(input):not(select):not(textarea)';
+  var CLICAVEL = '[data-act]:not(button):not(a):not(input):not(select):not(textarea)';
   // Panos de fundo existem para fechar no clique: focar neles nao leva a lugar
   // nenhum e ainda engole uma parada da navegacao.
   var IGNORAR = '.sidebar-backdrop, .modal-overlay, .player-overlay';
@@ -45,7 +45,7 @@
 
   // ── Enter ativa ──────────────────────────────────────────────
   // O navegador so dispara click no Enter para <button> e <a>. Os cartoes sao
-  // <div onclick>, entao o Enter deles e por nossa conta. Restrito a
+  // <div data-act>, entao o Enter deles e por nossa conta. Restrito a
   // .tv-focavel de proposito: campo de busca continua recebendo Enter normal.
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter') return;

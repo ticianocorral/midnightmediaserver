@@ -99,11 +99,6 @@ from .auth import (
     _clear_login_failures,
 )
 from .templates import _login_page, _profiles_page
-from .netutil import (
-    _get_local_ip,
-    _primary_local_hostname,
-    active_https_port,
-)
 from .rclone import (
     run_rclone_cmd,
     _mark_file_cached,
@@ -150,14 +145,26 @@ def _bust_asset_cache(html):
     """
     partes = sorted(p.name for p in (PROJECT_ROOT / "static" / "app").glob("*.js"))
     for asset in (["/static/app/" + nome for nome in partes]
-                  + ["/static/styles.css", "/static/tv.js", "/static/tv.css"]):
+                  + ["/static/styles.css", "/static/tv.js", "/static/tv.css", "/static/tv-boot.js"]):
         try:
-            stamp = int((PROJECT_ROOT / asset.lstrip("/")).stat().st_mtime)
+            if asset == "/static/tv-boot.js":
+                # o loader repassa este carimbo ao tv.js, tv.css e polyfill: vale o mais novo deles
+                alvos = [asset, "/static/tv.js", "/static/tv.css",
+                         "/static/vendor/spatial-navigation-polyfill.js"]
+                stamp = max(int((PROJECT_ROOT / a.lstrip("/")).stat().st_mtime) for a in alvos)
+            else:
+                stamp = int((PROJECT_ROOT / asset.lstrip("/")).stat().st_mtime)
         except OSError:
             continue
         html = html.replace(f'"{asset}"', f'"{asset}?v={stamp}"')
     return html
 
+
+# Politica alvo, em modo relatorio. gstatic: o SDK do Chromecast (cast_sender.js).
+CSP_RELATORIO = ("default-src 'self'; script-src 'self' https://www.gstatic.com; "
+                 "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; "
+                 "media-src 'self' blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; "
+                 "object-src 'none'; base-uri 'self'; form-action 'self'")
 
 # static/ comprimido em gzip, por (arquivo, mtime, tamanho): o JS do app soma 300 KB.
 _GZIP_ESTATICOS = {}
@@ -229,6 +236,10 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         # Impede a pagina de ser embutida em iframe de outro site (clickjacking).
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
+        # CSP so de RELATORIO por enquanto: aponta no console o que uma politica restritiva
+        # bloquearia (JS inline, origens externas) sem quebrar nada. O app nao tem mais
+        # handlers inline nem <script> inline; falta validar Chromecast/AirPlay antes de impor.
+        self.send_header("Content-Security-Policy-Report-Only", CSP_RELATORIO)
         self.send_header("Referrer-Policy", "same-origin")
         super().end_headers()
 
@@ -1071,25 +1082,8 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         # nome. So esse texto muda — CACHE_DIR, nome do banco e do
         # servico continuam fixos, de proposito (ver branding.py).
         html_content = html_content.replace(NOME_PADRAO, _branding.get()["nome"])
-        # Inject HTTP base URL for Chromecast media streaming
-        # (Chromecast doesn't trust self-signed certs, so media must use HTTP)
-        local_ip = _get_local_ip()
-        # Dados de rede das instrucoes "Instalar no celular" (Ajustes): o nome
-        # .local que o certificado cobre, o IP de reserva e as portas reais.
-        # So entram no HTML autenticado — a tela de login nao recebe nada disto.
-        net_info = {
-            "host": _primary_local_hostname(),
-            "ip": local_ip,
-            "httpPort": PORT,
-            "httpsPort": active_https_port(),
-        }
-        html_content = html_content.replace(
-            "</head>",
-            f"<script>window.__HTTP_BASE__='http://{local_ip}:{PORT}';"
-            f"window.__LOGICAL_ROOT__={json.dumps(_branding.logical_root())};"
-            f"window.__NET__={json.dumps(net_info)};</script></head>",
-            1
-        )
+        # A configuracao dinamica (__HTTP_BASE__, __LOGICAL_ROOT__, __NET__) agora vem de
+        # /app-config.js (rotas/sistema.py), carregado pelo index.html: nada de <script> inline.
         return _bust_asset_cache(html_content)
 
     def _stream_file(self, path):
@@ -2606,6 +2600,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
 
     # Rotas GET depois do guard de escrita: caminho -> metodo. Cada metodo e _get_<caminho>.
     _ROTAS_GET = {
+        "/app-config.js": "_get_app_config_js",
         "/manifest.webmanifest": "_get_manifest_webmanifest",
         "/branding.css": "_get_branding_css",
         "/ca.crt": "_get_ca_crt",

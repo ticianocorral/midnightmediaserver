@@ -50,3 +50,73 @@ def test_toda_funcao_chamada_por_handler_inline_existe():
     nativas = {"if", "decodeURIComponent", "encodeURIComponent", "event", "return", "alert", "confirm"}
     faltam = sorted(n for n in chamadas - nativas if n not in _declaradas())
     assert not faltam, "handlers inline chamam funcoes inexistentes: %s" % faltam
+
+
+# ── sem JS inline: o que permite (no futuro) uma CSP que bloqueie script inline ──
+def _fontes():
+    return {"index.html": INDEX, **{p.name: p.read_text(encoding="utf-8") for p in PARTES}}
+
+
+def _sem_comentarios(texto):
+    return "\n".join(l for l in texto.split("\n") if not l.lstrip().startswith("//"))
+
+
+def test_nao_ha_handlers_inline():
+    achados = []
+    for nome, texto in _fontes().items():
+        for m in re.finditer(r'\son(?:click|error|input|change|keydown|keyup|load|submit|focus|blur)=', _sem_comentarios(texto)):
+            achados.append(nome + ": " + _sem_comentarios(texto)[m.start():m.start() + 60].strip())
+    assert not achados, achados
+
+
+def test_nao_ha_script_nem_url_javascript_inline():
+    assert not re.findall(r"<script>(?!\s*</script>)", INDEX)           # <script> sem src
+    for nome, texto in _fontes().items():
+        assert "javascript:" not in _sem_comentarios(texto), nome
+
+
+def _acoes_permitidas():
+    js = (RAIZ / "static" / "app" / "11-acoes.js").read_text(encoding="utf-8")
+    corpo = re.search(r"const ACOES = Object\.freeze\(\{(.*?)\}\);", js, re.S).group(1)
+    return {n.strip() for n in corpo.split(",") if n.strip()}
+
+
+def test_toda_acao_usada_esta_na_lista_permitida():
+    textos = "\n".join(_sem_comentarios(t) for t in _fontes().values())
+    usadas = set(re.findall(r"data-act(?:-[a-z]+)?=\\?\"([A-Za-z_]\w*)\\?\"", textos))
+    usadas |= set(re.findall(r"attrAcao\('([A-Za-z_]\w*)'", textos))
+    usadas |= set(re.findall(r"&quot;n&quot;:&quot;([A-Za-z_]\w*)&quot;", textos))
+    usadas |= {"selectSubtitleSize", "selectSubtitleColor"}               # passadas como aoEscolher
+    faltam = sorted(usadas - _acoes_permitidas())
+    assert not faltam, "acoes usadas no HTML mas fora de ACOES (o clique nao faria nada): %s" % faltam
+
+
+def test_toda_acao_permitida_e_uma_funcao_declarada():
+    assert _declaradas() >= _acoes_permitidas(), sorted(_acoes_permitidas() - _declaradas())
+
+
+def test_despachante_nao_usa_eval_nem_window_por_nome():
+    js = (RAIZ / "static" / "app" / "11-acoes.js").read_text(encoding="utf-8")
+    codigo = _sem_comentarios(js)
+    assert "eval(" not in codigo and "new Function" not in codigo and "window[" not in codigo
+
+
+def test_acoes_carrega_antes_da_inicializacao():
+    nomes = [p.name for p in PARTES]
+    assert nomes.index("11-acoes.js") < nomes.index("12-init.js")
+
+
+def test_nada_depende_dos_atributos_onclick_antigos():
+    """tv.js e styles.css chegaram a selecionar [onclick]: sem o atributo, a TV perdia a
+    navegacao e o cursor de clique sumia. Qualquer codigo que leia o atributo quebra igual."""
+    import glob
+    arquivos = [RAIZ / "static" / "tv.js", RAIZ / "static" / "styles.css", RAIZ / "static" / "tv.css",
+                *PARTES]
+    achados = []
+    for f in arquivos:
+        for i, linha in enumerate(f.read_text(encoding="utf-8").split("\n"), 1):
+            if linha.lstrip().startswith(("//", "/*", "*")):
+                continue
+            if re.search(r"\[on(click|error|input|change|keydown)[\]=*^$~|]|getAttribute\(['\"]on(click|error|input|change|keydown)", linha):
+                achados.append("%s:%d %s" % (f.name, i, linha.strip()[:80]))
+    assert not achados, achados

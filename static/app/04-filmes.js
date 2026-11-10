@@ -87,7 +87,7 @@
     const safePath = enc(folderPath);
 
     return `
-      <div class="movie-card" onclick="showMovieInfo(decodeURIComponent('${safePath}'), event)" title="${escHtml(name)}">
+      <div class="movie-card"${attrAcao('showMovieInfo', [folderPath, {$: 'event'}])} title="${escHtml(name)}">
         <img class="movie-card-poster" id="poster-${encodedPath}" src="" alt="${escHtml(name)}" style="display:none">
         <div class="movie-card-poster-placeholder" id="ph-${encodedPath}"><svg class="icon-svg"><use href="#i-film"></use></svg></div>
         <div class="movie-card-overlay">
@@ -125,7 +125,7 @@
         const folderPath = (data.path ? data.path + '/' : '') + name;
         const safePath = enc(folderPath);
     html += `
-          <div class="movie-card" onclick="loadPath(decodeURIComponent('${safePath}'))" title="${escHtml(name)}">
+          <div class="movie-card"${attrAcao('loadPath', [folderPath])} title="${escHtml(name)}">
             <div class="movie-card-poster-placeholder"><svg class="icon-svg"><use href="#i-folder"></use></svg></div>
             <div class="movie-card-overlay">
               <div class="movie-card-title">${escHtml(name)}</div>
@@ -174,10 +174,10 @@
     const year = yearMatch ? yearMatch[1] : '';
 
     let html = `
-      <div class="movie-card" onclick="playMovie(decodeURIComponent('${safePath}'), decodeURIComponent('${safeName}'))" title="${escHtml(name)}">`;
+      <div class="movie-card"${attrAcao('playMovie', [filePath, name])} title="${escHtml(name)}">`;
 
     if (posterSrc) {
-      html += `<img class="movie-card-poster" src="${posterSrc}" alt="${escHtml(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`;
+      html += `<img class="movie-card-poster" src="${posterSrc}" alt="${escHtml(name)}" loading="lazy"${attrAcao('imgTrocarPorIrmao', null, false, 'data-act-error')}>`;
       html += `<div class="movie-card-poster-placeholder" style="display:none">${fileIcon(name)}</div>`;
     } else {
       html += `<div class="movie-card-poster-placeholder">${fileIcon(name)}</div>`;
@@ -271,7 +271,7 @@
       const semCartaz = '<div class=\'placeholder\'><svg class=\'icon-svg\'><use href=\'#i-film\'></use></svg></div>';
       const posterImg = poster
         ? '<img src="' + posterUrl(folderPath, poster.Name) + '" alt="' + escHtml(titleClean)
-          + '" onerror="this.outerHTML=' + JSON.stringify(semCartaz).replace(/"/g, '&quot;') + '">'
+          + '"' + attrAcao('imgSemCartaz', null, false, 'data-act-error') + '>'
         : semCartaz.replace(/'/g, '"');
 
       const videoPath = video ? (folderPath + '/' + video.Name) : null;
@@ -375,7 +375,7 @@
           </div>
 
           <div class="movie-info-actions">
-            ${videoPath ? '<button class="btn-play" onclick="playFromInfo(decodeURIComponent(\'' + enc(videoPath) + '\'), decodeURIComponent(\'' + enc(titleClean) + '\') ' + (subtitle ? ', decodeURIComponent(\'' + enc(folderPath + '/' + subtitle.Name) + '\')' : '') + ')"><svg class="icon-svg"><use href="#i-play"></use></svg> Assistir</button>' : '<button class="btn-play" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-play"></use></svg> Indisponível</button>'}
+            ${videoPath ? '<button class="btn-play"' + attrAcao('playFromInfo', subtitle ? [videoPath, titleClean, folderPath + '/' + subtitle.Name] : [videoPath, titleClean]) + '><svg class="icon-svg"><use href="#i-play"></use></svg> Assistir</button>' : '<button class="btn-play" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-play"></use></svg> Indisponível</button>'}
             ${isLocalPath(folderPath)
                 ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-hard-drive"></use></svg> Local</span>'
                 : (_isCached(folderPath) ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-download"></use></svg> Baixado</span>' : '')}
@@ -390,8 +390,7 @@
                 ? switchInfantilHtml(folderPath, detail.infantil, 'Perfil infantil')
                 : ''}
             ${detail.collection
-                ? '<button class="btn-colecao" onclick="closeMovieInfo(); abrirColecao('
-                  + detail.collection.id + ')" title="Ver a coleção inteira">'
+                ? '<button class="btn-colecao"' + attrAcao('fichaAbrirColecao', [detail.collection.id]) + ' title="Ver a coleção inteira">'
                   + '<svg class="icon-svg"><use href="#i-layers"></use></svg> '
                   + escHtml(detail.collection.name)
                   + ' <span class="btn-colecao-conta">' + detail.collection.total + '</span></button>'

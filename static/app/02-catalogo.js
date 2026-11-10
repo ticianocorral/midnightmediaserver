@@ -119,7 +119,7 @@
 
     let html = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:24px;padding:0 4px" id="azJump">';
     letters.forEach(l => {
-      html += '<a href="javascript:;" onclick="document.getElementById(\'az-' + l + '\').scrollIntoView({behavior:\'smooth\'});return false" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:var(--surface);border-radius:6px;text-decoration:none;font-weight:700;font-size:15px;color:var(--accent);transition:background .2s">' + l + '</a>';
+      html += '<a href="#"' + attrAcao('rolarPara', ['az-' + l]) + ' style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:var(--surface);border-radius:6px;text-decoration:none;font-weight:700;font-size:15px;color:var(--accent);transition:background .2s">' + l + '</a>';
     });
     html += '</div>';
 
@@ -135,15 +135,15 @@
         // Filme solto (arquivo avulso) não tem ficha: o clique toca direto.
         // Filme em pasta abre a ficha, como em todo o app.
         const clique = m.is_file
-          ? 'playMovie(decodeURIComponent(\'' + safePath + '\'), decodeURIComponent(\'' + enc(nameClean) + '\'))'
-          : 'showMovieInfo(decodeURIComponent(\'' + safePath + '\'), event)';
+          ? attrAcao('playMovie', [m.path, nameClean])
+          : attrAcao('showMovieInfo', [m.path, {$: 'event'}]);
         const botaoGenero = (_me && _me.role === 'admin')
-          ? '<button class="movie-card-genero" onclick="event.stopPropagation(); openGeneroFilmeModal(decodeURIComponent(\'' + safePath + '\'), decodeURIComponent(\'' + enc(nameClean) + '\'))" title="Tags do filme"><svg class="icon-svg"><use href="#i-layers"></use></svg></button>'
+          ? '<button class="movie-card-genero"' + attrAcao('openGeneroFilmeModal', [m.path, nameClean], true) + ' title="Tags do filme"><svg class="icon-svg"><use href="#i-layers"></use></svg></button>'
           : '';
-        html += '<div class="movie-card" onclick="' + clique + '" title="' + escHtml(nameClean) + '">'
+        html += '<div class="movie-card"' + clique + ' title="' + escHtml(nameClean) + '">'
           + botaoGenero;
         if (m.poster) {
-          html += '<img class="movie-card-poster" src="' + posterUrl(m.path, m.poster) + '" alt="' + escHtml(nameClean) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+          html += '<img class="movie-card-poster" src="' + posterUrl(m.path, m.poster) + '" alt="' + escHtml(nameClean) + '" loading="lazy" ' + attrAcao('imgTrocarPorIrmao', null, false, 'data-act-error') + '>';
           html += '<div class="movie-card-poster-placeholder" style="display:none"><svg class="icon-svg"><use href="#i-film"></use></svg></div>';
         } else {
           html += '<div class="movie-card-poster-placeholder" style="display:flex"><svg class="icon-svg"><use href="#i-film"></use></svg></div>';
@@ -219,22 +219,22 @@
     // lateral, que ja agrupa os generos pela fonte dona.
     container.innerHTML = `
       <div class="home-stats">
-        <div class="home-stat" onclick="loadAZ()" title="Ver todos os filmes">
+        <div class="home-stat" data-act="loadAZ" title="Ver todos os filmes">
           <div class="home-stat-icon"><svg class="icon-svg"><use href="#i-film"></use></svg></div>
           <div class="home-stat-num" id="statMovies">—</div>
           <div class="home-stat-label">Filmes no acervo</div>
         </div>
-        <div class="home-stat" onclick="loadSeries()" title="Ver todas as séries">
+        <div class="home-stat" data-act="loadSeries" title="Ver todas as séries">
           <div class="home-stat-icon"><svg class="icon-svg"><use href="#i-tv"></use></svg></div>
           <div class="home-stat-num" id="statSeries">—</div>
           <div class="home-stat-label">Séries no acervo</div>
         </div>
-        <div class="home-stat" onclick="openSourcesOrSettings()" title="Fontes do acervo">
+        <div class="home-stat" data-act="openSourcesOrSettings" title="Fontes do acervo">
           <div class="home-stat-icon"><svg class="icon-svg"><use href="#i-hard-drive"></use></svg></div>
           <div class="home-stat-num" id="statSources">—</div>
           <div class="home-stat-label" id="statSourcesLabel">Fontes conectadas</div>
         </div>
-        <div class="home-stat" onclick="openCacheManager()" title="Gerenciar o cache offline">
+        <div class="home-stat" data-act="openCacheManager" title="Gerenciar o cache offline">
           <div class="home-stat-icon"><svg class="icon-svg"><use href="#i-download"></use></svg></div>
           <div class="home-stat-num" id="statDownloaded">—</div>
           <div class="home-stat-label" id="statDownloadedLabel">Baixados da nuvem</div>
@@ -284,9 +284,9 @@
         const nameClean = (m.title || m.name || '').replace(/[._]/g, ' ').replace(/\.[^.]+$/, '');
         const safePath = enc(m.path);
         const cliqueRecente = m.is_serie
-          ? 'loadPath(\'' + SERIE_PREFIXO + safePath + '\')'
-          : 'showMovieInfo(decodeURIComponent(\'' + safePath + '\'), event)';
-        html += '<div class="movie-card" onclick="' + cliqueRecente + '" title="' + escHtml(m.name) + '">'
+          ? attrAcao('loadPath', [SERIE_PREFIXO + safePath])      // safePath = enc(path), como antes
+          : attrAcao('showMovieInfo', [m.path, {$: 'event'}]);
+        html += '<div class="movie-card"' + cliqueRecente + ' title="' + escHtml(m.name) + '">'
           + '<div class="movie-card-poster-placeholder" style="display:flex"><svg class="icon-svg"><use href="#i-film"></use></svg></div>'
           + _badgeAssistido(m)
           + '<div class="movie-card-overlay">'
@@ -332,10 +332,8 @@
           const rotulo = tipo === 'episodio'
             ? m.serie + ' · ' + m.temporada + ' · ' + m.episodio
             : m.name;
-          linhas += '<button class="episodio-linha" onclick="playMovie(decodeURIComponent(\''
-            + enc(m.path) + '\'), decodeURIComponent(\'' + enc(rotulo) + '\')'
-            + (m.subtitle ? ', decodeURIComponent(\'' + enc(m.subtitle) + '\')' : ', null')
-            + ', ' + Math.floor(m.position) + ')">'
+          linhas += '<button class="episodio-linha"'
+            + attrAcao('playMovie', [m.path, rotulo, m.subtitle ? m.subtitle : null, Math.floor(m.position)]) + '>'
             + '<span class="episodio-play"><svg class="icon-svg"><use href="#i-play"></use></svg></span>'
             + '<span class="episodio-titulo">' + escHtml(rotulo)
             + ' <span class="episodio-tamanho">' + posStr + ' assistido</span></span>'
@@ -347,7 +345,7 @@
         // Filme em pasta: poster card com retomada pela ficha (como sempre).
         const nameClean = (m.title || m.name || '').replace(/[._]/g, ' ');
         const safePath = enc(m.path);
-        html2 += '<div class="movie-card" onclick="showMovieInfo(decodeURIComponent(\'' + safePath + '\'), event)" title="' + escHtml(m.name) + '">'
+        html2 += '<div class="movie-card"' + attrAcao('showMovieInfo', [m.path, {$: 'event'}]) + ' title="' + escHtml(m.name) + '">'
           + '<div class="movie-card-poster-placeholder" style="display:flex"><svg class="icon-svg"><use href="#i-film"></use></svg></div>'
           + '<div class="movie-card-overlay">'
           + '<div class="movie-card-title">' + escHtml(nameClean) + '</div>'
@@ -517,7 +515,7 @@
       const letras = Object.keys(grupos).sort();
       let html = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:24px;padding:0 4px">';
       letras.forEach(l => {
-        html += '<a href="javascript:;" onclick="document.getElementById(\'azs-' + l + '\').scrollIntoView({behavior:\'smooth\'});return false" '
+        html += '<a href="#"' + attrAcao('rolarPara', ['azs-' + l]) + ' '
           + 'style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:var(--surface);border-radius:6px;text-decoration:none;font-weight:700;font-size:15px;color:var(--accent)">' + l + '</a>';
       });
       html += '</div>';
@@ -533,11 +531,10 @@
           const meta = s.temporadas
             + (s.temporadas === 1 ? ' temporada · ' : ' temporadas · ')
             + s.episodios + (s.episodios === 1 ? ' episódio' : ' episódios');
-          html += '<div class="movie-card" onclick="loadPath(\'' + SERIE_PREFIXO + enc(s.path) + '\')" title="' + titulo + '">'
+          html += '<div class="movie-card"' + attrAcao('loadPath', [SERIE_PREFIXO + enc(s.path)]) + ' title="' + titulo + '">'
             + (poster
                 ? '<img class="movie-card-poster" src="' + poster + '" alt="' + titulo
-                  + '" loading="lazy" onerror="this.style.display=\'none\';'
-                  + 'this.nextElementSibling.style.display=\'flex\'">'
+                  + '" loading="lazy"' + attrAcao('imgTrocarPorIrmao', null, false, 'data-act-error') + '>'
                   + '<div class="movie-card-poster-placeholder" style="display:none">'
                   + '<svg class="icon-svg"><use href="#i-tv"></use></svg></div>'
                 : '<div class="movie-card-poster-placeholder" style="display:flex">'
@@ -564,7 +561,7 @@
     hero.style.background = 'linear-gradient(135deg, var(--bg2) 0%, var(--surface) 100%)';
 
     const botaoNova = (_me && _me.role === 'admin')
-      ? '<button class="btn btn-primary colecao-nova-btn" onclick="openColecaoModal()">'
+      ? '<button class="btn btn-primary colecao-nova-btn" data-act="openColecaoModal">'
         + '<svg class="icon-svg"><use href="#i-plus"></use></svg> Nova coleção</button>'
       : '';
     cachedFetch('/api/collections').then(cols => {
@@ -581,10 +578,10 @@
       }
       let html = '<div class="genre-section">' + botaoNova + '<div class="colecao-lista">';
       cols.forEach(c => {
-        html += '<button class="colecao-item" onclick="abrirColecao(' + c.id + ')">'
+        html += '<button class="colecao-item"' + attrAcao('abrirColecao', [c.id]) + '>'
           + (c.poster
               ? '<img class="colecao-capa" src="' + streamUrl(c.poster) + '" alt="" '
-                + 'loading="lazy" onerror="this.remove()">'
+                + 'loading="lazy" ' + attrAcao('imgRemover', null, false, 'data-act-error') + '>'
               : '<span class="colecao-icone"><svg class="icon-svg"><use href="#i-layers"></use></svg></span>')
           + '<span class="colecao-nome">' + escHtml(c.name) + '</span>'
           + '<span class="colecao-conta">' + c.total
@@ -602,8 +599,8 @@
     hero.style.background = 'linear-gradient(135deg, var(--bg2) 0%, var(--surface) 100%)';
 
     document.getElementById('breadcrumb').innerHTML =
-      '<a onclick="loadPath(\'\')"><svg class="icon-svg"><use href="#i-home"></use></svg> Início</a>'
-      + ' <span class="sep">›</span> <a onclick="loadCollections()">Coleções</a>'
+      '<a data-act="loadPath" data-args="[&quot;&quot;]"><svg class="icon-svg"><use href="#i-home"></use></svg> Início</a>'
+      + ' <span class="sep">›</span> <a data-act="loadCollections">Coleções</a>'
       + ' <span class="sep">›</span> <span>' + escHtml(nome) + '</span>';
 
     cachedFetch('/api/collection?key=' + encodeURIComponent(nome)).then(col => {
@@ -621,10 +618,9 @@
         (col.poster ? '' : '<svg class="icon-svg"><use href="#i-layers"></use></svg> ')
         + escHtml(col.name);
       const acoesAdmin = (_me && _me.role === 'admin')
-        ? '<button class="colecao-acao-btn" onclick="openColecaoModal(' + col.id + ')">'
+        ? '<button class="colecao-acao-btn"' + attrAcao('openColecaoModal', [col.id]) + '>'
           + '<svg class="icon-svg"><use href="#i-gear"></use></svg> Editar</button>'
-          + '<button class="colecao-acao-btn perigo" onclick="excluirColecao(' + col.id
-          + ', decodeURIComponent(\'' + enc(col.name) + '\'))">'
+          + '<button class="colecao-acao-btn perigo"' + attrAcao('excluirColecao', [col.id, col.name]) + '>'
           + '<svg class="icon-svg"><use href="#i-trash"></use></svg> Excluir</button>'
         : '';
       document.getElementById('heroDesc').innerHTML =
@@ -642,13 +638,12 @@
         const titulo = escHtml((m.title || m.name).replace(/[._]/g, ' '));
         const poster = m.poster ? posterUrl(m.path, m.poster) : null;
         const clique = m.is_serie
-          ? 'loadPath(\'' + SERIE_PREFIXO + enc(m.path) + '\')'
-          : 'showMovieInfo(decodeURIComponent(\'' + enc(m.path) + '\'), event)';
-        html += '<div class="movie-card" onclick="' + clique + '" title="' + titulo + '">'
+          ? attrAcao('loadPath', [SERIE_PREFIXO + enc(m.path)])
+          : attrAcao('showMovieInfo', [m.path, {$: 'event'}]);
+        html += '<div class="movie-card"' + clique + ' title="' + titulo + '">'
           + (poster
               ? '<img class="movie-card-poster" src="' + poster + '" alt="' + titulo
-                + '" loading="lazy" onerror="this.style.display=\'none\';'
-                + 'this.nextElementSibling.style.display=\'flex\'">'
+                + '" loading="lazy"' + attrAcao('imgTrocarPorIrmao', null, false, 'data-act-error') + '>'
                 + '<div class="movie-card-poster-placeholder" style="display:none">'
                 + '<svg class="icon-svg"><use href="#i-film"></use></svg></div>'
               : '<div class="movie-card-poster-placeholder">'
@@ -747,11 +742,11 @@
       + '<span class="colecao-contador" id="colecaoContador"></span></div>'
       + '<input id="colecaoBusca" class="colecao-busca" type="text" '
       + 'placeholder="Filtrar por título..." value="' + escHtml(_colecaoBusca) + '" '
-      + 'oninput="_colecaoFiltrar(this.value)">'
+      + attrAcao('_colecaoFiltrar', [{$: 'value'}], false, 'data-act-input') + '>'
       + '<div class="colecao-picker" id="colecaoPicker"></div>'
       + '<div class="colecao-passos">'
       + '<span></span>'
-      + '<button class="rclone-action-btn primary" onclick="_colecaoIrParaCapa()">Continuar →</button>'
+      + '<button class="rclone-action-btn primary" data-act="_colecaoIrParaCapa">Continuar →</button>'
       + '</div>'
       + '<div id="colecaoMsg"></div>';
     conteudo.innerHTML = html;
@@ -798,9 +793,9 @@
       const titulo = escHtml((m.title || m.name || '').replace(/[._]/g, ' '));
       const poster = m.poster ? posterUrl(m.path, m.poster) : null;
       html += '<button class="colecao-filme' + (escolhido ? ' escolhido' : '') + '" '
-        + 'onclick="_colecaoToggle(\'' + enc(path) + '\')" title="' + titulo + '">'
+        + attrAcao('_colecaoToggle', [path]) + ' title="' + titulo + '">'
         + (poster
-            ? '<img src="' + poster + '" alt="" loading="lazy" onerror="this.remove()">'
+            ? '<img src="' + poster + '" alt="" loading="lazy" ' + attrAcao('imgRemover', null, false, 'data-act-error') + '>'
             : '<span class="colecao-filme-sem"><svg class="icon-svg"><use href="#i-film"></use></svg></span>')
         + '<span class="colecao-filme-check"><svg class="icon-svg"><use href="#i-check"></use></svg></span>'
         + '<span class="colecao-filme-titulo">' + titulo + '</span>'
@@ -853,9 +848,9 @@
     for (const [path, f] of _colecao.filmes) {
       const poster = f.poster ? posterUrl(f.path, f.poster) : null;
       grade += '<button class="colecao-capa-opcao' + (_colecao.capa === path ? ' escolhida' : '') + '" '
-        + 'onclick="_colecaoEscolherCapa(\'' + enc(path) + '\')">'
+        + attrAcao('_colecaoEscolherCapa', [path]) + '>'
         + (poster
-            ? '<img src="' + poster + '" alt="" onerror="this.parentElement.classList.add(\'sem-poster\'); this.remove()">'
+            ? '<img src="' + poster + '" alt="" ' + attrAcao('imgSemPoster', null, false, 'data-act-error') + '>'
             : '')
         + '<span class="colecao-capa-titulo">' + escHtml((f.title || '').replace(/[._]/g, ' ')) + '</span>'
         + '<span class="colecao-capa-check"><svg class="icon-svg"><use href="#i-check"></use></svg></span>'
@@ -866,8 +861,8 @@
       + 'você pode trocar depois em Editar.</p>'
       + '<div class="colecao-capa-grade">' + grade + '</div>'
       + '<div class="colecao-passos">'
-      + '<button class="rclone-action-btn" onclick="_colecaoRenderPasso1()">← Voltar</button>'
-      + '<button class="rclone-action-btn primary" id="colecaoSalvarBtn" onclick="_colecaoSalvar()">'
+      + '<button class="rclone-action-btn" data-act="_colecaoRenderPasso1">← Voltar</button>'
+      + '<button class="rclone-action-btn primary" id="colecaoSalvarBtn" data-act="_colecaoSalvar">'
       + (_colecao.id ? 'Salvar alterações' : 'Criar coleção') + '</button>'
       + '</div>'
       + '<div id="colecaoMsg"></div>';

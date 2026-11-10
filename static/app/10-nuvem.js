@@ -26,8 +26,8 @@
         + _rcloneBadge(true, 'mesma nuvem, pasta "' + 'Media Server Backups"', '') + '</div>';
       if (s && s.acesso) html += _renderAcessoNuvem(s.acesso);
       html += '<div class="rclone-actions">'
-        + '<button class="rclone-action-btn primary" onclick="openNuvemWizard()"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Trocar conexão</button>'
-        + '<button class="rclone-action-btn" onclick="nuvemDesconectar()"><svg class="icon-svg"><use href="#i-unplug"></use></svg> Desconectar</button>'
+        + '<button class="rclone-action-btn primary" data-act="openNuvemWizard"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Trocar conexão</button>'
+        + '<button class="rclone-action-btn" data-act="nuvemDesconectar"><svg class="icon-svg"><use href="#i-unplug"></use></svg> Desconectar</button>'
         + '</div>';
       html += '<div class="rclone-help">Os arquivos da nuvem não são tocados por nenhuma das duas ações.</div>';
       return html;
@@ -37,7 +37,7 @@
       + 'Dropbox, SFTP... Use um remote que já existe no seu rclone.conf ou crie um '
       + 'novinho pelo assistente.</div>';
     html += '<div class="rclone-actions">'
-      + '<button class="rclone-action-btn primary" onclick="openNuvemWizard()"><svg class="icon-svg"><use href="#i-cloud"></use></svg> Conectar nuvem</button>'
+      + '<button class="rclone-action-btn primary" data-act="openNuvemWizard"><svg class="icon-svg"><use href="#i-cloud"></use></svg> Conectar nuvem</button>'
       + '</div>';
     return html;
   }
@@ -80,17 +80,17 @@
     _wizard.passo = 'origem';
     _wizardCorpo(
       '<div class="wizard-origem">'
-      + '<button class="wizard-opcao" onclick="_wizardPassoExistente()">'
+      + '<button class="wizard-opcao" data-act="_wizardPassoExistente">'
       + '<span class="wizard-opcao-icone"><svg class="icon-svg"><use href="#i-layers"></use></svg></span>'
       + '<span><b>Usar um remote existente</b><br>'
       + '<small>Escolha na lista do seu rclone.conf</small></span></button>'
-      + '<button class="wizard-opcao" onclick="_wizardPassoNovoTipo()">'
+      + '<button class="wizard-opcao" data-act="_wizardPassoNovoTipo">'
       + '<span class="wizard-opcao-icone"><svg class="icon-svg"><use href="#i-plus"></use></svg></span>'
       + '<span><b>Criar um remote novo</b><br>'
       + '<small>Assistente com os campos de cada nuvem</small></span></button>'
       + '</div>'
       + '<div class="colecao-passos"><span></span>'
-      + '<button class="rclone-action-btn" onclick="closeNuvemWizard()">Cancelar</button></div>');
+      + '<button class="rclone-action-btn" data-act="closeNuvemWizard">Cancelar</button></div>');
   }
 
   function _wizardPassoExistente() {
@@ -106,14 +106,14 @@
         _wizardCorpo('<p class="colecao-dica">Seu rclone.conf ainda não tem remote nenhum. '
           + 'Crie um pelo assistente:</p>'
           + '<div class="colecao-passos">'
-          + '<button class="rclone-action-btn" onclick="_wizardPassoOrigem()">← Voltar</button>'
-          + '<button class="rclone-action-btn primary" onclick="_wizardPassoNovoTipo()">Criar remote</button>'
+          + '<button class="rclone-action-btn" data-act="_wizardPassoOrigem">← Voltar</button>'
+          + '<button class="rclone-action-btn primary" data-act="_wizardPassoNovoTipo">Criar remote</button>'
           + '</div>');
         return;
       }
       let opcoes = remotes.map(r =>
         '<button class="wizard-remoto" data-nome="' + escHtml(r.nome) + '" '
-        + 'onclick="_wizardEscolherRemote(this, \'' + escHtml(r.nome) + '\')">'
+        + attrAcao('_wizardEscolherRemote', [{$: 'this'}, r.nome]) + '>'
         + '<b>' + escHtml(r.nome) + '</b>'
         + '<span class="wizard-remoto-tipo">' + escHtml(r.tipo || '?') + '</span></button>').join('');
       _wizardCorpo('<div class="colecao-secao-titulo">Escolha o remote</div>'
@@ -121,8 +121,8 @@
         + '<label class="colecao-campo"><span>Pasta do acervo dentro do remote <em>(opcional)</em></span>'
         + '<input id="wizardPasta" type="text" placeholder="deixe vazio para usar a raiz do remote"></label>'
         + '<div class="colecao-passos">'
-        + '<button class="rclone-action-btn" onclick="_wizardPassoOrigem()">← Voltar</button>'
-        + '<button class="rclone-action-btn primary" onclick="_wizardConectar()">Conectar</button>'
+        + '<button class="rclone-action-btn" data-act="_wizardPassoOrigem">← Voltar</button>'
+        + '<button class="rclone-action-btn primary" data-act="_wizardConectar">Conectar</button>'
         + '</div>');
     }).catch(() => _wizardErro('Falha de conexão com o servidor.'));
   }
@@ -196,16 +196,16 @@
     const lista = _wizard.providers.filter(p =>
       !busca || p.nome.toLowerCase().includes(busca) || p.tipo.toLowerCase().includes(busca));
     const corpos = lista.slice(0, 60).map(p =>
-      '<button class="wizard-remoto" onclick="_wizardEscolherTipo(\'' + escHtml(p.tipo) + '\')">'
+      '<button class="wizard-remoto"' + attrAcao('_wizardEscolherTipo', [p.tipo]) + '>'
       + '<b>' + escHtml(p.nome) + '</b>'
       + '<span class="wizard-remoto-tipo">' + escHtml(p.tipo) + '</span></button>').join('');
     _wizardCorpo('<div class="colecao-secao-titulo">Qual é a nuvem?</div>'
       + '<input id="wizardFiltro" class="colecao-busca" type="text" placeholder="Filtrar (ex.: b2, drive, s3, sftp)..." '
-      + 'value="' + escHtml(_wizard.filtro || '') + '" oninput="_wizardFiltrarTipos(this.value)">'
+      + 'value="' + escHtml(_wizard.filtro || '') + '" data-act-input="_wizardFiltrarTipos" data-args="[{&quot;$&quot;:&quot;value&quot;}]">'
       + '<div class="wizard-lista" id="wizardListaTipos">' + corpos + '</div>'
       + (lista.length > 60 ? '<div class="colecao-dica">Mostrando 60 de ' + lista.length + ' — filtre para achar.</div>' : '')
       + '<div class="colecao-passos">'
-      + '<button class="rclone-action-btn" onclick="_wizardPassoOrigem()">← Voltar</button><span></span>'
+      + '<button class="rclone-action-btn" data-act="_wizardPassoOrigem">← Voltar</button><span></span>'
       + '</div>');
   }
 
@@ -240,8 +240,8 @@
       + '<input id="wizardNome" type="text" value="' + escHtml(tipo) + '" maxlength="30"></label>'
       + campos
       + '<div class="colecao-passos">'
-      + '<button class="rclone-action-btn" onclick="_wizardPassoNovoTipo()">← Voltar</button>'
-      + '<button class="rclone-action-btn primary" id="wizardCriarBtn" onclick="_wizardCriarRemote()">Criar e testar</button>'
+      + '<button class="rclone-action-btn" data-act="_wizardPassoNovoTipo">← Voltar</button>'
+      + '<button class="rclone-action-btn primary" id="wizardCriarBtn" data-act="_wizardCriarRemote">Criar e testar</button>'
       + '</div>');
   }
 
@@ -269,8 +269,8 @@
           + '<label class="colecao-campo"><span>Pasta do acervo <em>(opcional)</em></span>'
           + '<input id="wizardPasta" type="text" placeholder="raiz do remote"></label>'
           + '<div class="colecao-passos">'
-          + '<button class="rclone-action-btn" onclick="_wizardPassoOrigem()">← Voltar</button>'
-          + '<button class="rclone-action-btn primary" onclick="_wizardConectar()">Conectar</button>'
+          + '<button class="rclone-action-btn" data-act="_wizardPassoOrigem">← Voltar</button>'
+          + '<button class="rclone-action-btn primary" data-act="_wizardConectar">Conectar</button>'
           + '</div>');
       } else {
         _wizardErro(data.error || 'Falha ao criar o remote.');
@@ -304,15 +304,15 @@
 
       html += '<div class="rclone-actions">';
       if (s.remote_configured) {
-        html += '<button class="rclone-action-btn" onclick="rcloneStartWebgui()"><svg class="icon-svg"><use href="#i-gear"></use></svg> Abrir configurador</button>';
+        html += '<button class="rclone-action-btn" data-act="rcloneStartWebgui"><svg class="icon-svg"><use href="#i-gear"></use></svg> Abrir configurador</button>';
       }
       if (!s.serve_running && s.remote_configured) {
-        html += '<button class="rclone-action-btn primary" onclick="rcloneRestartServe()"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Reiniciar streaming</button>';
+        html += '<button class="rclone-action-btn primary" data-act="rcloneRestartServe"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Reiniciar streaming</button>';
       }
       if (s.webgui.running) {
-        html += '<button class="rclone-action-btn" onclick="rcloneStopWebgui()"><svg class="icon-svg"><use href="#i-stop"></use></svg> Fechar web UI</button>';
+        html += '<button class="rclone-action-btn" data-act="rcloneStopWebgui"><svg class="icon-svg"><use href="#i-stop"></use></svg> Fechar web UI</button>';
       }
-      html += '<button class="rclone-action-btn" onclick="_loadRcloneStatus()"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Atualizar status</button>';
+      html += '<button class="rclone-action-btn" data-act="_loadRcloneStatus"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Atualizar status</button>';
       html += '</div>';
     } else {
       html += '<div class="rclone-help">O rclone não foi encontrado. Rode o instalador do Midnight Media Server '
@@ -322,7 +322,7 @@
         + '<b>Windows:</b> <code>winget install Rclone.Rclone</code><br>'
         + 'Ou baixe em <a href="https://rclone.org/downloads/" target="_blank" rel="noopener">rclone.org/downloads</a></div>';
       html += '<div class="rclone-actions">'
-        + '<button class="rclone-action-btn" onclick="_loadRcloneStatus()"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Atualizar status</button>'
+        + '<button class="rclone-action-btn" data-act="_loadRcloneStatus"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Atualizar status</button>'
         + '</div>';
     }
 
@@ -346,11 +346,11 @@
           + 'Acessível apenas neste computador, sem login.</div>'
           + '<div class="rclone-help">Se a aba não abrir sozinha, clique no link acima e faça login.<br>'
           + '<svg class="icon-svg"><use href="#i-bulb"></use></svg> Cadastre a nuvem em <b>Ajustes &gt; Nuvem</b> — o rclone.conf é escrito pelo próprio app. Esta web UI fica como ferramenta avançada.</div>'
-          + '<div class="rclone-actions"><button class="rclone-action-btn" onclick="_loadRcloneStatus()"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Verificar status</button></div>';
+          + '<div class="rclone-actions"><button class="rclone-action-btn" data-act="_loadRcloneStatus"><svg class="icon-svg"><use href="#i-refresh"></use></svg> Verificar status</button></div>';
         window.open(data.url, '_blank');
       } else {
         box.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg class="icon-svg"><use href="#i-error"></use></svg></div><h3>Erro ao abrir configurador</h3><p>' + escHtml(data.error || 'Erro desconhecido') + '</p></div>'
-          + '<div class="rclone-actions"><button class="rclone-action-btn" onclick="_loadRcloneStatus()"><svg class="icon-svg"><use href="#i-arrow-left"></use></svg> Voltar</button></div>';
+          + '<div class="rclone-actions"><button class="rclone-action-btn" data-act="_loadRcloneStatus"><svg class="icon-svg"><use href="#i-arrow-left"></use></svg> Voltar</button></div>';
       }
     } catch(e) {
       box.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg class="icon-svg"><use href="#i-error"></use></svg></div><h3>Erro ao abrir configurador</h3></div>';
