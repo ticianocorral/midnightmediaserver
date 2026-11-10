@@ -94,7 +94,10 @@ def _comando(ferramenta, orig, tmp, ext):
         saida = ["-f", "image2", "-c:v", "png"]
     else:
         saida = ["-f", "image2", "-c:v", "mjpeg", "-pix_fmt", "yuvj420p", "-q:v", "4"]
-    return [exe, "-v", "error", "-y", "-i", str(orig), "-vf", escala,
+    # so arquivo local e formato de imagem forcado: um "poster.jpg" que na verdade e uma
+    # playlist HLS/concat nao pode mandar o ffmpeg ler outros arquivos ou URLs
+    return [exe, "-v", "error", "-y", "-protocol_whitelist", "file", "-f", "image2",
+            "-i", str(orig), "-vf", escala,
             "-frames:v", "1"] + saida + [str(tmp)]
 
 

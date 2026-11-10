@@ -333,7 +333,7 @@
         statusLabel = '<svg class="icon-svg"><use href="#i-download"></use></svg> ' + _cmPcts[m.path] + '%';
       }
 
-      html += '<div class="cache-item" data-path="' + m.path + '">';
+      html += '<div class="cache-item" data-path="' + escHtml(m.path) + '">';
 
       // Poster thumbnail
       if (m.poster) {

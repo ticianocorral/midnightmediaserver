@@ -62,6 +62,24 @@ _CONTAINERS_PRONTOS = {".mp4", ".m4v", ".mov"}
 _VIDEO_COPIavel = {"h264"}
 _AUDIO_COPIavel = {"aac", "mp3"}
 
+# Conteineres de VIDEO aceitos. O ffmpeg escolhe o demuxer pelo CONTEUDO, nao pela extensao:
+# um texto chamado "filme.mkv" com "#EXTM3U" vira HLS/concat e passa a ler qualquer arquivo
+# local ou URL que a playlist cite (o resultado sai embutido no video convertido). Quem nao
+# e destes conteineres (hls, concat, image2, sdp, rtsp, dash...) nao e convertido.
+_FORMATOS_OK = {"matroska", "webm", "mov", "mp4", "m4a", "3gp", "3g2", "mj2",   # mp4 = "mov,mp4,m4a,3gp,3g2,mj2"
+                "avi", "mpegts", "mpeg", "mpegvideo", "flv", "asf", "ogg", "ogv", "rm", "wtv", "mxf"}
+# Entradas so de arquivo local: sem http/tcp/rtmp/... (SSRF) nem crypto/data/subfile.
+_SO_ARQUIVO = ["-protocol_whitelist", "file"]
+# Formato FORCADO para a legenda sidecar (sem sondagem por conteudo).
+_FORMATO_LEGENDA = {".srt": "srt", ".ass": "ass", ".ssa": "ass", ".vtt": "webvtt"}
+
+
+def formato_de_video_permitido(format_name):
+    """True se o format_name do ffprobe ("matroska,webm", "mov,mp4,...") e conteiner de video."""
+    nomes = {n.strip() for n in str(format_name or "").split(",") if n.strip()}
+    return bool(nomes) and nomes <= _FORMATOS_OK
+
+
 # Legenda sidecar que entra no MP4 (mov_text so aceita texto: .sup e bitmap
 # e fica de fora — esse caso segue sem legenda na TV).
 _EXT_LEGENDA = (".srt", ".ass", ".ssa", ".vtt")
@@ -160,13 +178,18 @@ def _probe(path):
         return None
     try:
         saida = subprocess.run(
-            [ffprobe, "-v", "error", "-print_format", "json",
+            [ffprobe, "-v", "error"] + _SO_ARQUIVO + ["-print_format", "json",
              "-show_format", "-show_streams", path],
             capture_output=True, timeout=60)
         if saida.returncode != 0:
             return None
         dados = json.loads(saida.stdout.decode("utf-8", "replace"))
     except Exception:
+        return None
+
+    if not formato_de_video_permitido((dados.get("format") or {}).get("format_name")):
+        sys.stderr.write("[Midnight Media Server] AVISO prepare: formato recusado (%s): %s\n"
+                         % ((dados.get("format") or {}).get("format_name"), os.path.basename(path)))
         return None
 
     streams = dados.get("streams") or []
@@ -672,13 +695,14 @@ def _palco_nuvem(attrs, chave):
 
 def _cmd(src, info, dest, sub):
     ffmpeg = _ffmpeg_bin()
-    cmd = [ffmpeg, "-nostdin", "-v", "error", "-progress", "pipe:1", "-y",
-           "-i", src]
+    cmd = [ffmpeg, "-nostdin", "-v", "error", "-progress", "pipe:1", "-y"]
+    cmd += _SO_ARQUIVO + ["-i", src]
     if sub:
         # Legenda sidecar como segundo input. Toda opcao de SAIDA vem depois
         # de todos os inputs — colocada entre eles, o ffmpeg a le como opcao
         # de input e barra arquivos.
-        cmd += ["-i", str(sub)]
+        fmt_sub = _FORMATO_LEGENDA.get(os.path.splitext(str(sub))[1].lower())
+        cmd += _SO_ARQUIVO + (["-f", fmt_sub] if fmt_sub else []) + ["-i", str(sub)]
 
     cmd += ["-map", "0:%d" % info["vidx"]]
     if info.get("aidx") is not None:

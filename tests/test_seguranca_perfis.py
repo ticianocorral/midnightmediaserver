@@ -1,4 +1,6 @@
 """Rodada 2 da auditoria: o perfil infantil nao escapa do filtro nem gasta recursos do servidor."""
+from unittest import mock
+
 import pytest
 
 from conftest import Cliente
@@ -70,14 +72,10 @@ def test_rotas_pesadas_fechadas_para_o_infantil(infantil, usuario, rota):
 
 
 def test_scan_progress_nao_mostra_titulos_ao_infantil(admin, infantil):
-    with scanner._scan_progress_lock:
-        antes = dict(scanner._scan_progress)
-        scanner._scan_progress.update({"movie_current": "Titulo-Secreto", "source_current": "Fonte-Secreta", "percent": 42})
-    try:
+    # mock, e nao o estado real do scanner: um scan de fundo de outro teste escreveria por cima
+    falso = {"phase": "indexing", "movie_current": "Titulo-Secreto", "source_current": "Fonte-Secreta", "percent": 42}
+    with mock.patch.object(scanner, "get_progress", return_value=dict(falso)):
         crianca = infantil.get("/api/scan-progress").json
         adm = admin.get("/api/scan-progress").json
-    finally:
-        with scanner._scan_progress_lock:
-            scanner._scan_progress.update(antes)
     assert crianca["movie_current"] == "" and crianca["source_current"] == "" and crianca["percent"] == 42
     assert adm["movie_current"] == "Titulo-Secreto"

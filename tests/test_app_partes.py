@@ -120,3 +120,41 @@ def test_nada_depende_dos_atributos_onclick_antigos():
             if re.search(r"\[on(click|error|input|change|keydown)[\]=*^$~|]|getAttribute\(['\"]on(click|error|input|change|keydown)", linha):
                 achados.append("%s:%d %s" % (f.name, i, linha.strip()[:80]))
     assert not achados, achados
+
+
+# ── XSS: atributos e campos de NFO sem escape ────────────────
+# Expressoes que entram em `="' + X + '"` e foram AUDITADAS (constante, numero, URL ja codificada
+# por posterUrl/streamUrl, ou titulo ja passado por escHtml). Qualquer outra expressao nova falha
+# aqui ate alguem auditar: foi assim que um data-path="' + m.path + '" sem escape sobreviveu.
+_SEGUROS_ATRIBUTO = re.compile(
+    r"^(escHtml|enc\(|encodeURIComponent|posterUrl|attrAcao|JSON\.stringify|Math\.|Number|parseInt|cssUrl)")
+_AUDITADOS = {
+    "nome",                                   # nome de acao (constante) em attrAcao
+    "GENERO_PREFIXO + g.id", "titulo",        # id numerico; titulo = escHtml(...) em todas as definicoes
+    "poster", "posterSrc", "streamUrl(c.poster)", "x.poster", "c.thumb",   # URLs: encodeURIComponent / validadas
+    "id",                                     # 10-nuvem.js: 'wz_' + o.nome, nome de opcao devolvido pelo proprio rclone
+    "icon", "(ativo ? 'true' : 'false')", "(assistido ? 'true' : 'false')",
+    "(a[0] === aba ? 'background:var(--primary);color:#fff' : '')", "(o.senha ? 'password' : 'text')",
+}
+
+
+def test_atributo_html_nao_recebe_valor_sem_escape():
+    suspeitos = []
+    for p in PARTES:
+        for n, linha in enumerate(p.read_text(encoding="utf-8").split("\n"), 1):
+            if linha.lstrip().startswith("//"):
+                continue
+            for m in re.finditer(r"""=\\?"'\s*\+\s*(.+?)\s*\+\s*'\\?\"""", linha):
+                expr = m.group(1).strip()
+                if not _SEGUROS_ATRIBUTO.match(expr) and expr not in _AUDITADOS:
+                    suspeitos.append("%s:%d  %s" % (p.name, n, expr))
+    assert not suspeitos, "valor sem escape dentro de atributo HTML:\n" + "\n".join(suspeitos)
+
+
+def test_campos_do_nfo_na_ficha_passam_por_escHtml():
+    for p in PARTES:
+        for n, linha in enumerate(p.read_text(encoding="utf-8").split("\n"), 1):
+            for m in re.finditer(r"\$\{\s*(nfo\.[A-Za-z_.]+)\s*\}", linha):
+                pytest.fail("%s:%d  ${%s} sem escHtml" % (p.name, n, m.group(1)))
+            if re.search(r"'\s*\+\s*nfo\.[a-z]+\s*\+\s*'", linha):
+                pytest.fail("%s:%d  campo do NFO concatenado sem escHtml: %s" % (p.name, n, linha.strip()[:80]))

@@ -211,7 +211,9 @@ def criar_remote(nome, tipo, parametros):
     for opcao in next(p["opcoes"] for p in catalogo if p["tipo"] == tipo):
         valor = str(parametros.get(opcao["nome"]) or "").strip()
         if valor:
-            args += [opcao["nome"], valor]
+            # "chave=valor" num so argumento (forma documentada do rclone config create): como
+            # argumento solto, um valor "--config=..." era lido pelo rclone como FLAG
+            args.append("%s=%s" % (opcao["nome"], valor))
     code, _, err = _run(args, timeout=60)
     if code != 0:
         _run(["config", "delete", nome])

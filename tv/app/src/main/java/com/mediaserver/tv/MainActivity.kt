@@ -83,6 +83,16 @@ class MainActivity : AppCompatActivity() {
             ) {
                 if (request.isForMainFrame && resposta.statusCode >= 500) mostrarAviso()
             }
+
+            // A WebView so navega dentro do servidor que o dono escolheu. Qualquer outra pagina
+            // (link externo, redirect, location injetado por XSS) carregada aqui enxergaria a
+            // ponte MediaServerTV e poderia mandar o player tocar uma URL qualquer.
+            // true = bloqueia a navegacao.
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                val permitido = mesmaOrigemDoServidor(request.url.toString())
+                if (!permitido) Log.w("Midnight Media Server", "navegacao bloqueada: ${request.url}")
+                return !permitido
+            }
         }
         web.loadUrl("$base/?tv=1")
 
@@ -103,6 +113,14 @@ class MainActivity : AppCompatActivity() {
                 if (web.canGoBack()) web.goBack() else finish()
             }
         })
+    }
+
+    /** True se [url] tem o mesmo esquema, host e porta do servidor salvo. */
+    private fun mesmaOrigemDoServidor(url: String): Boolean {
+        val salvo = Servidor.salvo(this) ?: return false
+        val a = android.net.Uri.parse(salvo)
+        val b = android.net.Uri.parse(url)
+        return a.scheme == b.scheme && a.host == b.host && a.port == b.port
     }
 
     private fun mostrarAviso() {
