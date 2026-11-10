@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   pytest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # o ubuntu-latest (26.04) nao tem Python 3.9
     strategy:
       fail-fast: false
       matrix:
