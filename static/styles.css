@@ -893,7 +893,15 @@
   /* ====== GENRE SECTION ====== */
   .genre-section {
     margin-bottom: 28px;
+    /* A tela A-Z monta todas as secoes de uma vez (milhares de cards): o
+       navegador pula layout e pintura das que estao fora da tela. O tamanho
+       intrinseco evita a barra de rolagem pular quando elas entram. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 520px;
   }
+  /* Na TV o foco espacial mede a geometria dos cards: secao "pulada" nao tem
+     layout e as setas nao chegariam nela. */
+  html.modo-tv .genre-section { content-visibility: visible; }
   .genre-header {
     display: flex;
     align-items: center;

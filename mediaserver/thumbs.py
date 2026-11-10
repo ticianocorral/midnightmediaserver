@@ -8,8 +8,9 @@ cache de imagens" leva as miniaturas junto, e o backup ignora a pasta
 (arquivo derivado, regeneravel).
 
 O Python padrao nao tem biblioteca de imagem; quem redimensiona e o sips
-do macOS. Onde ele nao existir (Linux/Windows) — ou qualquer passo falhar
-— a funcao devolve None e o chamador serve o original: nada quebra.
+do macOS ou, onde ele nao existe (Linux/Windows/Raspberry Pi), o ffmpeg, que
+o app ja usa para converter video. Sem nenhum dos dois — ou se qualquer passo
+falhar — a funcao devolve None e o chamador serve o original: nada quebra.
 """
 
 import hashlib
@@ -36,7 +37,10 @@ def miniatura_para(orig, tipo=""):
     Devolve None (serve o original) quando: nao ha sips, a imagem e leve,
     o tipo e fanart (fundo de tela em tamanho cheio) ou algo falhou.
     """
-    if tipo == "fanart" or shutil.which("sips") is None:
+    if tipo == "fanart":
+        return None
+    ferramenta = _ferramenta()
+    if ferramenta is None:
         return None
     try:
         orig = Path(orig)
@@ -52,13 +56,8 @@ def miniatura_para(orig, tipo=""):
             return dest
         THUMBS_DIR.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_name(dest.name + f".{os.getpid()}.tmp")
-        if ext == ".png":
-            fmt = ["-s", "format", "png"]
-        else:
-            fmt = ["-s", "format", "jpeg", "-s", "formatOptions", "82"]
-        r = subprocess.run(
-            ["sips", "-Z", str(MAX_PX)] + fmt + [str(orig), "--out", str(tmp)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+        r = subprocess.run(_comando(ferramenta, orig, tmp, ext),
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
         if r.returncode != 0 or not tmp.exists() or \
                 tmp.stat().st_size >= st.st_size:
             # Falhou, ou a "miniatura" ficou maior que o original: desiste.
@@ -69,6 +68,34 @@ def miniatura_para(orig, tipo=""):
         return dest
     except Exception:
         return None
+
+
+def _ferramenta():
+    """("sips", caminho) no macOS, ("ffmpeg", caminho) onde ele existir, ou None."""
+    sips = shutil.which("sips")
+    if sips:
+        return ("sips", sips)
+    from . import prepare   # import tardio: prepare e pesado e nao precisa subir junto
+    ffmpeg = prepare._ffmpeg_bin()
+    return ("ffmpeg", ffmpeg) if ffmpeg else None
+
+
+def _comando(ferramenta, orig, tmp, ext):
+    nome, exe = ferramenta
+    if nome == "sips":
+        fmt = (["-s", "format", "png"] if ext == ".png"
+               else ["-s", "format", "jpeg", "-s", "formatOptions", "82"])
+        return [exe, "-Z", str(MAX_PX)] + fmt + [str(orig), "--out", str(tmp)]
+    # ffmpeg: lado maior = MAX_PX sem ampliar; -f/-c:v explicitos porque o
+    # arquivo temporario termina em ".tmp" e o ffmpeg nao adivinha o formato.
+    escala = ("scale='if(gt(iw,ih),min(%d,iw),-2)':'if(gt(iw,ih),-2,min(%d,ih))'"
+              % (MAX_PX, MAX_PX))
+    if ext == ".png":
+        saida = ["-f", "image2", "-c:v", "png"]
+    else:
+        saida = ["-f", "image2", "-c:v", "mjpeg", "-pix_fmt", "yuvj420p", "-q:v", "4"]
+    return [exe, "-v", "error", "-y", "-i", str(orig), "-vf", escala,
+            "-frames:v", "1"] + saida + [str(tmp)]
 
 
 def _chave(orig):
