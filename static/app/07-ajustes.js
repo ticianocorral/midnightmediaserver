@@ -302,7 +302,7 @@
     box.innerHTML =
       '<div class="phone-url">'
       + '<code>' + escHtml(appUrl) + '</code>'
-      + '<button class="user-btn" onclick="copyPhone(this, \'app\')">Copiar</button>'
+      + '<button class="user-btn" data-act="copyPhone" data-args="[{&quot;$&quot;:&quot;this&quot;},&quot;app&quot;]">Copiar</button>'
       + '</div>'
       + '<div class="src-hint">O celular precisa estar no mesmo Wi-Fi do computador. '
       + 'Use este endereço em vez do IP: o nome .local continua valendo mesmo se o roteador trocar o IP do Mac.</div>'
@@ -327,7 +327,7 @@
 
       + '<div class="phone-alt">'
       + 'Não conseguiu pelo nome? Use o IP: <code>' + escHtml(ipUrl) + '</code> '
-      + '<button class="user-btn" onclick="copyPhone(this, \'ip\')">Copiar</button>'
+      + '<button class="user-btn" data-act="copyPhone" data-args="[{&quot;$&quot;:&quot;this&quot;},&quot;ip&quot;]">Copiar</button>'
       + '<div>O arquivo é só a parte pública do certificado HTTPS deste computador (gerado pelo mkcert) — '
       + 'o celular passa a confiar no site, e a chave privada nunca sai daqui.</div>'
       + '</div>';
@@ -393,12 +393,12 @@
         + '<div class="src-counts">'
         + src.movies + (src.movies === 1 ? ' filme' : ' filmes') + '</div>'
         + '</div>'
-        + '<button class="user-btn" title="Escanear só esta fonte" onclick="scanSource(decodeURIComponent(\'' + enc(src.id) + '\'))">'
+        + '<button class="user-btn" title="Escanear só esta fonte"' + attrAcao('scanSource', [src.id]) + '>'
         + '<svg class="icon-svg"><use href="#i-refresh"></use></svg></button>'
         + (isCloud ? '' :
             '<button class="user-btn danger" id="srcDel-' + enc(src.id) + '" '
             + 'title="Tirar do acervo (os arquivos no disco não são apagados)" '
-            + 'onclick="removeSource(decodeURIComponent(\'' + enc(src.id) + '\'), decodeURIComponent(\'' + enc(src.name) + '\'))">'
+            + attrAcao('removeSource', [src.id, src.name]) + '>'
             + '<svg class="icon-svg"><use href="#i-trash"></use></svg></button>')
         + '</div>';
     });
@@ -415,7 +415,7 @@
         const dica = c.pronto ? c.path : c.path + ' — sem uma pasta Media Server dentro';
         html += '<button class="src-detected-btn' + (c.pronto ? ' pronto' : '') + '" '
           + 'title="' + escHtml(dica) + '" '
-          + 'onclick="addSource(decodeURIComponent(\'' + enc(c.name) + '\'), decodeURIComponent(\'' + enc(c.path) + '\'))">'
+          + attrAcao('addSource', [c.name, c.path]) + '>'
           + '<svg class="icon-svg"><use href="' + icon + '"></use></svg> ' + escHtml(c.name)
           + (c.pronto
               ? ' <svg class="icon-svg"><use href="#i-check"></use></svg>'
@@ -435,7 +435,7 @@
       + '<div class="user-form">'
       + '<input type="text" id="srcName" placeholder="Nome (ex.: HD Externo)" autocomplete="off">'
       + '<input type="text" id="srcPath" placeholder="Caminho (ex.: /Volumes/MeuHD/Filmes)" autocomplete="off">'
-      + '<button class="user-btn" onclick="addSourceFromForm()">'
+      + '<button class="user-btn" data-act="addSourceFromForm">'
       + '<svg class="icon-svg"><use href="#i-plus"></use></svg> Adicionar</button>'
       + '</div>'
       + '<div id="sourcesMsg"></div>';

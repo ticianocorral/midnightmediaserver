@@ -209,7 +209,7 @@
     paths.forEach((path, idx) => {
       const name = path.split('/').pop().replace(/[._]/g, ' ').replace(/\.[^.]+$/, '');
       const safePath = enc(path);
-      html += '<div class="movie-card" onclick="showMovieInfo(decodeURIComponent(\'' + safePath + '\'), event)" title="' + escHtml(name) + '">'
+      html += '<div class="movie-card"' + attrAcao('showMovieInfo', [path, {$: 'event'}]) + ' title="' + escHtml(name) + '">'
         + '<div class="movie-card-poster-placeholder" style="display:flex"><svg class="icon-svg"><use href="#i-box"></use></svg></div>'
         + '<div class="movie-card-overlay">'
         + '<div class="movie-card-title">' + escHtml(name) + '</div>'
@@ -337,7 +337,7 @@
 
       // Poster thumbnail
       if (m.poster) {
-        html += '<img class="cache-item-poster" src="' + posterUrl(m.path, m.poster) + '" alt="" onerror="this.outerHTML=\'<div class=cache-item-poster><svg class=\'icon-svg\'><use href=\'#i-film\'></use></svg></div>\'">';
+        html += '<img class="cache-item-poster" src="' + posterUrl(m.path, m.poster) + '" alt=""' + attrAcao('imgComoPosterDoCache', null, false, 'data-act-error') + '>';
       } else {
         html += '<div class="cache-item-poster"><svg class="icon-svg"><use href="#i-film"></use></svg></div>';
       }
@@ -352,9 +352,9 @@
       } else if (isDownloading) {
         html += '<button class="cache-item-btn" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-clock"></use></svg></button>';
       } else if (isCached) {
-        html += '<button class="cache-item-btn delete" onclick="_cmDeleteCache(\'' + enc(m.path) + '\', ' + idx + ')"><svg class="icon-svg"><use href="#i-trash"></use></svg> Apagar</button>';
+        html += '<button class="cache-item-btn delete"' + attrAcao('_cmDeleteCache', [enc(m.path), idx]) + '><svg class="icon-svg"><use href="#i-trash"></use></svg> Apagar</button>';
       } else {
-        html += '<button class="cache-item-btn download" onclick="_cmDownload(\'' + enc(m.path) + '\', ' + idx + ')"><svg class="icon-svg"><use href="#i-download"></use></svg> Baixar</button>';
+        html += '<button class="cache-item-btn download"' + attrAcao('_cmDownload', [enc(m.path), idx]) + '><svg class="icon-svg"><use href="#i-download"></use></svg> Baixar</button>';
       }
 
       html += '</div>';

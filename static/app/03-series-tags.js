@@ -4,7 +4,7 @@
     const hero = document.getElementById('hero');
     hero.style.display = 'block';
     document.getElementById('breadcrumb').innerHTML =
-      '<a onclick="loadPath(\'\')"><svg class="icon-svg"><use href="#i-home"></use></svg> Início</a>'
+      '<a data-act="loadPath" data-args="[&quot;&quot;]"><svg class="icon-svg"><use href="#i-home"></use></svg> Início</a>'
       + ' <span class="sep">›</span> <span id="serieBcNome">...</span>';
 
     cachedFetch('/api/serie?path=' + encodeURIComponent(seriePath)).then(serie => {
@@ -69,13 +69,10 @@
           const posStr = Math.floor((ep.position || 0) / 60) + ':' +
             String(Math.floor((ep.position || 0) % 60)).padStart(2, '0');
           const pct = (ep.duration > 0) ? Math.round((ep.position / ep.duration) * 100) : 0;
-          html += '<button class="episodio-linha' + (temProgresso ? ' em-progresso' : '') + '" '
-            + 'onclick="playMovie(decodeURIComponent(\'' + enc(ep.path) + '\'), '
-            + 'decodeURIComponent(\'' + enc(ep.title) + '\')'
-            + (ep.subtitle ? ', decodeURIComponent(\'' + enc(ep.subtitle) + '\')' : ', null')
-            + (temProgresso ? ', ' + Math.floor(ep.position) : ', null')
-            + ', decodeURIComponent(\'' + enc(ep.path) + '\')'
-            + ')" title="' + escHtml(ep.title) + '">'
+          html += '<button class="episodio-linha' + (temProgresso ? ' em-progresso' : '') + '"'
+            + attrAcao('playMovie', [ep.path, ep.title, ep.subtitle ? ep.subtitle : null,
+                temProgresso ? Math.floor(ep.position) : null, ep.path])
+            + ' title="' + escHtml(ep.title) + '">'
             + '<span class="episodio-play"><svg class="icon-svg"><use href="#i-'
             + (temProgresso ? 'pause' : 'play') + '"></use></svg></span>'
             + '<span class="episodio-titulo">' + escHtml(ep.title)
@@ -90,14 +87,13 @@
                   + '<span style="width:' + pct + '%"></span></span>'
                 : '')
             + (temProgresso
-                ? '<span class="episodio-assistido" onclick="event.stopPropagation();'
-                  + 'limparProgressoEpisodio(decodeURIComponent(\'' + enc(ep.path) + '\'), this)" '
+                ? '<span class="episodio-assistido"'
+                  + attrAcao('limparProgressoEpisodio', [ep.path, {$: 'this'}], true) + ' '
                   + 'title="Remove o progresso deste episódio">Já assisti</span>'
                 : (ep.watched
                     // Selo do assistido: clicável para RETIRAR a marcação.
-                    ? '<span class="episodio-assistido episodio-visto" '
-                      + 'onclick="event.stopPropagation();'
-                      + '_desmarcarEpisodio(decodeURIComponent(\'' + enc(ep.path) + '\'), this)" '
+                    ? '<span class="episodio-assistido episodio-visto"'
+                      + attrAcao('_desmarcarEpisodio', [ep.path, {$: 'this'}], true) + ' '
                       + 'title="Assistido — clique para retirar a marcação">✓ Assistido</span>'
                     : ''))
             + '</button>';
@@ -139,9 +135,8 @@
       if (play) play.setAttribute('href', '#i-play');
       // Vira o selo "✓ Assistido" (com a mesma saída de marcação).
       linha.insertAdjacentHTML('beforeend',
-        '<span class="episodio-assistido episodio-visto" '
-        + 'onclick="event.stopPropagation();'
-        + '_desmarcarEpisodio(decodeURIComponent(\'' + enc(epPath) + '\'), this)" '
+        '<span class="episodio-assistido episodio-visto"'
+        + attrAcao('_desmarcarEpisodio', [epPath, {$: 'this'}], true) + ' '
         + 'title="Assistido — clique para retirar a marcação">✓ Assistido</span>');
       if (_serieAtual && _serieAtual.path) {
         _invalidateCache('/api/serie?path=' + encodeURIComponent(_serieAtual.path));
@@ -162,7 +157,7 @@
     document.getElementById('heroBg').style.backgroundImage = 'none';
     hero.style.background = 'linear-gradient(135deg, var(--bg2) 0%, var(--surface) 100%)';
     document.getElementById('breadcrumb').innerHTML =
-      '<a onclick="loadPath(\'\')"><svg class="icon-svg"><use href="#i-home"></use></svg> Início</a>'
+      '<a data-act="loadPath" data-args="[&quot;&quot;]"><svg class="icon-svg"><use href="#i-home"></use></svg> Início</a>'
       + ' <span class="sep">›</span> <span id="generoBcNome">...</span>';
 
     cachedFetch('/api/genero?id=' + generoId).then(gen => {
@@ -178,11 +173,9 @@
       const isAdmin = _me && _me.role === 'admin';
       document.getElementById('heroDesc').innerHTML =
         (isAdmin ? '<span class="colecao-acoes">'
-          + '<button class="colecao-acao-btn" onclick="openGeneroRenomear(' + gen.id
-          + ', decodeURIComponent(\'' + enc(gen.name) + '\'))">'
+          + '<button class="colecao-acao-btn"' + attrAcao('openGeneroRenomear', [gen.id, gen.name]) + '>'
           + '<svg class="icon-svg"><use href="#i-gear"></use></svg> Renomear</button>'
-          + '<button class="colecao-acao-btn perigo" onclick="excluirGenero(' + gen.id
-          + ', decodeURIComponent(\'' + enc(gen.name) + '\'))">'
+          + '<button class="colecao-acao-btn perigo"' + attrAcao('excluirGenero', [gen.id, gen.name]) + '>'
           + '<svg class="icon-svg"><use href="#i-trash"></use></svg> Excluir</button>'
           + '</span>' : '')
         + '<svg class="icon-svg"><use href="#i-film"></use></svg> ' + gen.movies.length
@@ -201,13 +194,12 @@
         const titulo = escHtml((m.title || m.name).replace(/[._]/g, ' '));
         const poster = m.poster ? posterUrl(m.path, m.poster) : null;
         const clique = m.is_file
-          ? 'playMovie(decodeURIComponent(\'' + enc(m.path) + '\'), decodeURIComponent(\'' + enc(m.title || m.name) + '\'))'
-          : 'showMovieInfo(decodeURIComponent(\'' + enc(m.path) + '\'), event)';
-        html += '<div class="movie-card" onclick="' + clique + '" title="' + titulo + '">'
+          ? attrAcao('playMovie', [m.path, m.title || m.name])
+          : attrAcao('showMovieInfo', [m.path, {$: 'event'}]);
+        html += '<div class="movie-card"' + clique + ' title="' + titulo + '">'
           + (poster
               ? '<img class="movie-card-poster" src="' + poster + '" alt="' + titulo
-                + '" loading="lazy" onerror="this.style.display=\'none\';'
-                + 'this.nextElementSibling.style.display=\'flex\'">'
+                + '" loading="lazy"' + attrAcao('imgTrocarPorIrmao', null, false, 'data-act-error') + '>'
                 + '<div class="movie-card-poster-placeholder" style="display:none">'
                 + '<svg class="icon-svg"><use href="#i-film"></use></svg></div>'
               : '<div class="movie-card-poster-placeholder" style="display:flex">'
@@ -250,18 +242,18 @@
     let chips = '';
     todos.forEach(g => {
       const on = meusIds.includes(g.id);
-      chips += '<button class="genero-chip' + (on ? ' on' : '') + '" '
-        + 'onclick="_generoToggleChip(this, ' + g.id + ')">' + escHtml(g.nome) + '</button>';
+      chips += '<button class="genero-chip' + (on ? ' on' : '') + '"'
+        + attrAcao('_generoToggleChip', [{$: 'this'}, g.id]) + '>' + escHtml(g.nome) + '</button>';
     });
     corpo.innerHTML = (todos.length
         ? '<div class="genero-chips">' + chips + '</div>'
         : '<p class="colecao-dica">Nenhuma tag criada ainda — crie a primeira abaixo.</p>')
       + '<div class="genero-nova-linha">'
       + '<input id="generoNovoNome" type="text" maxlength="40" placeholder="Nova tag...">'
-      + '<button class="rclone-action-btn" onclick="_generoCriarEDar()">Criar</button>'
+      + '<button class="rclone-action-btn" data-act="_generoCriarEDar">Criar</button>'
       + '</div>'
       + '<div class="colecao-passos"><span></span>'
-      + '<button class="rclone-action-btn primary" onclick="closeGeneroFilmeModal()">Pronto</button>'
+      + '<button class="rclone-action-btn primary" data-act="closeGeneroFilmeModal">Pronto</button>'
       + '</div>';
     corpo.dataset.meus = JSON.stringify(meusIds);
   }
@@ -414,7 +406,7 @@
   // componente serve para a ficha do filme e para a página da série
   // (na série, marcar vale para a série inteira — todas as temporadas).
   function switchInfantilHtml(alvo, ativo, rotulo, nota) {
-    return '<span class="switch-infantil" onclick="toggleInfantil(this)">'
+    return '<span class="switch-infantil" data-act="toggleInfantil" data-args="[{&quot;$&quot;:&quot;this&quot;}]">'
       + '<span class="switch-texto">'
       + '<span class="switch-rotulo">' + escHtml(rotulo || 'Perfil infantil') + '</span>'
       + (nota ? '<span class="switch-nota">' + escHtml(nota) + '</span>' : '')
@@ -460,7 +452,7 @@
   // modal. Assim os dois deixam de parecer botõezinhos soltos na linha.
 
   function switchAssistidoHtml(folderPath, assistido) {
-    return '<span class="pill-acao" onclick="toggleAssistido(this)">'
+    return '<span class="pill-acao" data-act="toggleAssistido" data-args="[{&quot;$&quot;:&quot;this&quot;}]">'
       + '<span class="switch-texto">'
       + '<span class="switch-rotulo">Já assisti</span>'
       + '<span class="switch-nota">' + (assistido ? 'Fora do continuar' : 'Marcar como visto') + '</span>'
@@ -503,9 +495,12 @@
     if (!cwSection || cwSection.style.display === 'none') return;
     const cards = cwSection.querySelectorAll('.movie-card');
     for (let i = 0; i < cards.length; i++) {
-      const onclick = cards[i].getAttribute('onclick') || '';
-      if (onclick.indexOf(folderPath) !== -1
-          || onclick.indexOf(encodeURIComponent(folderPath)) !== -1) {
+      // o card guarda o caminho em data-args (JSON); a serie usa o caminho codificado
+      const alvo = String((function () {
+        try { return JSON.parse(cards[i].getAttribute('data-args') || '[]')[0] || ''; } catch (e) { return ''; }
+      })());
+      if (alvo.indexOf(folderPath) !== -1
+          || alvo.indexOf(encodeURIComponent(folderPath)) !== -1) {
         cards[i].remove();
         break;
       }
@@ -548,8 +543,8 @@
   }
 
   function pillCapaHtml(alvo, titulo) {
-    return '<button class="pill-acao pill-acao-btn" '
-      + 'onclick="openCapaModal(decodeURIComponent(\'' + enc(alvo) + '\'), decodeURIComponent(\'' + enc(titulo) + '\'))" title="Escolher outra capa do TMDB">'
+    return '<button class="pill-acao pill-acao-btn"'
+      + attrAcao('openCapaModal', [alvo, titulo]) + ' title="Escolher outra capa do TMDB">'
       + '<span class="pill-acao-icone"><svg class="icon-svg"><use href="#i-film"></use></svg></span>'
       + '<span class="switch-texto"><span class="switch-rotulo">Capa</span>'
       + '<span class="switch-nota">Trocar</span></span>'
@@ -559,9 +554,8 @@
   function pillTagsHtml(alvo, titulo, tags) {
     const n = (tags || []).length;
     const nota = n === 0 ? 'Sem tags' : (n + (n === 1 ? ' tag' : ' tags'));
-    return '<button class="pill-acao pill-acao-btn" '
-      + 'onclick="openGeneroFilmeModal(decodeURIComponent(\'' + enc(alvo) + '\'), '
-      + 'decodeURIComponent(\'' + enc(titulo) + '\'))" title="Tags do filme">'
+    return '<button class="pill-acao pill-acao-btn"'
+      + attrAcao('openGeneroFilmeModal', [alvo, titulo]) + ' title="Tags do filme">'
       + '<span class="pill-acao-icone"><svg class="icon-svg"><use href="#i-layers"></use></svg></span>'
       + '<span class="switch-texto"><span class="switch-rotulo">Tags</span>'
       + '<span class="switch-nota">' + escHtml(nota) + '</span></span>'

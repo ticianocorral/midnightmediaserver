@@ -11,6 +11,23 @@
     };
   })();
 
+  // Atributos de uma acao de clique: no lugar de onclick="fn('...')" (JS inline, que
+  // exige tratar aspas dentro de aspas e impede uma CSP), o elemento leva o NOME da
+  // acao e os argumentos em JSON. Valores crus: nao ha enc()/decodeURIComponent.
+  // {$:'this'} / {$:'event'} passam o elemento / o evento; parar=true faz
+  // event.stopPropagation() antes de chamar. Quem executa e o despachante em 12-acoes.js.
+  // Nao usa escHtml (definida em 07-ajustes.js): codigo que roda na CARGA de uma parte
+  // anterior (ex.: 06-cast.js) ja chama attrAcao, e funcoes de partes posteriores ainda
+  // nao existem. Num arquivo unico elas eram "icadas"; em partes separadas, nao.
+  function attrAcao(nome, args, parar, evento) {
+    return ' ' + (evento || 'data-act') + '="' + nome + '"'
+      + (args && args.length
+        ? ' data-args="' + JSON.stringify(args).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;') + '"'
+        : '')
+      + (parar ? ' data-stop="1"' : '');
+  }
+
   // ==================== STATE ====================
   let currentPath = "";
 
@@ -157,7 +174,7 @@
           <p>Tente outro termo de busca.</p>
         </div>
         <div class="genre-section">
-          <div class="genre-header" onclick="loadPath('')">
+          <div class="genre-header" data-act="loadPath" data-args="[&quot;&quot;]">
             <div class="genre-title"><span class="arrow"><svg class="icon-svg"><use href="#i-arrow-left"></use></svg></span> Voltar ao início</div>
           </div>
         </div>`;
@@ -179,7 +196,7 @@
 
     html += `</div></div>
       <div class="genre-section">
-        <div class="genre-header" onclick="loadPath('')">
+        <div class="genre-header" data-act="loadPath" data-args="[&quot;&quot;]">
           <div class="genre-title"><span class="arrow"><svg class="icon-svg"><use href="#i-arrow-left"></use></svg></span> Voltar ao início</div>
         </div>
       </div>`;
@@ -260,11 +277,11 @@
       let html = '<div class="sidebar-source-label"><svg class="icon-svg">'
         + '<use href="#i-layers"></use></svg> Tags'
         + (isAdmin
-            ? ' <button class="sidebar-genre-add" onclick="openGeneroNovoModal()" title="Criar tag">+</button>'
+            ? ' <button class="sidebar-genre-add" data-act="openGeneroNovoModal" title="Criar tag">+</button>'
             : '')
         + '</div>';
       (generos || []).forEach(g => {
-        html += '<button class="sidebar-item" data-nav="' + GENERO_PREFIXO + g.id + '" onclick="loadPath(\'' + GENERO_PREFIXO + g.id + '\')">'
+        html += '<button class="sidebar-item" data-nav="' + GENERO_PREFIXO + g.id + '"' + attrAcao('loadPath', [GENERO_PREFIXO + g.id]) + '>'
           + '<span class="icon"><svg class="icon-svg"><use href="#i-layers"></use></svg></span> '
           + escHtml(g.nome) + '</button>';
       });

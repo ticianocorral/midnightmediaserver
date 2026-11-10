@@ -812,8 +812,8 @@
     text-align: center;
     transition: all var(--transition);
   }
-  .home-stat[onclick] { cursor: pointer; }
-  .home-stat[onclick]:hover {
+  .home-stat[data-act] { cursor: pointer; }
+  .home-stat[data-act]:hover {
     background: rgba(255,255,255,0.06);
     border-color: rgba(255,255,255,0.14);
     transform: translateY(-2px);

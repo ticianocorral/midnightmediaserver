@@ -4,7 +4,10 @@ Metodos _get_<caminho> chamados pela tabela de rotas do MediaServerHandler (hand
 """
 
 from ..templates import _profiles_page
-from ..netutil import mkcert_root_ca_path
+import json
+
+from ..config import PORT
+from ..netutil import _get_local_ip, _primary_local_hostname, active_https_port, mkcert_root_ca_path
 from ..rclone import get_rclone_status
 from .. import branding as _branding
 from ..queries import cached_get_file_info
@@ -26,6 +29,34 @@ class SistemaRotas:
     # Marca: manifest, CSS de cor e icones gerados na hora, na cor e nome
     # escolhidos. Publicos (ver PUBLIC_PATHS) porque o navegador os busca
     # fora da navegacao normal, sem cookie — inclusive antes do login.
+    def _get_app_config_js(self, path, params):
+        """GET /app-config.js: configuracao que o servidor injetava num <script> inline.
+
+        Vem de um arquivo para a CSP poder barrar JS inline. So responde a quem tem
+        sessao (a rota nao e publica): a tela de login nao recebe nada disto.
+        O Chromecast busca a midia por HTTP (nao confia em certificado autoassinado),
+        por isso __HTTP_BASE__ e sempre http.
+        """
+        local_ip = _get_local_ip()
+        net_info = {
+            "host": _primary_local_hostname(),
+            "ip": local_ip,
+            "httpPort": PORT,
+            "httpsPort": active_https_port(),
+        }
+        payload = (
+            "window.__HTTP_BASE__=" + json.dumps("http://%s:%s" % (local_ip, PORT)) + ";"
+            "window.__LOGICAL_ROOT__=" + json.dumps(_branding.logical_root()) + ";"
+            "window.__NET__=" + json.dumps(net_info) + ";\n"
+        ).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/javascript; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        if not self._head_only:
+            self.wfile.write(payload)
+
     def _get_manifest_webmanifest(self, path, params):
         """GET /manifest.webmanifest"""
         payload = _branding.manifest_json().encode("utf-8")
