@@ -2592,6 +2592,1125 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
             sys.stderr.write("[Midnight Media Server] restore falhou: %r\n" % (e,))
             self._send_error("Falha ao restaurar o backup")
 
+    # ── Rotas GET (extraidas do do_GET) ───────────────────────
+
+    def _get_api_scrape_status(self, path, params):
+        """GET /api/scrape/status"""
+        _, total = _scraper.listar_pendentes(limite=1)
+        self._send_json({"configurado": _scraper.configurado(), "pendentes": total})
+        return
+
+    def _get_api_scrape_pendentes(self, path, params):
+        """GET /api/scrape/pendentes"""
+        pendentes, total = _scraper.listar_pendentes()
+        self._send_json({"pendentes": pendentes, "total": total})
+        return
+
+    def _get_api_scrape_search(self, path, params):
+        """GET /api/scrape/search"""
+        folder_path = params.get("path", [""])[0]
+        query = params.get("q", [""])[0].strip() or None
+        if not folder_path:
+            self._send_error("Missing 'path' parameter", 400)
+            return
+        nome_pasta = folder_path.rstrip("/").rsplit("/", 1)[-1]
+        candidatos, erro = _scraper.buscar_candidatos(
+            nome_pasta, query, self._tipo_da_pasta(folder_path))
+        self._send_json({"candidatos": candidatos, "erro": erro})
+        return
+
+    def _get_api_scrape_capas(self, path, params):
+        """GET /api/scrape/capas"""
+        try:
+            tmdb_id = int(params.get("tmdb_id", ["0"])[0])
+        except ValueError:
+            tmdb_id = 0
+        capas, erro = _scraper.listar_capas(tmdb_id) if tmdb_id else ([], "Filme não informado.")
+        self._send_json({"capas": capas, "erro": erro})
+        return
+
+    def _get_api_organizar_itens(self, path, params):
+        """GET /api/organizar/itens"""
+        itens, erro = _organizador.listar_itens(params.get("source", [""])[0])
+        self._send_json({"itens": itens or [], "erro": erro})
+        return
+
+    def _get_api_organizar_buscar(self, path, params):
+        """GET /api/organizar/buscar"""
+        cands, erro = _organizador.buscar(
+            params.get("source", [""])[0], params.get("origem", [""])[0],
+            params.get("q", [""])[0].strip() or None)
+        self._send_json({"candidatos": cands, "erro": erro})
+        return
+
+    def _get_api_organizar_historico(self, path, params):
+        """GET /api/organizar/historico"""
+        self._send_json({"operacoes": _organizador.historico()})
+        return
+
+    def _get_api_profiles(self, path, params):
+        """GET /api/profiles"""
+        self._handle_profiles_list()
+        return
+
+    def _get_perfis(self, path, params):
+        """GET /perfis"""
+        self._send_html(_profiles_page())
+        return
+
+    # Marca: manifest, CSS de cor e icones gerados na hora, na cor e nome
+    # escolhidos. Publicos (ver PUBLIC_PATHS) porque o navegador os busca
+    # fora da navegacao normal, sem cookie — inclusive antes do login.
+    def _get_manifest_webmanifest(self, path, params):
+        """GET /manifest.webmanifest"""
+        payload = _branding.manifest_json().encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/manifest+json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(payload)
+        return
+
+    def _get_branding_css(self, path, params):
+        """GET /branding.css"""
+        payload = _branding.css().encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/css; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(payload)
+        return
+
+    # A CA local (mkcert) que assina o HTTPS do proprio app. Celular novo
+    # baixa este arquivo pelo http:// (sem aviso de certificado) e
+    # instala como certificado de CA — depois o https:// aparece como
+    # seguro e o Chrome oferece "Instalar app". So o certificado publico
+    # sai daqui; a chave da CA (rootCA-key.pem) nunca e servida.
+    def _get_ca_crt(self, path, params):
+        """GET /ca.crt"""
+        ca = mkcert_root_ca_path()
+        dados = None
+        if ca is not None:
+            try:
+                dados = ca.read_bytes()
+            except OSError:
+                dados = None
+        if not dados:
+            self._send_error("Sem certificado local do mkcert para baixar", 404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-x509-ca-cert")
+        self.send_header("Content-Length", str(len(dados)))
+        self.send_header("Content-Disposition",
+                         'attachment; filename="media-server-ca.crt"')
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(dados)
+        return
+
+    # API: Marca atual (nome e cor) — admin, ver Ajustes > Aparencia
+    def _get_api_branding(self, path, params):
+        """GET /api/branding"""
+        self._send_json(_branding.get())
+        return
+
+    def _get_api_branding_set(self, path, params):
+        """GET /api/branding/set"""
+        self._handle_branding_set()
+        return
+
+    # API: Refresh cache (escaneia todas as fontes, ou so uma)
+    def _get_api_refresh(self, path, params):
+        """GET /api/refresh"""
+        source_id = params.get("source", [""])[0].strip() or None
+        self._send_json({"status": _scanner.start_background_scan(source_id)})
+        return
+
+    # API: Fontes do catalogo
+    def _get_api_sources(self, path, params):
+        """GET /api/sources"""
+        self._handle_sources_list()
+        return
+
+    def _get_api_sources_detect(self, path, params):
+        """GET /api/sources/detect"""
+        self._handle_sources_detect()
+        return
+
+    def _get_api_sources_add(self, path, params):
+        """GET /api/sources/add"""
+        self._handle_source_add()
+        return
+
+    def _get_api_sources_remove(self, path, params):
+        """GET /api/sources/remove"""
+        self._handle_source_remove()
+        return
+
+    # Nuvem (qualquer remote rclone, via wizard)
+    def _get_api_nuvem_status(self, path, params):
+        """GET /api/nuvem/status"""
+        self._handle_nuvem_status()
+        return
+
+    def _get_api_nuvem_conectar(self, path, params):
+        """GET /api/nuvem/conectar"""
+        self._handle_nuvem_conectar()
+        return
+
+    def _get_api_nuvem_desconectar(self, path, params):
+        """GET /api/nuvem/desconectar"""
+        self._handle_nuvem_desconectar()
+        return
+
+    def _get_api_rclone_remotes(self, path, params):
+        """GET /api/rclone/remotes"""
+        self._handle_rclone_remotes()
+        return
+
+    def _get_api_rclone_providers(self, path, params):
+        """GET /api/rclone/providers"""
+        self._handle_rclone_providers()
+        return
+
+    def _get_api_rclone_wizard(self, path, params):
+        """GET /api/rclone/wizard"""
+        self._handle_rclone_wizard()
+        return
+
+    # API: Scan progress
+    def _get_api_scan_progress(self, path, params):
+        """GET /api/scan-progress"""
+        self._send_json(_scanner.get_progress())
+        return
+
+    # API: Download backup (.zip)
+    def _get_api_backup(self, path, params):
+        """GET /api/backup"""
+        self._serve_backup()
+        return
+
+    # API: Backup local (salva em ~/Downloads/ + serve)
+    def _get_api_backup_local(self, path, params):
+        """GET /api/backup/local"""
+        db_path = DB_PATH
+        if not db_path.exists():
+            self._send_error("Database not found", 404)
+            return
+
+        downloads = Path.home() / "Downloads"
+        downloads.mkdir(exist_ok=True)
+        today = time.strftime("%Y-%m-%d")
+        backup_name = f"media-server-backup-{today}.db"
+        backup_path = downloads / backup_name
+
+        try:
+            import shutil as _shutil
+            _shutil.copy2(db_path, backup_path)
+            saved_path = str(backup_path)
+        except Exception:
+            saved_path = str(db_path)
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Disposition", f'attachment; filename="{backup_name}"')
+        self.send_header("Content-Length", str(db_path.stat().st_size))
+        self._send_media_cors()
+        self.send_header("X-Backup-Path", saved_path)
+        self.end_headers()
+        with open(db_path, "rb") as f:
+            self.wfile.write(f.read())
+        return
+
+    # API: Backup para a nuvem
+    def _get_api_backup_b2(self, path, params):
+        """GET /api/backup/b2"""
+        if not remote_configurado():
+            self._send_error(
+                "Nuvem nao configurada — conecte em Ajustes > Nuvem.", 400)
+            return
+        result = self._backup_to_cloud()
+        if result["ok"]:
+            self._send_json({"status": "ok", "path": result["path"]})
+        else:
+            self._send_json({"status": "error", "error": result["error"]}, 500)
+        return
+
+    # API: Restore do backup da nuvem
+    def _get_api_restore_b2(self, path, params):
+        """GET /api/restore/b2"""
+        if not remote_configurado():
+            self._send_error(
+                "Nuvem nao configurada — conecte em Ajustes > Nuvem.", 400)
+            return
+        self._handle_restore_from_cloud()
+        return
+
+    # API: Cache manager — returns all movies with cached status
+    def _get_api_cache_manager(self, path, params):
+        """GET /api/cache-manager"""
+        try:
+            movies = cached_all_movies(so_infantil=self._so_infantil())
+            # Um unico SELECT para o primeiro video de cada pasta. Antes eram
+            # 1 a 2 conexoes SQLite (com 3 PRAGMAs) por filme a cada abertura
+            # do app: 5.000 filmes = ate 10 mil conexoes.
+            conn_ck = get_db()
+            try:
+                primeiro = {r["folder_path"]: r["name"] for r in conn_ck.execute(
+                    "SELECT folder_path, name FROM files WHERE file_type='video' "
+                    "AND rowid IN (SELECT MIN(rowid) FROM files "
+                    "WHERE file_type='video' GROUP BY folder_path)")}
+            finally:
+                conn_ck.close()
+            result = []
+            for m in movies:
+                folder_path = m["path"]
+                nome = primeiro.get(folder_path)
+                if nome is None:
+                    nome = primeiro.get(folder_path.strip("/"))
+                cached = bool(nome) and _is_file_cached(folder_path.strip("/") + "/" + nome)
+                result.append({
+                    "path": folder_path,
+                    "name": m["name"],
+                    "title": m["title"],
+                    "poster": m["poster"],
+                    "cached": cached,
+                })
+            self._send_json(result)
+        except Exception as e:
+            self._send_exception(e)
+        return
+
+    # API: Download a movie file to cache (forces VFS caching in background)
+    def _get_api_cache_download(self, path, params):
+        """GET /api/cache-download"""
+        folder_path = params.get("path", [""])[0]
+        if not folder_path:
+            self._send_json({"status": "error", "error": "Missing path"}, 400)
+            return
+        if _sources.is_local(folder_path):
+            self._send_json({"status": "ok", "local": True,
+                             "message": "Filme em fonte local — ja disponivel offline."})
+            return
+        try:
+            # Find the video file for this folder
+            conn = get_db()
+            row = conn.execute(
+                "SELECT name FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
+                (folder_path,)
+            ).fetchone()
+            conn.close()
+            if not row:
+                # Try without leading slash
+                conn2 = get_db()
+                row2 = conn2.execute(
+                    "SELECT name FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
+                    (folder_path.strip("/"),)
+                ).fetchone()
+                conn2.close()
+                if not row2:
+                    self._send_json({"status": "error", "error": "No video found"}, 404)
+                    return
+                row = row2
+            video_name = row["name"]
+            video_path = folder_path.strip("/") + "/" + video_name
+
+            # Check if already cached
+            if _is_file_cached(video_path):
+                self._send_json({"status": "already_cached", "path": video_path})
+                return
+
+            # Start background download (forces VFS caching via rclone serve HTTP)
+            def _do_cache_download(file_path, total_bytes):
+                try:
+                    print(f"[Midnight Media Server] Cache download starting: {file_path} ({total_bytes}B)", flush=True)
+
+                    with _download_progress_lock:
+                        _download_progress[file_path] = {"percent": 0, "status": "downloading", "total": total_bytes, "downloaded": 0}
+
+                    if total_bytes <= 0:
+                        # Can't track progress without size, just mark as cached
+                        _mark_file_cached(file_path)
+                        with _download_progress_lock:
+                            _download_progress[file_path] = {"percent": 100, "status": "done"}
+                        print(f"[Midnight Media Server] Cache marked (no size info): {file_path}", flush=True)
+                        return
+
+                    # Use HTTP range requests against rclone serve to force VFS caching
+                    safe_url_path = urllib.parse.quote(_serve_path(file_path), safe="/")
+                    rclone_url = f"http://localhost:{RCLONE_SERVE_PORT}/{safe_url_path}"
+                    CHUNK = 5 * 1024 * 1024  # 5MB chunks (same as frontend)
+                    downloaded = 0
+
+                    while downloaded < total_bytes:
+                        end = min(downloaded + CHUNK - 1, total_bytes - 1)
+                        range_hdr = f"bytes={downloaded}-{end}"
+                        try:
+                            req = urllib.request.Request(rclone_url, method="GET")
+                            req.add_header("Range", range_hdr)
+                            with urllib.request.urlopen(req, timeout=120) as resp:
+                                while True:
+                                    buf = resp.read(65536)
+                                    if not buf:
+                                        break
+                                    downloaded += len(buf)
+                                    pct = min(99, int((downloaded / total_bytes) * 100))
+                                    with _download_progress_lock:
+                                        _download_progress[file_path] = {
+                                            "percent": pct, "status": "downloading",
+                                            "total": total_bytes, "downloaded": downloaded
+                                        }
+                        except Exception as chunk_err:
+                            print(f"[Midnight Media Server] Cache chunk error at {downloaded}: {chunk_err}", flush=True)
+                            # Retry once
+                            try:
+                                req2 = urllib.request.Request(rclone_url, method="GET")
+                                req2.add_header("Range", range_hdr)
+                                with urllib.request.urlopen(req2, timeout=120) as resp2:
+                                    while True:
+                                        buf = resp2.read(65536)
+                                        if not buf:
+                                            break
+                                        downloaded += len(buf)
+                                        pct = min(99, int((downloaded / total_bytes) * 100))
+                                        with _download_progress_lock:
+                                            _download_progress[file_path] = {
+                                                "percent": pct, "status": "downloading",
+                                                "total": total_bytes, "downloaded": downloaded
+                                            }
+                            except Exception:
+                                raise
+
+                    # Mark as fully cached
+                    _mark_file_cached(file_path)
+                    with _download_progress_lock:
+                        _download_progress[file_path] = {"percent": 100, "status": "done"}
+                    print(f"[Midnight Media Server] Cache download complete: {file_path}", flush=True)
+                except Exception as e:
+                    print(f"[Midnight Media Server] Cache download error: {e}", flush=True)
+                    with _download_progress_lock:
+                        _download_progress[file_path] = {"percent": 0, "status": "error"}
+
+            # Get file size first (needed for progress tracking)
+            file_size = 0
+            # Prefer DB size (fastest, most reliable)
+            try:
+                conn_sz = get_db()
+                row_sz = conn_sz.execute(
+                    "SELECT size FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
+                    (folder_path.strip("/"),)
+                ).fetchone()
+                if not row_sz:
+                    row_sz = conn_sz.execute(
+                        "SELECT size FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
+                        (folder_path,)
+                    ).fetchone()
+                conn_sz.close()
+                if row_sz and row_sz["size"] > 0:
+                    file_size = row_sz["size"]
+            except Exception:
+                pass
+
+            t = threading.Thread(target=_do_cache_download, args=(video_path, file_size), daemon=True)
+            t.start()
+            self._send_json({"status": "started", "path": video_path, "name": video_name, "size": file_size})
+        except Exception as e:
+            self._send_exception(e)
+        return
+
+    # API: Download progress for a video being cached
+    def _get_api_cache_download_progress(self, path, params):
+        """GET /api/cache-download-progress"""
+        file_path = params.get("path", [""])[0]
+        if not file_path:
+            self._send_json({"percent": 0, "status": "unknown"})
+            return
+        with _download_progress_lock:
+            prog = dict(_download_progress.get(file_path, {"percent": 0, "status": "unknown"}))
+        self._send_json(prog)
+        return
+
+    # API: Check if file is fully cached in rclone VFS
+    def _get_api_check_cached(self, path, params):
+        """GET /api/check-cached"""
+        file_path = params.get("path", [""])[0]
+        if not file_path:
+            self._send_json({"cached": False})
+            return
+        # Arquivo em fonte local ja esta no disco: offline por definicao,
+        # e o cache VFS do rclone nao tem nada a ver com ele.
+        if _sources.is_local(file_path):
+            self._send_json({"cached": True, "local": True})
+            return
+        self._send_json({"cached": _is_file_cached(file_path)})
+        return
+
+    # API: Clear all caches (VFS, DB cache markers)
+    def _get_api_clear_cache(self, path, params):
+        """GET /api/clear-cache"""
+        try:
+            import shutil as sh
+            invalidar_uso_cache()
+            # Clear VFS cache (downloaded videos)
+            vfs_cache = Path.home() / ".cache" / "rclone" / "vfs"
+            if vfs_cache.exists():
+                for entry in vfs_cache.iterdir():
+                    if entry.is_dir():
+                        sh.rmtree(entry)
+            # Clear cached files list
+            global _cached_files
+            with _cached_files_lock:
+                _cached_files.clear()
+                if CACHED_FILES_PATH.exists():
+                    CACHED_FILES_PATH.unlink()
+            # Clear DB cache timestamps
+            conn = get_db()
+            conn.execute("DELETE FROM cache_meta")
+            conn.commit()
+            conn.close()
+            self._send_json({"status": "ok"})
+        except Exception as e:
+            self._send_exception(e)
+        return
+
+    # API: Remove single movie from VFS cache
+    def _get_api_uncache(self, path, params):
+        """GET /api/uncache"""
+        folder_path = params.get("path", [""])[0]
+        if not folder_path:
+            self._send_json({"status": "error", "error": "Missing path"}, 400)
+            return
+        # Um caminho vazio ou minusculo casaria com todo o cache VFS.
+        if len(folder_path.strip("/")) < 2 or folder_path.strip("/") in (".", ".."):
+            self._send_json({"status": "error", "error": "Caminho invalido"}, 400)
+            return
+        # Fonte local nao passa pelo cache VFS: apagar aqui seria apagar o
+        # filme do HD do usuario.
+        if _sources.is_local(folder_path):
+            self._send_json(
+                {"status": "error",
+                 "error": "Esse filme esta numa fonte local — nao ha cache a remover."},
+                400)
+            return
+        try:
+            # Get the video file name from the database directly
+            video_name = ""
+            try:
+                conn = get_db()
+                folder = folder_path.strip("/")
+                cur = conn.execute(
+                    "SELECT name FROM files WHERE folder_path = ? AND extension IN ('.mp4','.mkv','.avi','.mov','.webm') LIMIT 1",
+                    (folder,)
+                )
+                row = cur.fetchone()
+                if row:
+                    video_name = row[0]
+                conn.close()
+            except Exception:
+                pass
+            
+            # Remove from cached_files list
+            with _cached_files_lock:
+                to_remove = {p for p in _cached_files if folder_path.strip("/") in p}
+                _cached_files -= to_remove
+                CACHED_FILES_PATH.write_text(json.dumps(list(_cached_files)))
+
+            # Remove VFS cache files from rclone cache directory
+            vfs_cache = Path.home() / ".cache" / "rclone" / "vfs"
+            if vfs_cache.exists():
+                removed = 0
+                # rclone VFS cache stores files under <remote>{hash}/<full remote path>
+                # Search recursively for any file/dir containing the folder path
+                folder_stripped = folder_path.strip("/")
+                for entry in vfs_cache.rglob("*"):
+                    if entry.is_file():
+                        if _vfs_segment_match(str(entry), folder_stripped):
+                            entry.unlink()
+                            removed += 1
+                    elif entry.is_dir() and _vfs_segment_match(str(entry), folder_stripped):
+                        import shutil
+                        shutil.rmtree(entry, ignore_errors=True)
+                        removed += 1
+                # Also try matching just the folder name (last path component)
+                folder_last = folder_stripped.split("/")[-1]
+                for entry in vfs_cache.rglob("*"):
+                    if entry.is_file() and _vfs_segment_match(str(entry), folder_last):
+                        # Check if it's a parent match (not already deleted)
+                        if entry.exists():
+                            entry.unlink()
+                            removed += 1
+                if removed > 0:
+                    print(f"[Midnight Media Server] Removed {removed} VFS cache entries for {folder_path}", flush=True)
+                else:
+                    # Fallback: clear entire VFS cache for this folder path using simple hash search
+                    for entry in vfs_cache.iterdir():
+                        if entry.is_dir():
+                            for cached_file in entry.rglob("*"):
+                                if cached_file.is_file():
+                                    cached_str = str(cached_file)
+                                    _flat = folder_path.strip("/").replace("/", "_")
+                                    if len(_flat) >= 2 and _flat in cached_str:
+                                        cached_file.unlink()
+                                        removed += 1
+                    if removed > 0:
+                        print(f"[Midnight Media Server] Removed {removed} VFS cache entries (deep) for {folder_path}", flush=True)
+
+            self._send_json({"status": "ok"})
+        except Exception as e:
+            self._send_exception(e)
+        return
+
+    # API: Cache status
+    def _get_api_cache_status(self, path, params):
+        """GET /api/cache-status"""
+        cache_time = get_cache_time()
+        stale = is_cache_stale()
+        usage = get_cache_usage()
+        so_infantil = self._so_infantil()
+        conn = get_db()
+        genres = 0  # gênero por pasta deixou de existir
+        files = conn.execute("SELECT COUNT(*) as c FROM files").fetchone()["c"]
+        conn.close()
+        self._send_json({
+            "cached": cache_time is not None,
+            "last_updated": cache_time,
+            "stale": stale,
+            "genres": genres,
+            # Contagens com a mesma definição das páginas A-Z e Séries —
+            # a home espelha exatamente o que o usuário vê ao clicar.
+            "movies": cached_movie_count(so_infantil),
+            "series": cached_series_count(so_infantil),
+            "files": files,
+            "usage": usage,
+        })
+        return
+
+    # API: List genres with content (from cache)
+    def _get_api_genres(self, path, params):
+        """GET /api/genres"""
+        wanted = params.get("source", [""])[0].strip()
+        conn = get_db()
+        genre_rows = conn.execute(
+            "SELECT * FROM folders WHERE 0 ORDER BY name"
+        ).fetchall()
+        conn.close()
+
+        all_sources = _sources.list_sources()
+        folders = []
+        for row in genre_rows:
+            owner = _sources.resolve(row["path"])
+            source_id = owner["id"] if owner else ""
+            if wanted and source_id != wanted:
+                continue
+            folders.append({
+                "Path": row["path"].lstrip("/"),
+                "Name": row["name"],
+                "Size": 0,
+                "MimeType": "inode/directory",
+                "ModTime": "",
+                "IsDir": True,
+                "has_video": True,
+                "source": source_id,
+            })
+        data = {
+            "path": _branding.logical_root(),
+            "folders": folders,
+            # A home monta uma secao por fonte a partir daqui, numa
+            # requisicao so — por isso as fontes vem junto dos generos.
+            "sources": [
+                {"id": s["id"], "kind": s["kind"], "name": s["name"],
+                 "online": _sources.is_online(s)}
+                for s in all_sources
+                if not wanted or s["id"] == wanted
+            ],
+            # Gêneros criados na interface — a barra lateral lista depois
+            # dos gêneros de pasta. Filtrado como todo o resto: sessão
+            # infantil não vê (nem de nome) gênero sem filme marcado.
+            "app": cached_generos(so_infantil=self._so_infantil()),
+            "videos": [],
+            "subtitles": [],
+            "images": [],
+        }
+        self._send_json(data)
+        return
+
+    # API: Recent movies sorted by creation time (from cache)
+    def _get_api_recent_movies(self, path, params):
+        """GET /api/recent-movies"""
+        conn = get_db()
+        limit = 50
+        try:
+            limit = min(int(params.get("limit", ["50"])[0]), 200)
+        except (ValueError, IndexError):
+            pass
+        filtro_inf = ""
+        if self._so_infantil():
+            filtro_inf = (" AND EXISTS (SELECT 1 FROM infantil_filmes ii "
+                          "WHERE ii.alvo = folders.path)")
+        movie_rows = conn.execute(
+            f"""SELECT * FROM folders
+               WHERE has_video=1 AND depth>0
+                 AND tipo IN ('filme', 'serie'){filtro_inf}
+               ORDER BY mod_time DESC, name ASC
+               LIMIT ?""",
+            (limit,)
+        ).fetchall()
+        # Pôster e título em lote (antes: uma conexão por filme da home).
+        posters = _posters_de_pastas(conn, [r["path"] for r in movie_rows])
+        titulos = _titulos_nfo_de_pastas(conn, [r["path"] for r in movie_rows])
+        assistidos = {r["folder_path"] for r in conn.execute(
+            "SELECT folder_path FROM watch_progress "
+            "WHERE profile_id=? AND position_seconds <= 0",
+            (perfil_atual(),)).fetchall()}
+        conn.close()
+
+        movies = []
+        for row in movie_rows:
+            movie_path = row["path"]
+            movies.append({
+                "path": movie_path,
+                "name": row["name"],
+                "mod_time": row["mod_time"],
+                "poster": posters.get(movie_path),
+                "is_serie": row["tipo"] == "serie",
+                "title": titulos.get(movie_path) or None,
+                "watched": movie_path in assistidos,
+            })
+        self._send_json(movies)
+        return
+
+    # API: Continue watching — movies with saved progress
+    def _get_api_continue_watching(self, path, params):
+        """GET /api/continue-watching"""
+        conn = get_db()
+        rows = conn.execute(
+            """SELECT p.*, f.name FROM watch_progress p
+               LEFT JOIN folders f ON f.path = p.folder_path
+               WHERE p.profile_id = ? AND p.position_seconds > 0
+               ORDER BY p.updated_at DESC
+               LIMIT 20""",
+            (perfil_atual(),)
+        ).fetchall()
+        # Pôster e título de filme em lote, na mesma conexão do laço.
+        posters = _posters_de_pastas(conn, [r["folder_path"] for r in rows])
+        titulos = _titulos_nfo_de_pastas(conn, [r["folder_path"] for r in rows])
+        result = []
+        so_infantil = self._so_infantil()
+
+        def _titulo_limpo(nome_arquivo):
+            base = nome_arquivo.rsplit(".", 1)[0]
+            for sep in (".", "_"):
+                base = base.replace(sep, " ")
+            return base.strip()
+
+        for row in rows:
+            p_path = row["folder_path"]
+            # Perfil infantil: a home nao mostra progresso de fora do
+            # perfil (mesma regra que o /api/stream aplica pra tocar).
+            if so_infantil and not self._permitido_infantil(p_path):
+                continue
+            pasta = conn.execute(
+                "SELECT path, name, tipo, parent FROM folders WHERE path=?",
+                (p_path,)).fetchone()
+
+            if pasta and pasta["tipo"] == "filme":
+                # Filme em pasta: poster card, como sempre.
+                result.append({
+                    "tipo": "filme", "path": p_path,
+                    "name": row["name"] or p_path.strip("/").split("/")[-1],
+                    "position": row["position_seconds"],
+                    "duration": row["duration_seconds"],
+                    "poster": posters.get(p_path),
+                    "title": titulos.get(p_path) or None,
+                })
+                continue
+
+            # Sem pasta de filme: o progresso é de um ARQUIVO — episódio
+            # de série ou filme solto. Ambos viram linha na home.
+            fi = conn.execute(
+                """SELECT name, folder_path FROM files
+                   WHERE folder_path = ? AND name = ?
+                   AND file_type = 'video'""", partir_caminho(p_path)).fetchone()
+            if not fi:
+                continue  # progresso órfão (arquivo saiu do acervo)
+            titulo = _titulo_limpo(fi["name"])
+            pasta_row = conn.execute(
+                "SELECT name, tipo, parent FROM folders WHERE path=?",
+                (fi["folder_path"],)).fetchone()
+            legenda = conn.execute(
+                """SELECT folder_path || '/' || name AS arquivo FROM files
+                   WHERE folder_path=? AND name LIKE ?
+                   AND file_type='subtitle' LIMIT 1""",
+                (fi["folder_path"], fi["name"].rsplit(".", 1)[0] + "%")
+            ).fetchone()
+            if pasta_row and pasta_row["tipo"] == "temporada":
+                serie_row = conn.execute(
+                    "SELECT name FROM folders WHERE path=?",
+                    (pasta_row["parent"],)).fetchone()
+                serie_meta = conn.execute(
+                    "SELECT title FROM movie_meta WHERE folder_path=?",
+                    (pasta_row["parent"],)).fetchone()
+                result.append({
+                    "tipo": "episodio", "path": p_path,
+                    "serie": (serie_meta["title"] if serie_meta and serie_meta["title"]
+                              else serie_row["name"]),
+                    "temporada": pasta_row["name"],
+                    "episodio": titulo,
+                    "position": row["position_seconds"],
+                    "duration": row["duration_seconds"],
+                    "subtitle": legenda["arquivo"] if legenda else None,
+                })
+            else:
+                result.append({
+                    "tipo": "solto", "path": p_path,
+                    "name": titulo,
+                    "position": row["position_seconds"],
+                    "duration": row["duration_seconds"],
+                })
+        conn.close()
+        self._send_json(result)
+        return
+
+    # API: Get progress for a single movie
+    def _get_api_progress(self, path, params):
+        """GET /api/progress"""
+        folder_path = params.get("path", [""])[0]
+        if not folder_path:
+            self._send_json({"position": 0, "duration": 0})
+            return
+        conn = get_db()
+        row = conn.execute(
+            "SELECT * FROM watch_progress WHERE profile_id=? AND folder_path=?",
+            (perfil_atual(), folder_path)
+        ).fetchone()
+        conn.close()
+        if row:
+            self._send_json({
+                "position": row["position_seconds"],
+                "duration": row["duration_seconds"],
+                # Linha zerada = marcado como assistido (mesma convencao
+                # do interruptor da ficha). Sem linha = nunca visto.
+                "watched": row["position_seconds"] <= 0,
+            })
+        else:
+            self._send_json({"position": 0, "duration": 0, "watched": False})
+        return
+
+    # API: List directory (from cache)
+    def _get_api_list(self, path, params):
+        """GET /api/list"""
+        dir_path = params.get("path", [""])[0]
+
+        # Raiz -> raiz do remote, sem depender do nome fixo em texto.
+        if dir_path == "" or dir_path == "/":
+            dir_path = _branding.logical_root()
+
+        data = cached_list_directory(dir_path, so_infantil=self._so_infantil())
+        if data is None:
+            self._send_error("Path not found in cache", 404)
+            return
+
+        # Ensure empty lists for missing keys
+        data.setdefault("folders", [])
+        data.setdefault("videos", [])
+        data.setdefault("subtitles", [])
+        data.setdefault("images", [])
+
+        # No auto-scan — user must click refresh manually
+        # If cache is empty, just show whatever we have (will be empty)
+
+        self._send_json(data)
+        return
+
+    # API: Colecoes (Star Wars 1-6 e afins)
+    def _get_api_collections(self, path, params):
+        """GET /api/collections"""
+        self._send_json(cached_all_collections(so_infantil=self._so_infantil()))
+        return
+
+    def _get_api_collection(self, path, params):
+        """GET /api/collection"""
+        key = params.get("key", [""])[0] or params.get("name", [""])[0]
+        if not key:
+            self._send_error("Missing 'key' parameter", 400)
+            return
+        data = cached_collection_movies(key, so_infantil=self._so_infantil())
+        if data is None:
+            self._send_error("Colecao nao encontrada", 404)
+            return
+        self._send_json(data)
+        return
+
+    # Gêneros do app (criados na interface, independentes de pasta).
+    def _get_api_generos(self, path, params):
+        """GET /api/generos"""
+        self._send_json(cached_generos(so_infantil=self._so_infantil()))
+        return
+
+    def _get_api_genero(self, path, params):
+        """GET /api/genero"""
+        try:
+            gid = int(params.get("id", [""])[0])
+        except ValueError:
+            self._send_error("Missing 'id' parameter", 400)
+            return
+        data = cached_genero_filmes(gid, so_infantil=self._so_infantil())
+        if data is None:
+            self._send_error("Genero nao encontrado", 404)
+            return
+        self._send_json(data)
+        return
+
+    def _get_api_generos_de(self, path, params):
+        """GET /api/generos/de"""
+        alvo = params.get("alvo", [""])[0]
+        if not alvo:
+            self._send_error("Missing 'alvo' parameter", 400)
+            return
+        self._send_json({"ids": cached_generos_de(alvo)})
+        return
+
+    # Coleções do app: criar, editar e excluir (admin).
+    def _get_api_infantil_marcar(self, path, params):
+        """GET /api/infantil/marcar"""
+        self._handle_infantil_marcar()
+        return
+
+    def _get_api_colecoes_create(self, path, params):
+        """GET /api/colecoes/create"""
+        self._handle_colecao_create()
+        return
+
+    def _get_api_colecoes_update(self, path, params):
+        """GET /api/colecoes/update"""
+        self._handle_colecao_update()
+        return
+
+    def _get_api_colecoes_delete(self, path, params):
+        """GET /api/colecoes/delete"""
+        self._handle_colecao_delete()
+        return
+
+    # Tags do app: criar, excluir e atribuir (admin).
+    def _get_api_generos_create(self, path, params):
+        """GET /api/generos/create"""
+        self._handle_genero_create()
+        return
+
+    def _get_api_generos_delete(self, path, params):
+        """GET /api/generos/delete"""
+        self._handle_genero_delete()
+        return
+
+    def _get_api_generos_atribuir(self, path, params):
+        """GET /api/generos/atribuir"""
+        self._handle_genero_atribuir()
+        return
+
+    def _get_api_generos_renomear(self, path, params):
+        """GET /api/generos/renomear"""
+        self._handle_genero_renomear()
+        return
+
+    # Interruptor "Já assisti" da ficha do filme.
+    def _get_api_watched(self, path, params):
+        """GET /api/watched"""
+        self._handle_watched()
+        return
+
+    # API: Movie detail (from cache)
+    # API: Lista de séries (listagem própria, separada dos filmes)
+    def _get_api_series(self, path, params):
+        """GET /api/series"""
+        self._send_json(cached_series_list(so_infantil=self._so_infantil()))
+        return
+
+    # API: Uma série (temporadas + episódios)
+    def _get_api_serie(self, path, params):
+        """GET /api/serie"""
+        serie_path = params.get("path", [""])[0]
+        if not serie_path:
+            self._send_error("Missing 'path' parameter", 400)
+            return
+        data = cached_serie(serie_path, so_infantil=self._so_infantil())
+        if data is None:
+            self._send_error("Serie nao encontrada", 404)
+            return
+        self._send_json(data)
+        return
+
+    def _get_api_movie_detail(self, path, params):
+        """GET /api/movie-detail"""
+        folder_path = params.get("path", [""])[0]
+        if not folder_path:
+            self._send_error("Missing 'path' parameter", 400)
+            return
+
+        if self._so_infantil() and not cached_movie_infantil(folder_path):
+            self._send_error("Filme não disponível neste perfil", 404)
+            return
+        data = cached_movie_detail(folder_path)
+        self._send_json(data)
+        return
+
+    # API: Search (from cache)
+    def _get_api_search(self, path, params):
+        """GET /api/search"""
+        query = params.get("q", [""])[0]
+        if not query:
+            self._send_error("Missing 'q' parameter", 400)
+            return
+        results = cached_search_files(query, so_infantil=self._so_infantil())
+        self._send_json({"results": results})
+        return
+
+    # API: All movies A-Z (from cache)
+    def _get_api_all_movies(self, path, params):
+        """GET /api/all-movies"""
+        results = cached_all_movies(so_infantil=self._so_infantil())
+        self._send_json(results)
+        return
+
+    # API: Stream (live from rclone)
+    def _get_api_stream(self, path, params):
+        """GET /api/stream"""
+        file_path = params.get("path", [""])[0]
+        if not file_path:
+            self._send_error("Missing 'path' parameter", 400)
+            return
+        if self._so_infantil() and not self._permitido_infantil(file_path):
+            self._send_error("Filme não disponível neste perfil", 403)
+            return
+        self._stream_file(file_path)
+        return
+
+    # API: Video preparado para a TV (MP4/AAC gerado pelo prepare.py).
+    # O token assinado e o do path original — ver prepare.py.
+    def _get_api_prepared(self, path, params):
+        """GET /api/prepared"""
+        file_path = params.get("path", [""])[0]
+        if not file_path:
+            self._send_error("Missing 'path' parameter", 400)
+            return
+        if self._so_infantil() and not self._permitido_infantil(file_path):
+            self._send_error("Filme não disponível neste perfil", 403)
+            return
+        self._serve_prepared(file_path)
+        return
+
+    # API: Progresso do preparo para a TV
+    def _get_api_prepare_status(self, path, params):
+        """GET /api/prepare-status"""
+        file_path = params.get("path", [""])[0]
+        if not file_path:
+            self._send_error("Missing 'path' parameter", 400)
+            return
+        if self._so_infantil() and not self._permitido_infantil(file_path):
+            self._send_error("Filme não disponível neste perfil", 403)
+            return
+        fonte = self._fonte_de(file_path)
+        if fonte is None:
+            self._send_json({"needed": False, "state": "none"})
+            return
+        self._send_json(prepare.status(fonte, enqueue=False))
+        return
+
+    # API: File info (from cache)
+    def _get_api_info(self, path, params):
+        """GET /api/info"""
+        file_path = params.get("path", [""])[0]
+        if not file_path:
+            self._send_error("Missing 'path' parameter", 400)
+            return
+        item = cached_get_file_info(file_path)
+        if item:
+            self._send_json(item)
+        else:
+            self._send_error("File not found", 404)
+        return
+
+    # API: rclone status (instalação, remote da nuvem, streaming, web UI)
+    def _get_api_rclone_status(self, path, params):
+        """GET /api/rclone/status"""
+        self._send_json(get_rclone_status())
+        return
+
+    # Rotas GET antes do guard de escrita: caminho -> metodo. Cada metodo e _get_<caminho>.
+    _ROTAS_GET_ANTES = {
+        "/api/scrape/status": "_get_api_scrape_status",
+        "/api/scrape/pendentes": "_get_api_scrape_pendentes",
+        "/api/scrape/search": "_get_api_scrape_search",
+        "/api/scrape/capas": "_get_api_scrape_capas",
+        "/api/organizar/itens": "_get_api_organizar_itens",
+        "/api/organizar/buscar": "_get_api_organizar_buscar",
+        "/api/organizar/historico": "_get_api_organizar_historico",
+        "/api/profiles": "_get_api_profiles",
+        "/perfis": "_get_perfis",
+    }
+
+    # Rotas GET depois do guard de escrita: caminho -> metodo. Cada metodo e _get_<caminho>.
+    _ROTAS_GET = {
+        "/manifest.webmanifest": "_get_manifest_webmanifest",
+        "/branding.css": "_get_branding_css",
+        "/ca.crt": "_get_ca_crt",
+        "/api/branding": "_get_api_branding",
+        "/api/branding/set": "_get_api_branding_set",
+        "/api/refresh": "_get_api_refresh",
+        "/api/sources": "_get_api_sources",
+        "/api/sources/detect": "_get_api_sources_detect",
+        "/api/sources/add": "_get_api_sources_add",
+        "/api/sources/remove": "_get_api_sources_remove",
+        "/api/nuvem/status": "_get_api_nuvem_status",
+        "/api/nuvem/conectar": "_get_api_nuvem_conectar",
+        "/api/nuvem/desconectar": "_get_api_nuvem_desconectar",
+        "/api/rclone/remotes": "_get_api_rclone_remotes",
+        "/api/rclone/providers": "_get_api_rclone_providers",
+        "/api/rclone/wizard": "_get_api_rclone_wizard",
+        "/api/scan-progress": "_get_api_scan_progress",
+        "/api/backup": "_get_api_backup",
+        "/api/backup/local": "_get_api_backup_local",
+        "/api/backup/b2": "_get_api_backup_b2",
+        "/api/restore/b2": "_get_api_restore_b2",
+        "/api/cache-manager": "_get_api_cache_manager",
+        "/api/cache-download": "_get_api_cache_download",
+        "/api/cache-download-progress": "_get_api_cache_download_progress",
+        "/api/check-cached": "_get_api_check_cached",
+        "/api/clear-cache": "_get_api_clear_cache",
+        "/api/uncache": "_get_api_uncache",
+        "/api/cache-status": "_get_api_cache_status",
+        "/api/genres": "_get_api_genres",
+        "/api/recent-movies": "_get_api_recent_movies",
+        "/api/continue-watching": "_get_api_continue_watching",
+        "/api/progress": "_get_api_progress",
+        "/api/list": "_get_api_list",
+        "/api/collections": "_get_api_collections",
+        "/api/collection": "_get_api_collection",
+        "/api/generos": "_get_api_generos",
+        "/api/genero": "_get_api_genero",
+        "/api/generos/de": "_get_api_generos_de",
+        "/api/infantil/marcar": "_get_api_infantil_marcar",
+        "/api/colecoes/create": "_get_api_colecoes_create",
+        "/api/colecoes/update": "_get_api_colecoes_update",
+        "/api/colecoes/delete": "_get_api_colecoes_delete",
+        "/api/generos/create": "_get_api_generos_create",
+        "/api/generos/delete": "_get_api_generos_delete",
+        "/api/generos/atribuir": "_get_api_generos_atribuir",
+        "/api/generos/renomear": "_get_api_generos_renomear",
+        "/api/watched": "_get_api_watched",
+        "/api/series": "_get_api_series",
+        "/api/serie": "_get_api_serie",
+        "/api/movie-detail": "_get_api_movie_detail",
+        "/api/search": "_get_api_search",
+        "/api/all-movies": "_get_api_all_movies",
+        "/api/stream": "_get_api_stream",
+        "/api/prepared": "_get_api_prepared",
+        "/api/prepare-status": "_get_api_prepare_status",
+        "/api/info": "_get_api_info",
+        "/api/rclone/status": "_get_api_rclone_status",
+    }
+
     def do_GET(self):
         self._reset_request_state()
         if not self._security_gate():
@@ -2622,67 +3741,20 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                              "user": user})
             return
 
-        if path == "/api/scrape/status":
-            _, total = _scraper.listar_pendentes(limite=1)
-            self._send_json({"configurado": _scraper.configurado(), "pendentes": total})
-            return
-
-        if path == "/api/scrape/pendentes":
-            pendentes, total = _scraper.listar_pendentes()
-            self._send_json({"pendentes": pendentes, "total": total})
-            return
-
-        if path == "/api/scrape/search":
-            folder_path = params.get("path", [""])[0]
-            query = params.get("q", [""])[0].strip() or None
-            if not folder_path:
-                self._send_error("Missing 'path' parameter", 400)
-                return
-            nome_pasta = folder_path.rstrip("/").rsplit("/", 1)[-1]
-            candidatos, erro = _scraper.buscar_candidatos(
-                nome_pasta, query, self._tipo_da_pasta(folder_path))
-            self._send_json({"candidatos": candidatos, "erro": erro})
-            return
-
-        if path == "/api/scrape/capas":
-            try:
-                tmdb_id = int(params.get("tmdb_id", ["0"])[0])
-            except ValueError:
-                tmdb_id = 0
-            capas, erro = _scraper.listar_capas(tmdb_id) if tmdb_id else ([], "Filme não informado.")
-            self._send_json({"capas": capas, "erro": erro})
-            return
-
-        if path == "/api/organizar/itens":
-            itens, erro = _organizador.listar_itens(params.get("source", [""])[0])
-            self._send_json({"itens": itens or [], "erro": erro})
-            return
-
-        if path == "/api/organizar/buscar":
-            cands, erro = _organizador.buscar(
-                params.get("source", [""])[0], params.get("origem", [""])[0],
-                params.get("q", [""])[0].strip() or None)
-            self._send_json({"candidatos": cands, "erro": erro})
-            return
-
-        if path == "/api/organizar/historico":
-            self._send_json({"operacoes": _organizador.historico()})
-            return
-
-        if path == "/api/profiles":
-            self._handle_profiles_list()
-            return
-
-        if path == "/perfis":
-            self._send_html(_profiles_page())
-            return
-
         # Rotas de escrita chegam aqui apenas quando redespachadas por do_POST.
+        metodo = self._ROTAS_GET_ANTES.get(path)
+        if metodo:
+            getattr(self, metodo)(path, params)
+            return
         if path in WRITE_ROUTES and not getattr(self, "_write_ok", False):
             self._send_json(
                 {"status": "error", "error": "Use POST para esta operacao"}, 405)
             return
 
+        metodo = self._ROTAS_GET.get(path)
+        if metodo:
+            getattr(self, metodo)(path, params)
+            return
         # Serve frontend
         if path == "/" or path == "/index.html":
             self._send_html(self._index_html())
@@ -2696,29 +3768,6 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
         # Static files
         if path.startswith("/static/"):
             self._serve_file(path)
-            return
-
-        # Marca: manifest, CSS de cor e icones gerados na hora, na cor e nome
-        # escolhidos. Publicos (ver PUBLIC_PATHS) porque o navegador os busca
-        # fora da navegacao normal, sem cookie — inclusive antes do login.
-        if path == "/manifest.webmanifest":
-            payload = _branding.manifest_json().encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/manifest+json")
-            self.send_header("Content-Length", str(len(payload)))
-            self.send_header("Cache-Control", "no-cache")
-            self.end_headers()
-            self.wfile.write(payload)
-            return
-
-        if path == "/branding.css":
-            payload = _branding.css().encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/css; charset=utf-8")
-            self.send_header("Content-Length", str(len(payload)))
-            self.send_header("Cache-Control", "no-cache")
-            self.end_headers()
-            self.wfile.write(payload)
             return
 
         if path.startswith("/icone-") and path.endswith(".png"):
@@ -2737,888 +3786,6 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(dados)
             return
 
-        # A CA local (mkcert) que assina o HTTPS do proprio app. Celular novo
-        # baixa este arquivo pelo http:// (sem aviso de certificado) e
-        # instala como certificado de CA — depois o https:// aparece como
-        # seguro e o Chrome oferece "Instalar app". So o certificado publico
-        # sai daqui; a chave da CA (rootCA-key.pem) nunca e servida.
-        if path == "/ca.crt":
-            ca = mkcert_root_ca_path()
-            dados = None
-            if ca is not None:
-                try:
-                    dados = ca.read_bytes()
-                except OSError:
-                    dados = None
-            if not dados:
-                self._send_error("Sem certificado local do mkcert para baixar", 404)
-                return
-            self.send_response(200)
-            self.send_header("Content-Type", "application/x-x509-ca-cert")
-            self.send_header("Content-Length", str(len(dados)))
-            self.send_header("Content-Disposition",
-                             'attachment; filename="media-server-ca.crt"')
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(dados)
-            return
-
-        # API: Marca atual (nome e cor) — admin, ver Ajustes > Aparencia
-        if path == "/api/branding":
-            self._send_json(_branding.get())
-            return
-
-        if path == "/api/branding/set":
-            self._handle_branding_set()
-            return
-
-        # API: Refresh cache (escaneia todas as fontes, ou so uma)
-        if path == "/api/refresh":
-            source_id = params.get("source", [""])[0].strip() or None
-            self._send_json({"status": _scanner.start_background_scan(source_id)})
-            return
-
-        # API: Fontes do catalogo
-        if path == "/api/sources":
-            self._handle_sources_list()
-            return
-
-        if path == "/api/sources/detect":
-            self._handle_sources_detect()
-            return
-
-        if path == "/api/sources/add":
-            self._handle_source_add()
-            return
-
-        if path == "/api/sources/remove":
-            self._handle_source_remove()
-            return
-
-        # Nuvem (qualquer remote rclone, via wizard)
-        if path == "/api/nuvem/status":
-            self._handle_nuvem_status()
-            return
-
-        if path == "/api/nuvem/conectar":
-            self._handle_nuvem_conectar()
-            return
-
-        if path == "/api/nuvem/desconectar":
-            self._handle_nuvem_desconectar()
-            return
-
-        if path == "/api/rclone/remotes":
-            self._handle_rclone_remotes()
-            return
-
-        if path == "/api/rclone/providers":
-            self._handle_rclone_providers()
-            return
-
-        if path == "/api/rclone/wizard":
-            self._handle_rclone_wizard()
-            return
-
-        # API: Scan progress
-        if path == "/api/scan-progress":
-            self._send_json(_scanner.get_progress())
-            return
-
-        # API: Download backup (.zip)
-        if path == "/api/backup":
-            self._serve_backup()
-            return
-
-        # API: Backup local (salva em ~/Downloads/ + serve)
-        if path == "/api/backup/local":
-            db_path = DB_PATH
-            if not db_path.exists():
-                self._send_error("Database not found", 404)
-                return
-
-            downloads = Path.home() / "Downloads"
-            downloads.mkdir(exist_ok=True)
-            today = time.strftime("%Y-%m-%d")
-            backup_name = f"media-server-backup-{today}.db"
-            backup_path = downloads / backup_name
-
-            try:
-                import shutil as _shutil
-                _shutil.copy2(db_path, backup_path)
-                saved_path = str(backup_path)
-            except Exception:
-                saved_path = str(db_path)
-
-            self.send_response(200)
-            self.send_header("Content-Type", "application/octet-stream")
-            self.send_header("Content-Disposition", f'attachment; filename="{backup_name}"')
-            self.send_header("Content-Length", str(db_path.stat().st_size))
-            self._send_media_cors()
-            self.send_header("X-Backup-Path", saved_path)
-            self.end_headers()
-            with open(db_path, "rb") as f:
-                self.wfile.write(f.read())
-            return
-
-        # API: Backup para a nuvem
-        if path == "/api/backup/b2":
-            if not remote_configurado():
-                self._send_error(
-                    "Nuvem nao configurada — conecte em Ajustes > Nuvem.", 400)
-                return
-            result = self._backup_to_cloud()
-            if result["ok"]:
-                self._send_json({"status": "ok", "path": result["path"]})
-            else:
-                self._send_json({"status": "error", "error": result["error"]}, 500)
-            return
-
-        # API: Restore do backup da nuvem
-        if path == "/api/restore/b2":
-            if not remote_configurado():
-                self._send_error(
-                    "Nuvem nao configurada — conecte em Ajustes > Nuvem.", 400)
-                return
-            self._handle_restore_from_cloud()
-            return
-
-        # API: Cache manager — returns all movies with cached status
-        if path == "/api/cache-manager":
-            try:
-                movies = cached_all_movies(so_infantil=self._so_infantil())
-                # Um unico SELECT para o primeiro video de cada pasta. Antes eram
-                # 1 a 2 conexoes SQLite (com 3 PRAGMAs) por filme a cada abertura
-                # do app: 5.000 filmes = ate 10 mil conexoes.
-                conn_ck = get_db()
-                try:
-                    primeiro = {r["folder_path"]: r["name"] for r in conn_ck.execute(
-                        "SELECT folder_path, name FROM files WHERE file_type='video' "
-                        "AND rowid IN (SELECT MIN(rowid) FROM files "
-                        "WHERE file_type='video' GROUP BY folder_path)")}
-                finally:
-                    conn_ck.close()
-                result = []
-                for m in movies:
-                    folder_path = m["path"]
-                    nome = primeiro.get(folder_path)
-                    if nome is None:
-                        nome = primeiro.get(folder_path.strip("/"))
-                    cached = bool(nome) and _is_file_cached(folder_path.strip("/") + "/" + nome)
-                    result.append({
-                        "path": folder_path,
-                        "name": m["name"],
-                        "title": m["title"],
-                        "poster": m["poster"],
-                        "cached": cached,
-                    })
-                self._send_json(result)
-            except Exception as e:
-                self._send_exception(e)
-            return
-
-        # API: Download a movie file to cache (forces VFS caching in background)
-        if path == "/api/cache-download":
-            folder_path = params.get("path", [""])[0]
-            if not folder_path:
-                self._send_json({"status": "error", "error": "Missing path"}, 400)
-                return
-            if _sources.is_local(folder_path):
-                self._send_json({"status": "ok", "local": True,
-                                 "message": "Filme em fonte local — ja disponivel offline."})
-                return
-            try:
-                # Find the video file for this folder
-                conn = get_db()
-                row = conn.execute(
-                    "SELECT name FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                    (folder_path,)
-                ).fetchone()
-                conn.close()
-                if not row:
-                    # Try without leading slash
-                    conn2 = get_db()
-                    row2 = conn2.execute(
-                        "SELECT name FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                        (folder_path.strip("/"),)
-                    ).fetchone()
-                    conn2.close()
-                    if not row2:
-                        self._send_json({"status": "error", "error": "No video found"}, 404)
-                        return
-                    row = row2
-                video_name = row["name"]
-                video_path = folder_path.strip("/") + "/" + video_name
-
-                # Check if already cached
-                if _is_file_cached(video_path):
-                    self._send_json({"status": "already_cached", "path": video_path})
-                    return
-
-                # Start background download (forces VFS caching via rclone serve HTTP)
-                def _do_cache_download(file_path, total_bytes):
-                    try:
-                        print(f"[Midnight Media Server] Cache download starting: {file_path} ({total_bytes}B)", flush=True)
-
-                        with _download_progress_lock:
-                            _download_progress[file_path] = {"percent": 0, "status": "downloading", "total": total_bytes, "downloaded": 0}
-
-                        if total_bytes <= 0:
-                            # Can't track progress without size, just mark as cached
-                            _mark_file_cached(file_path)
-                            with _download_progress_lock:
-                                _download_progress[file_path] = {"percent": 100, "status": "done"}
-                            print(f"[Midnight Media Server] Cache marked (no size info): {file_path}", flush=True)
-                            return
-
-                        # Use HTTP range requests against rclone serve to force VFS caching
-                        safe_url_path = urllib.parse.quote(_serve_path(file_path), safe="/")
-                        rclone_url = f"http://localhost:{RCLONE_SERVE_PORT}/{safe_url_path}"
-                        CHUNK = 5 * 1024 * 1024  # 5MB chunks (same as frontend)
-                        downloaded = 0
-
-                        while downloaded < total_bytes:
-                            end = min(downloaded + CHUNK - 1, total_bytes - 1)
-                            range_hdr = f"bytes={downloaded}-{end}"
-                            try:
-                                req = urllib.request.Request(rclone_url, method="GET")
-                                req.add_header("Range", range_hdr)
-                                with urllib.request.urlopen(req, timeout=120) as resp:
-                                    while True:
-                                        buf = resp.read(65536)
-                                        if not buf:
-                                            break
-                                        downloaded += len(buf)
-                                        pct = min(99, int((downloaded / total_bytes) * 100))
-                                        with _download_progress_lock:
-                                            _download_progress[file_path] = {
-                                                "percent": pct, "status": "downloading",
-                                                "total": total_bytes, "downloaded": downloaded
-                                            }
-                            except Exception as chunk_err:
-                                print(f"[Midnight Media Server] Cache chunk error at {downloaded}: {chunk_err}", flush=True)
-                                # Retry once
-                                try:
-                                    req2 = urllib.request.Request(rclone_url, method="GET")
-                                    req2.add_header("Range", range_hdr)
-                                    with urllib.request.urlopen(req2, timeout=120) as resp2:
-                                        while True:
-                                            buf = resp2.read(65536)
-                                            if not buf:
-                                                break
-                                            downloaded += len(buf)
-                                            pct = min(99, int((downloaded / total_bytes) * 100))
-                                            with _download_progress_lock:
-                                                _download_progress[file_path] = {
-                                                    "percent": pct, "status": "downloading",
-                                                    "total": total_bytes, "downloaded": downloaded
-                                                }
-                                except Exception:
-                                    raise
-
-                        # Mark as fully cached
-                        _mark_file_cached(file_path)
-                        with _download_progress_lock:
-                            _download_progress[file_path] = {"percent": 100, "status": "done"}
-                        print(f"[Midnight Media Server] Cache download complete: {file_path}", flush=True)
-                    except Exception as e:
-                        print(f"[Midnight Media Server] Cache download error: {e}", flush=True)
-                        with _download_progress_lock:
-                            _download_progress[file_path] = {"percent": 0, "status": "error"}
-
-                # Get file size first (needed for progress tracking)
-                file_size = 0
-                # Prefer DB size (fastest, most reliable)
-                try:
-                    conn_sz = get_db()
-                    row_sz = conn_sz.execute(
-                        "SELECT size FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                        (folder_path.strip("/"),)
-                    ).fetchone()
-                    if not row_sz:
-                        row_sz = conn_sz.execute(
-                            "SELECT size FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                            (folder_path,)
-                        ).fetchone()
-                    conn_sz.close()
-                    if row_sz and row_sz["size"] > 0:
-                        file_size = row_sz["size"]
-                except Exception:
-                    pass
-
-                t = threading.Thread(target=_do_cache_download, args=(video_path, file_size), daemon=True)
-                t.start()
-                self._send_json({"status": "started", "path": video_path, "name": video_name, "size": file_size})
-            except Exception as e:
-                self._send_exception(e)
-            return
-
-        # API: Download progress for a video being cached
-        if path == "/api/cache-download-progress":
-            file_path = params.get("path", [""])[0]
-            if not file_path:
-                self._send_json({"percent": 0, "status": "unknown"})
-                return
-            with _download_progress_lock:
-                prog = dict(_download_progress.get(file_path, {"percent": 0, "status": "unknown"}))
-            self._send_json(prog)
-            return
-
-        # API: Check if file is fully cached in rclone VFS
-        if path == "/api/check-cached":
-            file_path = params.get("path", [""])[0]
-            if not file_path:
-                self._send_json({"cached": False})
-                return
-            # Arquivo em fonte local ja esta no disco: offline por definicao,
-            # e o cache VFS do rclone nao tem nada a ver com ele.
-            if _sources.is_local(file_path):
-                self._send_json({"cached": True, "local": True})
-                return
-            self._send_json({"cached": _is_file_cached(file_path)})
-            return
-
-        # API: Clear all caches (VFS, DB cache markers)
-        if path == "/api/clear-cache":
-            try:
-                import shutil as sh
-                invalidar_uso_cache()
-                # Clear VFS cache (downloaded videos)
-                vfs_cache = Path.home() / ".cache" / "rclone" / "vfs"
-                if vfs_cache.exists():
-                    for entry in vfs_cache.iterdir():
-                        if entry.is_dir():
-                            sh.rmtree(entry)
-                # Clear cached files list
-                global _cached_files
-                with _cached_files_lock:
-                    _cached_files.clear()
-                    if CACHED_FILES_PATH.exists():
-                        CACHED_FILES_PATH.unlink()
-                # Clear DB cache timestamps
-                conn = get_db()
-                conn.execute("DELETE FROM cache_meta")
-                conn.commit()
-                conn.close()
-                self._send_json({"status": "ok"})
-            except Exception as e:
-                self._send_exception(e)
-            return
-
-        # API: Remove single movie from VFS cache
-        if path == "/api/uncache":
-            folder_path = params.get("path", [""])[0]
-            if not folder_path:
-                self._send_json({"status": "error", "error": "Missing path"}, 400)
-                return
-            # Um caminho vazio ou minusculo casaria com todo o cache VFS.
-            if len(folder_path.strip("/")) < 2 or folder_path.strip("/") in (".", ".."):
-                self._send_json({"status": "error", "error": "Caminho invalido"}, 400)
-                return
-            # Fonte local nao passa pelo cache VFS: apagar aqui seria apagar o
-            # filme do HD do usuario.
-            if _sources.is_local(folder_path):
-                self._send_json(
-                    {"status": "error",
-                     "error": "Esse filme esta numa fonte local — nao ha cache a remover."},
-                    400)
-                return
-            try:
-                # Get the video file name from the database directly
-                video_name = ""
-                try:
-                    conn = get_db()
-                    folder = folder_path.strip("/")
-                    cur = conn.execute(
-                        "SELECT name FROM files WHERE folder_path = ? AND extension IN ('.mp4','.mkv','.avi','.mov','.webm') LIMIT 1",
-                        (folder,)
-                    )
-                    row = cur.fetchone()
-                    if row:
-                        video_name = row[0]
-                    conn.close()
-                except Exception:
-                    pass
-                
-                # Remove from cached_files list
-                with _cached_files_lock:
-                    to_remove = {p for p in _cached_files if folder_path.strip("/") in p}
-                    _cached_files -= to_remove
-                    CACHED_FILES_PATH.write_text(json.dumps(list(_cached_files)))
-
-                # Remove VFS cache files from rclone cache directory
-                vfs_cache = Path.home() / ".cache" / "rclone" / "vfs"
-                if vfs_cache.exists():
-                    removed = 0
-                    # rclone VFS cache stores files under <remote>{hash}/<full remote path>
-                    # Search recursively for any file/dir containing the folder path
-                    folder_stripped = folder_path.strip("/")
-                    for entry in vfs_cache.rglob("*"):
-                        if entry.is_file():
-                            if _vfs_segment_match(str(entry), folder_stripped):
-                                entry.unlink()
-                                removed += 1
-                        elif entry.is_dir() and _vfs_segment_match(str(entry), folder_stripped):
-                            import shutil
-                            shutil.rmtree(entry, ignore_errors=True)
-                            removed += 1
-                    # Also try matching just the folder name (last path component)
-                    folder_last = folder_stripped.split("/")[-1]
-                    for entry in vfs_cache.rglob("*"):
-                        if entry.is_file() and _vfs_segment_match(str(entry), folder_last):
-                            # Check if it's a parent match (not already deleted)
-                            if entry.exists():
-                                entry.unlink()
-                                removed += 1
-                    if removed > 0:
-                        print(f"[Midnight Media Server] Removed {removed} VFS cache entries for {folder_path}", flush=True)
-                    else:
-                        # Fallback: clear entire VFS cache for this folder path using simple hash search
-                        for entry in vfs_cache.iterdir():
-                            if entry.is_dir():
-                                for cached_file in entry.rglob("*"):
-                                    if cached_file.is_file():
-                                        cached_str = str(cached_file)
-                                        _flat = folder_path.strip("/").replace("/", "_")
-                                        if len(_flat) >= 2 and _flat in cached_str:
-                                            cached_file.unlink()
-                                            removed += 1
-                        if removed > 0:
-                            print(f"[Midnight Media Server] Removed {removed} VFS cache entries (deep) for {folder_path}", flush=True)
-
-                self._send_json({"status": "ok"})
-            except Exception as e:
-                self._send_exception(e)
-            return
-
-        # API: Cache status
-        if path == "/api/cache-status":
-            cache_time = get_cache_time()
-            stale = is_cache_stale()
-            usage = get_cache_usage()
-            so_infantil = self._so_infantil()
-            conn = get_db()
-            genres = 0  # gênero por pasta deixou de existir
-            files = conn.execute("SELECT COUNT(*) as c FROM files").fetchone()["c"]
-            conn.close()
-            self._send_json({
-                "cached": cache_time is not None,
-                "last_updated": cache_time,
-                "stale": stale,
-                "genres": genres,
-                # Contagens com a mesma definição das páginas A-Z e Séries —
-                # a home espelha exatamente o que o usuário vê ao clicar.
-                "movies": cached_movie_count(so_infantil),
-                "series": cached_series_count(so_infantil),
-                "files": files,
-                "usage": usage,
-            })
-            return
-
-        # API: List genres with content (from cache)
-        if path == "/api/genres":
-            # A resposta também traz "app": os gêneros criados na interface.
-            wanted = params.get("source", [""])[0].strip()
-            conn = get_db()
-            genre_rows = conn.execute(
-                "SELECT * FROM folders WHERE 0 ORDER BY name"
-            ).fetchall()
-            conn.close()
-
-            all_sources = _sources.list_sources()
-            folders = []
-            for row in genre_rows:
-                owner = _sources.resolve(row["path"])
-                source_id = owner["id"] if owner else ""
-                if wanted and source_id != wanted:
-                    continue
-                folders.append({
-                    "Path": row["path"].lstrip("/"),
-                    "Name": row["name"],
-                    "Size": 0,
-                    "MimeType": "inode/directory",
-                    "ModTime": "",
-                    "IsDir": True,
-                    "has_video": True,
-                    "source": source_id,
-                })
-            data = {
-                "path": _branding.logical_root(),
-                "folders": folders,
-                # A home monta uma secao por fonte a partir daqui, numa
-                # requisicao so — por isso as fontes vem junto dos generos.
-                "sources": [
-                    {"id": s["id"], "kind": s["kind"], "name": s["name"],
-                     "online": _sources.is_online(s)}
-                    for s in all_sources
-                    if not wanted or s["id"] == wanted
-                ],
-                # Gêneros criados na interface — a barra lateral lista depois
-                # dos gêneros de pasta. Filtrado como todo o resto: sessão
-                # infantil não vê (nem de nome) gênero sem filme marcado.
-                "app": cached_generos(so_infantil=self._so_infantil()),
-                "videos": [],
-                "subtitles": [],
-                "images": [],
-            }
-            self._send_json(data)
-            return
-
-        # API: Recent movies sorted by creation time (from cache)
-        if path == "/api/recent-movies":
-            conn = get_db()
-            limit = 50
-            try:
-                limit = min(int(params.get("limit", ["50"])[0]), 200)
-            except (ValueError, IndexError):
-                pass
-            filtro_inf = ""
-            if self._so_infantil():
-                filtro_inf = (" AND EXISTS (SELECT 1 FROM infantil_filmes ii "
-                              "WHERE ii.alvo = folders.path)")
-            movie_rows = conn.execute(
-                f"""SELECT * FROM folders
-                   WHERE has_video=1 AND depth>0
-                     AND tipo IN ('filme', 'serie'){filtro_inf}
-                   ORDER BY mod_time DESC, name ASC
-                   LIMIT ?""",
-                (limit,)
-            ).fetchall()
-            # Pôster e título em lote (antes: uma conexão por filme da home).
-            posters = _posters_de_pastas(conn, [r["path"] for r in movie_rows])
-            titulos = _titulos_nfo_de_pastas(conn, [r["path"] for r in movie_rows])
-            assistidos = {r["folder_path"] for r in conn.execute(
-                "SELECT folder_path FROM watch_progress "
-                "WHERE profile_id=? AND position_seconds <= 0",
-                (perfil_atual(),)).fetchall()}
-            conn.close()
-
-            movies = []
-            for row in movie_rows:
-                movie_path = row["path"]
-                movies.append({
-                    "path": movie_path,
-                    "name": row["name"],
-                    "mod_time": row["mod_time"],
-                    "poster": posters.get(movie_path),
-                    "is_serie": row["tipo"] == "serie",
-                    "title": titulos.get(movie_path) or None,
-                    "watched": movie_path in assistidos,
-                })
-            self._send_json(movies)
-            return
-
-        # API: Continue watching — movies with saved progress
-        if path == "/api/continue-watching":
-            conn = get_db()
-            rows = conn.execute(
-                """SELECT p.*, f.name FROM watch_progress p
-                   LEFT JOIN folders f ON f.path = p.folder_path
-                   WHERE p.profile_id = ? AND p.position_seconds > 0
-                   ORDER BY p.updated_at DESC
-                   LIMIT 20""",
-                (perfil_atual(),)
-            ).fetchall()
-            # Pôster e título de filme em lote, na mesma conexão do laço.
-            posters = _posters_de_pastas(conn, [r["folder_path"] for r in rows])
-            titulos = _titulos_nfo_de_pastas(conn, [r["folder_path"] for r in rows])
-            result = []
-            so_infantil = self._so_infantil()
-
-            def _titulo_limpo(nome_arquivo):
-                base = nome_arquivo.rsplit(".", 1)[0]
-                for sep in (".", "_"):
-                    base = base.replace(sep, " ")
-                return base.strip()
-
-            for row in rows:
-                p_path = row["folder_path"]
-                # Perfil infantil: a home nao mostra progresso de fora do
-                # perfil (mesma regra que o /api/stream aplica pra tocar).
-                if so_infantil and not self._permitido_infantil(p_path):
-                    continue
-                pasta = conn.execute(
-                    "SELECT path, name, tipo, parent FROM folders WHERE path=?",
-                    (p_path,)).fetchone()
-
-                if pasta and pasta["tipo"] == "filme":
-                    # Filme em pasta: poster card, como sempre.
-                    result.append({
-                        "tipo": "filme", "path": p_path,
-                        "name": row["name"] or p_path.strip("/").split("/")[-1],
-                        "position": row["position_seconds"],
-                        "duration": row["duration_seconds"],
-                        "poster": posters.get(p_path),
-                        "title": titulos.get(p_path) or None,
-                    })
-                    continue
-
-                # Sem pasta de filme: o progresso é de um ARQUIVO — episódio
-                # de série ou filme solto. Ambos viram linha na home.
-                fi = conn.execute(
-                    """SELECT name, folder_path FROM files
-                       WHERE folder_path = ? AND name = ?
-                       AND file_type = 'video'""", partir_caminho(p_path)).fetchone()
-                if not fi:
-                    continue  # progresso órfão (arquivo saiu do acervo)
-                titulo = _titulo_limpo(fi["name"])
-                pasta_row = conn.execute(
-                    "SELECT name, tipo, parent FROM folders WHERE path=?",
-                    (fi["folder_path"],)).fetchone()
-                legenda = conn.execute(
-                    """SELECT folder_path || '/' || name AS arquivo FROM files
-                       WHERE folder_path=? AND name LIKE ?
-                       AND file_type='subtitle' LIMIT 1""",
-                    (fi["folder_path"], fi["name"].rsplit(".", 1)[0] + "%")
-                ).fetchone()
-                if pasta_row and pasta_row["tipo"] == "temporada":
-                    serie_row = conn.execute(
-                        "SELECT name FROM folders WHERE path=?",
-                        (pasta_row["parent"],)).fetchone()
-                    serie_meta = conn.execute(
-                        "SELECT title FROM movie_meta WHERE folder_path=?",
-                        (pasta_row["parent"],)).fetchone()
-                    result.append({
-                        "tipo": "episodio", "path": p_path,
-                        "serie": (serie_meta["title"] if serie_meta and serie_meta["title"]
-                                  else serie_row["name"]),
-                        "temporada": pasta_row["name"],
-                        "episodio": titulo,
-                        "position": row["position_seconds"],
-                        "duration": row["duration_seconds"],
-                        "subtitle": legenda["arquivo"] if legenda else None,
-                    })
-                else:
-                    result.append({
-                        "tipo": "solto", "path": p_path,
-                        "name": titulo,
-                        "position": row["position_seconds"],
-                        "duration": row["duration_seconds"],
-                    })
-            conn.close()
-            self._send_json(result)
-            return
-
-        # API: Get progress for a single movie
-        if path == "/api/progress":
-            folder_path = params.get("path", [""])[0]
-            if not folder_path:
-                self._send_json({"position": 0, "duration": 0})
-                return
-            conn = get_db()
-            row = conn.execute(
-                "SELECT * FROM watch_progress WHERE profile_id=? AND folder_path=?",
-                (perfil_atual(), folder_path)
-            ).fetchone()
-            conn.close()
-            if row:
-                self._send_json({
-                    "position": row["position_seconds"],
-                    "duration": row["duration_seconds"],
-                    # Linha zerada = marcado como assistido (mesma convencao
-                    # do interruptor da ficha). Sem linha = nunca visto.
-                    "watched": row["position_seconds"] <= 0,
-                })
-            else:
-                self._send_json({"position": 0, "duration": 0, "watched": False})
-            return
-
-        # API: List directory (from cache)
-        if path == "/api/list":
-            dir_path = params.get("path", [""])[0]
-
-            # Raiz -> raiz do remote, sem depender do nome fixo em texto.
-            if dir_path == "" or dir_path == "/":
-                dir_path = _branding.logical_root()
-
-            data = cached_list_directory(dir_path, so_infantil=self._so_infantil())
-            if data is None:
-                self._send_error("Path not found in cache", 404)
-                return
-
-            # Ensure empty lists for missing keys
-            data.setdefault("folders", [])
-            data.setdefault("videos", [])
-            data.setdefault("subtitles", [])
-            data.setdefault("images", [])
-
-            # No auto-scan — user must click refresh manually
-            # If cache is empty, just show whatever we have (will be empty)
-
-            self._send_json(data)
-            return
-
-        # API: Colecoes (Star Wars 1-6 e afins)
-        if path == "/api/collections":
-            self._send_json(cached_all_collections(so_infantil=self._so_infantil()))
-            return
-
-        if path == "/api/collection":
-            key = params.get("key", [""])[0] or params.get("name", [""])[0]
-            if not key:
-                self._send_error("Missing 'key' parameter", 400)
-                return
-            data = cached_collection_movies(key, so_infantil=self._so_infantil())
-            if data is None:
-                self._send_error("Colecao nao encontrada", 404)
-                return
-            self._send_json(data)
-            return
-
-        # Gêneros do app (criados na interface, independentes de pasta).
-        if path == "/api/generos":
-            self._send_json(cached_generos(so_infantil=self._so_infantil()))
-            return
-
-        if path == "/api/genero":
-            try:
-                gid = int(params.get("id", [""])[0])
-            except ValueError:
-                self._send_error("Missing 'id' parameter", 400)
-                return
-            data = cached_genero_filmes(gid, so_infantil=self._so_infantil())
-            if data is None:
-                self._send_error("Genero nao encontrado", 404)
-                return
-            self._send_json(data)
-            return
-
-        if path == "/api/generos/de":
-            alvo = params.get("alvo", [""])[0]
-            if not alvo:
-                self._send_error("Missing 'alvo' parameter", 400)
-                return
-            self._send_json({"ids": cached_generos_de(alvo)})
-            return
-
-        # Coleções do app: criar, editar e excluir (admin).
-        if path == "/api/infantil/marcar":
-            self._handle_infantil_marcar()
-            return
-
-        if path == "/api/colecoes/create":
-            self._handle_colecao_create()
-            return
-
-        if path == "/api/colecoes/update":
-            self._handle_colecao_update()
-            return
-
-        if path == "/api/colecoes/delete":
-            self._handle_colecao_delete()
-            return
-
-        # Tags do app: criar, excluir e atribuir (admin).
-        if path == "/api/generos/create":
-            self._handle_genero_create()
-            return
-
-        if path == "/api/generos/delete":
-            self._handle_genero_delete()
-            return
-
-        if path == "/api/generos/atribuir":
-            self._handle_genero_atribuir()
-            return
-
-        if path == "/api/generos/renomear":
-            self._handle_genero_renomear()
-            return
-
-        # Interruptor "Já assisti" da ficha do filme.
-        if path == "/api/watched":
-            self._handle_watched()
-            return
-
-        # API: Movie detail (from cache)
-        # API: Lista de séries (listagem própria, separada dos filmes)
-        if path == "/api/series":
-            self._send_json(cached_series_list(so_infantil=self._so_infantil()))
-            return
-
-        # API: Uma série (temporadas + episódios)
-        if path == "/api/serie":
-            serie_path = params.get("path", [""])[0]
-            if not serie_path:
-                self._send_error("Missing 'path' parameter", 400)
-                return
-            data = cached_serie(serie_path, so_infantil=self._so_infantil())
-            if data is None:
-                self._send_error("Serie nao encontrada", 404)
-                return
-            self._send_json(data)
-            return
-
-        if path == "/api/movie-detail":
-            folder_path = params.get("path", [""])[0]
-            if not folder_path:
-                self._send_error("Missing 'path' parameter", 400)
-                return
-
-            if self._so_infantil() and not cached_movie_infantil(folder_path):
-                self._send_error("Filme não disponível neste perfil", 404)
-                return
-            data = cached_movie_detail(folder_path)
-            self._send_json(data)
-            return
-
-        # API: Search (from cache)
-        if path == "/api/search":
-            query = params.get("q", [""])[0]
-            if not query:
-                self._send_error("Missing 'q' parameter", 400)
-                return
-            results = cached_search_files(query, so_infantil=self._so_infantil())
-            self._send_json({"results": results})
-            return
-
-        # API: All movies A-Z (from cache)
-        if path == "/api/all-movies":
-            results = cached_all_movies(so_infantil=self._so_infantil())
-            self._send_json(results)
-            return
-
-        # API: Stream (live from rclone)
-        if path == "/api/stream":
-            file_path = params.get("path", [""])[0]
-            if not file_path:
-                self._send_error("Missing 'path' parameter", 400)
-                return
-            if self._so_infantil() and not self._permitido_infantil(file_path):
-                self._send_error("Filme não disponível neste perfil", 403)
-                return
-            self._stream_file(file_path)
-            return
-
-        # API: Video preparado para a TV (MP4/AAC gerado pelo prepare.py).
-        # O token assinado e o do path original — ver prepare.py.
-        if path == "/api/prepared":
-            file_path = params.get("path", [""])[0]
-            if not file_path:
-                self._send_error("Missing 'path' parameter", 400)
-                return
-            if self._so_infantil() and not self._permitido_infantil(file_path):
-                self._send_error("Filme não disponível neste perfil", 403)
-                return
-            self._serve_prepared(file_path)
-            return
-
-        # API: Progresso do preparo para a TV
-        if path == "/api/prepare-status":
-            file_path = params.get("path", [""])[0]
-            if not file_path:
-                self._send_error("Missing 'path' parameter", 400)
-                return
-            if self._so_infantil() and not self._permitido_infantil(file_path):
-                self._send_error("Filme não disponível neste perfil", 403)
-                return
-            fonte = self._fonte_de(file_path)
-            if fonte is None:
-                self._send_json({"needed": False, "state": "none"})
-                return
-            self._send_json(prepare.status(fonte, enqueue=False))
-            return
-
         # API: Subtitle (serve as WebVTT for browser)
         if path == "/api/subtitle" and self._so_infantil() \
                 and not self._permitido_infantil(
@@ -3632,24 +3799,6 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                 self._send_error("Missing 'path' parameter", 400)
                 return
             self._serve_subtitle(file_path)
-            return
-
-        # API: File info (from cache)
-        if path == "/api/info":
-            file_path = params.get("path", [""])[0]
-            if not file_path:
-                self._send_error("Missing 'path' parameter", 400)
-                return
-            item = cached_get_file_info(file_path)
-            if item:
-                self._send_json(item)
-            else:
-                self._send_error("File not found", 404)
-            return
-
-        # API: rclone status (instalação, remote da nuvem, streaming, web UI)
-        if path == "/api/rclone/status":
-            self._send_json(get_rclone_status())
             return
 
         # Fallback 404
