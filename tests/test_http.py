@@ -67,11 +67,11 @@ def test_legenda_so_aceita_extensao_de_legenda(admin):
 
 
 def test_estatico_versionado_tem_cache_longo_e_gzip(admin):
-    r = admin.get("/static/app.js?v=123", headers={"Accept-Encoding": "gzip"})
+    r = admin.get("/static/app/01-base.js?v=123", headers={"Accept-Encoding": "gzip"})
     assert r.headers["Content-Encoding"] == "gzip"
     assert "immutable" in r.headers["Cache-Control"]
     assert gzip.decompress(r.raw).startswith(b"/") or len(gzip.decompress(r.raw)) > 1000
-    sem = admin.get("/static/app.js", headers={"Accept-Encoding": "gzip"})
+    sem = admin.get("/static/app/01-base.js", headers={"Accept-Encoding": "gzip"})
     assert sem.headers["Cache-Control"] == "max-age=3600"
 
 

@@ -17,6 +17,7 @@ python3 -m pytest tests -q
 | `test_http.py` | permissões por perfil, cabeçalhos, gzip, cache, legendas, token no log |
 | `test_pin.py` | limite de tentativas de PIN por perfil, mesmo trocando de IP |
 | `test_erros.py` | falhas contornadas pelo app: o valor devolvido nao muda, mas agora avisa no log |
-| `test_frontend.py` | `escHtml` (XSS) e sintaxe do `app.js` |
+| `test_frontend.py` | `escHtml` (XSS) e sintaxe de cada parte de `static/app/` |
+| `test_app_partes.py` | partes do frontend: ordem no `index.html`, funções dos handlers inline e marcador do changelog |
 
 Ao corrigir um bug, escreva primeiro o teste que falha.
