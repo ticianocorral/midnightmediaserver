@@ -397,6 +397,18 @@
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
     {
+      version: '1.28.1',
+      title: 'Correções de segurança',
+      changes: [
+        'O perfil infantil não vira mais admin sem a senha da conta',
+        'Corrigido XSS no gerenciador de cache e na nota/votos da ficha',
+        'Leitura de arquivos de fora do acervo (NFO por symlink) e do ffmpeg com playlists disfarçadas bloqueadas',
+        'rclone local passa a exigir senha aleatória por execução',
+        'Sair invalida a sessão no servidor e o limite de tentativas de login sobrevive a reinício',
+        'Ícone 12:00 AM em todas as versões; instaladores de shell instalam a última release',
+      ],
+    },
+    {
       version: '1.28.0',
       title: 'Segurança, performance e refatoração',
       changes: [
