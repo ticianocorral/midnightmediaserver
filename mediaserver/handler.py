@@ -3060,7 +3060,6 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
                     if entry.is_dir():
                         sh.rmtree(entry)
             # Clear cached files list
-            global _cached_files
             with _cached_files_lock:
                 _cached_files.clear()
                 if CACHED_FILES_PATH.exists():
@@ -3114,7 +3113,9 @@ class MediaServerHandler(http.server.BaseHTTPRequestHandler):
             # Remove from cached_files list
             with _cached_files_lock:
                 to_remove = {p for p in _cached_files if folder_path.strip("/") in p}
-                _cached_files -= to_remove
+                # No do_GET original um `global _cached_files` (de outra rota) valia para a funcao
+                # inteira; como metodo isolado, `-=` viraria variavel local. Altera o proprio conjunto.
+                _cached_files.difference_update(to_remove)
                 CACHED_FILES_PATH.write_text(json.dumps(list(_cached_files)))
 
             # Remove VFS cache files from rclone cache directory
