@@ -186,6 +186,26 @@ def mkcert_root_ca_path():
     return None
 
 
+class _ServidorTLS(http.server.ThreadingHTTPServer):
+    """HTTPS com o handshake TLS na thread de cada conexao, com prazo.
+
+    Embrulhar o socket que ESCUTA (wrap_socket com o padrao do_handshake_on_connect=True) faz o
+    handshake dentro do accept(), na thread principal: uma unica conexao TCP que nao mandava nada
+    travava o HTTPS inteiro (e o Chromecast junto) ate ela desistir. Medido: a requisicao legitima
+    esperava ate estourar o tempo. Aqui o accept() so aceita, e cada conexao negocia o TLS na
+    propria thread, com 15 s para terminar.
+    """
+    HANDSHAKE_TIMEOUT = 15
+
+    def finish_request(self, request, client_address):
+        try:
+            request.settimeout(self.HANDSHAKE_TIMEOUT)
+            request.do_handshake()
+        except (OSError, ValueError):            # ssl.SSLError e timeout sao OSError
+            return                               # shutdown_request fecha a conexao
+        super().finish_request(request, client_address)
+
+
 def start_https_server(handler_class, host, https_port, cert_path, key_path):
     """Start an HTTPS server on a daemon thread wrapping the same handler.
 
@@ -194,11 +214,13 @@ def start_https_server(handler_class, host, https_port, cert_path, key_path):
     global ACTIVE_HTTPS_PORT
     try:
         import ssl as _ssl
-        httpd = http.server.ThreadingHTTPServer((host, https_port), handler_class)
+        httpd = _ServidorTLS((host, https_port), handler_class)
         httpd.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         ctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_SERVER)
+        ctx.minimum_version = _ssl.TLSVersion.TLSv1_2    # sem TLS 1.0/1.1 (o padrao depende do OpenSSL)
         ctx.load_cert_chain(str(cert_path), str(key_path))
-        httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
+        httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True,
+                                       do_handshake_on_connect=False)
         thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         thread.start()
         ACTIVE_HTTPS_PORT = https_port
