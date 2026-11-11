@@ -397,6 +397,17 @@
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
     {
+      version: '1.28.2',
+      title: 'Correções de segurança (HTTPS, força bruta e senha)',
+      changes: [
+        'O HTTPS não trava mais com uma conexão parada na rede (afetava também o Chromecast)',
+        'Conexões HTTP ociosas passam a ter prazo (slowloris) e o TLS mínimo é 1.2',
+        'Limite global de tentativas para o código de instalação e a senha, além do limite por IP',
+        'Senhas novas no Python do macOS usam PBKDF2 com 600 mil iterações; as antigas são reprocessadas no login',
+        'Content-Length inválido responde 400',
+      ],
+    },
+    {
       version: '1.28.1',
       title: 'Correções de segurança',
       changes: [
