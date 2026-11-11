@@ -189,13 +189,19 @@ def _admin_count(d):
     return sum(1 for p in (d.get("profiles") or {}).values() if p.get("role") == "admin")
 
 
-def _hash_password(password, salt=None):
-    """PBKDF2 legado — o algoritmo real de todas as senhas ate o upgrade para
-    scrypt. Continua aqui para conferir os registros antigos."""
+# PBKDF2 so entra onde nao ha scrypt (o Python 3.9 da Apple, com LibreSSL, nao tem). 100 mil
+# iteracoes era pouco para hoje; registros novos usam 600 mil (recomendacao OWASP para
+# PBKDF2-SHA256) e cada registro guarda as suas, para os antigos continuarem conferindo.
+_PBKDF2_ITER_LEGADO = 100000
+_PBKDF2_ITER = 600000
+
+
+def _hash_password(password, salt=None, iterations=_PBKDF2_ITER_LEGADO):
+    """PBKDF2-SHA256. Sem `iterations`, o legado de 100 mil (registros antigos nao o gravavam)."""
     if salt is None:
         salt = secrets.token_bytes(16)
     dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt=salt,
-                              iterations=100000, dklen=32)
+                              iterations=int(iterations), dklen=32)
     return salt, dk
 
 
@@ -228,8 +234,8 @@ def _novo_registro_senha(password):
                             n=_SCRYPT_N, r=_SCRYPT_R, p=_SCRYPT_P, dklen=32)
         return {"algo": "scrypt", "n": _SCRYPT_N, "r": _SCRYPT_R,
                 "p": _SCRYPT_P, "salt": salt.hex(), "hash": dk.hex()}
-    salt, dk = _hash_password(password)
-    return {"algo": "pbkdf2_sha256", "iterations": 100000,
+    salt, dk = _hash_password(password, iterations=_PBKDF2_ITER)
+    return {"algo": "pbkdf2_sha256", "iterations": _PBKDF2_ITER,
             "salt": salt.hex(), "hash": dk.hex()}
 
 
@@ -254,7 +260,7 @@ def _senha_confere(user, password):
                     return "scrypt"
             except Exception:
                 pass
-        _, dk = _hash_password(password, salt)
+        _, dk = _hash_password(password, salt, int(user.get("iterations") or _PBKDF2_ITER_LEGADO))
         if hmac.compare_digest(dk.hex(), esperado):
             return "pbkdf2"
     except Exception:
@@ -418,13 +424,17 @@ def _check_credentials(username, password):
     """Confere o login da conta. Devolve {'username'} ou None."""
     conta = _account() or {}
     if not conta.get("hash") or _norm_username(username) != conta.get("username"):
-        # Gasta o mesmo tempo de um hash real, para nao vazar se o usuario existe.
-        _hash_password(password or "")
+        # Gasta o mesmo tempo de um hash real (o mesmo KDF dos registros novos), para nao
+        # vazar se o usuario existe.
+        _novo_registro_senha(password or "")
         return None
     formato = _senha_confere(conta, password or "")
     if not formato:
         return None
-    if formato == "pbkdf2" and _scrypt_disponivel():
+    # Reprocessa no formato atual quem entrou com um registro fraco: PBKDF2 onde ja ha scrypt,
+    # ou PBKDF2 com menos iteracoes que o padrao de hoje.
+    if formato == "pbkdf2" and (_scrypt_disponivel()
+                                or int(conta.get("iterations") or _PBKDF2_ITER_LEGADO) < _PBKDF2_ITER):
         _upgrade_hash(conta["username"], password or "")
     return {"username": conta["username"]}
 
@@ -662,13 +672,29 @@ def _tentativas_gravar():
         aviso("tentativas de login nao gravaram em disco (valem so ate reiniciar)", e)
 
 
-def _login_blocked(ip):
+# Contadores GLOBAIS, alem do por IP: com muitos IPs (IPv6 temporario na rede, varios enderecos
+# na internet) o limite por IP nao segura uma forca bruta distribuida. O do codigo de instalacao
+# e baixo (6 digitos = 1 milhao de codigos; 8 erros por janela tornam isso inviavel). O da senha
+# e mais alto para um ataque nao trancar a casa toda com facilidade; sessoes abertas seguem valendo.
+GLOBAL_SETUP, LIMITE_GLOBAL_SETUP = "global|setup", 8
+GLOBAL_SENHA, LIMITE_GLOBAL_SENHA = "global|senha", 30
+
+
+def _login_blocked(ip, limite=None):
     with _auth_lock:
         _tentativas_garantir()
         now = time.time()
         hits = [t for t in _login_attempts.get(ip, []) if t > now - LOGIN_WINDOW]
         _login_attempts[ip] = hits
-        return len(hits) >= LOGIN_MAX_ATTEMPTS
+        return len(hits) >= (limite or LOGIN_MAX_ATTEMPTS)
+
+
+def _senha_global_bloqueada():
+    return _login_blocked(GLOBAL_SENHA, LIMITE_GLOBAL_SENHA)
+
+
+def _setup_global_bloqueado():
+    return _login_blocked(GLOBAL_SETUP, LIMITE_GLOBAL_SETUP)
 
 
 def _record_login_failure(ip):

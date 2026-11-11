@@ -75,6 +75,10 @@ from .db import (
 )
 from .auth import (
     _revogar_sessao,
+    _senha_global_bloqueada,
+    _setup_global_bloqueado,
+    GLOBAL_SENHA,
+    GLOBAL_SETUP,
     _setup_code_value,
     _auth_configured,
     _norm_username,
@@ -202,6 +206,11 @@ from .rotas.midia import MidiaRotas
 
 
 class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, MidiaRotas, http.server.BaseHTTPRequestHandler):
+    # Prazo por operacao de socket (ler o pedido, mandar um pedaco). Sem ele, cada conexao que
+    # abria e nao mandava nada prendia uma thread para sempre (slowloris). Um video pausado por
+    # mais que isso perde a conexao e o navegador pede de novo com Range ao retomar.
+    timeout = 120
+
     # HTTP/1.1 liga o keep-alive: sem isso o navegador abria conexao nova (e
     # handshake TLS completo) a cada requisicao — a home dispara dezenas. Em
     # troca, TODA resposta precisa delimitar o corpo com Content-Length, senao
@@ -415,7 +424,13 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         return False
 
     def _read_json_body(self):
-        length = int(self.headers.get("Content-Length", 0) or 0)
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            # "abc", "1e3": corpo ilegivel, a rota responde 400. Sem tamanho valido nao da para
+            # saber onde o corpo termina: fecha a conexao para o resto nao virar "outra requisicao".
+            self.close_connection = True
+            return None
         if length <= 0 or length > MAX_JSON_BODY_BYTES:
             return None
         try:
@@ -432,7 +447,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
                              "error": "O administrador ja foi criado"}, 409)
             return
         ip = self._client_ip()
-        if _login_blocked(ip):
+        if _login_blocked(ip) or _setup_global_bloqueado():
             self._send_json({"status": "error", "error":
                              "Muitas tentativas. Espere alguns minutos."}, 429)
             return
@@ -440,6 +455,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         if not hmac.compare_digest(str(body.get("code", "")).strip(),
                                    _setup_code_value()):
             _record_login_failure(ip)
+            _record_login_failure(GLOBAL_SETUP)
             sys.stderr.write("[Midnight Media Server] codigo de instalacao errado de %s\n" % ip)
             self._send_json({"status": "error", "error":
                              "Codigo de instalacao incorreto. Ele aparece no "
@@ -467,7 +483,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
 
     def _handle_auth_login(self):
         ip = self._client_ip()
-        if _login_blocked(ip):
+        if _login_blocked(ip) or _senha_global_bloqueada():
             self._send_json({"status": "error", "error":
                              "Muitas tentativas. Espere alguns minutos."}, 429)
             return
@@ -476,6 +492,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         user = _check_credentials(username, str(body.get("password", "")))
         if not user:
             _record_login_failure(ip)
+            _record_login_failure(GLOBAL_SENHA)
             sys.stderr.write("[Midnight Media Server] login recusado para '%s' de %s\n"
                              % (_norm_username(username), ip))
             # Mensagem unica: nao revela se a conta existe.
@@ -753,7 +770,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         # da conta a crianca nao tem.
         if self._so_infantil() and not perfil.get("infantil"):
             ip = self._client_ip()
-            if _login_blocked(ip):
+            if _login_blocked(ip) or _senha_global_bloqueada():
                 self._send_json({"status": "error", "error":
                                  "Muitas tentativas. Espere alguns minutos."}, 429)
                 return
@@ -761,6 +778,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
             if not _check_credentials(conta, str(body.get("password", ""))):
                 if body.get("password"):
                     _record_login_failure(ip)
+                    _record_login_failure(GLOBAL_SENHA)
                 self._send_json({"status": "error", "precisaSenha": True, "error":
                                  "Para sair do perfil infantil, digite a senha da conta."}, 401)
                 return
@@ -778,7 +796,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         """Libera a edicao de perfis a partir do seletor: a conta redigita a
         senha. Vale 10 minutos nesta sessao."""
         ip = self._client_ip()
-        if _login_blocked(ip):
+        if _login_blocked(ip) or _senha_global_bloqueada():
             self._send_json({"status": "error", "error":
                              "Muitas tentativas. Espere alguns minutos."}, 429)
             return
@@ -786,6 +804,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         conta = (self._session_info() or {}).get("account", "")
         if not _check_credentials(conta, str(body.get("password", ""))):
             _record_login_failure(ip)
+            _record_login_failure(GLOBAL_SENHA)
             self._send_json({"status": "error", "error": "Senha incorreta"}, 401)
             return
         _clear_login_failures(ip)
