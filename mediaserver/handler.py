@@ -216,16 +216,6 @@ def _backup_e_desta_maquina(nome):
     return re.fullmatch(r"(%s-)?\d{4}-\d{2}-\d{2}" % re.escape(nome_da_maquina()), resto) is not None
 
 
-def _backup_e_desta_maquina(nome):
-    """Backup que esta maquina pode restaurar: o dela, ou um antigo sem nome de
-    maquina (formato anterior). O de outro computador nunca entra: restaurar o
-    catalogo alheio trocaria contas e fontes sem o usuario perceber."""
-    if not (nome.endswith(".zip") and nome.startswith(PREFIXO_BACKUP)):
-        return False
-    resto = nome[len(PREFIXO_BACKUP):-4]
-    return re.fullmatch(r"(%s-)?\d{4}-\d{2}-\d{2}" % re.escape(nome_da_maquina()), resto) is not None
-
-
 class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, MidiaRotas, http.server.BaseHTTPRequestHandler):
     # Prazo por operacao de socket (ler o pedido, mandar um pedaco). Sem ele, cada conexao que
     # abria e nao mandava nada prendia uma thread para sempre (slowloris). Um video pausado por
