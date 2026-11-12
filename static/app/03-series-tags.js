@@ -149,6 +149,60 @@
   // Criadas na interface, independentes de pastas. Uma tag reúne filmes de
   // qualquer fonte; filmes soltos entram pelo path do próprio arquivo.
 
+  function _gradeDeFilmes(filmes) {
+    let html = '<div class="genre-section"><div class="movie-grid">';
+    filmes.forEach(m => {
+      const titulo = escHtml((m.title || m.name).replace(/[._]/g, ' '));
+      const poster = m.poster ? posterUrl(m.path, m.poster) : null;
+      const clique = m.is_file
+        ? attrAcao('playMovie', [m.path, m.title || m.name])
+        : attrAcao('showMovieInfo', [m.path, {$: 'event'}]);
+      html += '<div class="movie-card"' + clique + ' title="' + titulo + '">'
+        + (poster
+            ? '<img class="movie-card-poster" src="' + poster + '" alt="' + titulo
+              + '" loading="lazy"' + attrAcao('imgTrocarPorIrmao', null, false, 'data-act-error') + '>'
+              + '<div class="movie-card-poster-placeholder" style="display:none">'
+              + '<svg class="icon-svg"><use href="#i-film"></use></svg></div>'
+            : '<div class="movie-card-poster-placeholder" style="display:flex">'
+              + '<svg class="icon-svg"><use href="#i-film"></use></svg></div>')
+        + _badgeAssistido(m)
+        + '<div class="movie-card-overlay"><div class="movie-card-title">' + titulo + '</div>'
+        + '<div class="movie-card-subtitle">'
+        + (m.is_file ? 'arquivo solto' : (m.year ? escHtml(m.year) : 'Filme'))
+        + '</div></div></div>';
+    });
+    return html + '</div></div>';
+  }
+
+  // Filtro por gênero do NFO: cada filme entra pelo 1º e 2º gênero do NFO.
+  // É independente das tags (criadas e atribuídas na interface).
+  function renderGeneroNfoView(nome) {
+    const container = document.getElementById('content');
+    const hero = document.getElementById('hero');
+    hero.style.display = 'block';
+    _heroCapa(null, null);
+    document.getElementById('heroBg').style.backgroundImage = 'none';
+    hero.style.background = 'linear-gradient(135deg, var(--bg2) 0%, var(--surface) 100%)';
+    document.getElementById('breadcrumb').innerHTML =
+      '<a data-act="loadPath" data-args="[&quot;&quot;]"><svg class="icon-svg"><use href="#i-home"></use></svg> Início</a>'
+      + ' <span class="sep">›</span> <span id="generoBcNome">' + escHtml(nome) + '</span>';
+    cachedFetch('/api/genero-nfo?nome=' + encodeURIComponent(nome)).then(gen => {
+      if (!gen) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">'
+          + '<svg class="icon-svg"><use href="#i-error"></use></svg></div>'
+          + '<h3>Gênero não encontrado</h3></div>';
+        return;
+      }
+      document.getElementById('heroTitle').innerHTML =
+        '<svg class="icon-svg"><use href="#i-film"></use></svg> ' + escHtml(gen.name);
+      document.getElementById('heroDesc').innerHTML =
+        '<svg class="icon-svg"><use href="#i-film"></use></svg> ' + gen.movies.length
+        + (gen.movies.length === 1 ? ' filme' : ' filmes');
+      container.innerHTML = gen.movies.length ? _gradeDeFilmes(gen.movies)
+        : '<div class="empty-state"><h3>Nenhum filme neste gênero</h3></div>';
+    });
+  }
+
   function renderGeneroView(generoId) {
     const container = document.getElementById('content');
     const hero = document.getElementById('hero');
@@ -189,28 +243,7 @@
           + '<b>Tags</b> para colocá-lo aqui.</p></div>';
         return;
       }
-      let html = '<div class="genre-section"><div class="movie-grid">';
-      gen.movies.forEach(m => {
-        const titulo = escHtml((m.title || m.name).replace(/[._]/g, ' '));
-        const poster = m.poster ? posterUrl(m.path, m.poster) : null;
-        const clique = m.is_file
-          ? attrAcao('playMovie', [m.path, m.title || m.name])
-          : attrAcao('showMovieInfo', [m.path, {$: 'event'}]);
-        html += '<div class="movie-card"' + clique + ' title="' + titulo + '">'
-          + (poster
-              ? '<img class="movie-card-poster" src="' + poster + '" alt="' + titulo
-                + '" loading="lazy"' + attrAcao('imgTrocarPorIrmao', null, false, 'data-act-error') + '>'
-                + '<div class="movie-card-poster-placeholder" style="display:none">'
-                + '<svg class="icon-svg"><use href="#i-film"></use></svg></div>'
-              : '<div class="movie-card-poster-placeholder" style="display:flex">'
-                + '<svg class="icon-svg"><use href="#i-film"></use></svg></div>')
-          + _badgeAssistido(m)
-          + '<div class="movie-card-overlay"><div class="movie-card-title">' + titulo + '</div>'
-          + '<div class="movie-card-subtitle">'
-          + (m.is_file ? 'arquivo solto' : (m.year ? escHtml(m.year) : 'Filme'))
-          + '</div></div></div>';
-      });
-      container.innerHTML = html + '</div></div>';
+      container.innerHTML = _gradeDeFilmes(gen.movies);
     });
   }
 

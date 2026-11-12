@@ -21,7 +21,7 @@ import threading
 import time
 from pathlib import Path
 
-from .config import LOCAL_ROOT, SOURCES_PATH
+from .config import LOCAL_ROOT, SOURCES_PATH, VIDEO_EXTENSIONS
 from .paths import remote_atual as _remote_atual
 from . import localfs as _localfs
 from . import branding as _branding
@@ -170,18 +170,26 @@ def validate_root(raw_root):
     return root, None
 
 
-def add_source(name, raw_root):
+class SemPastaBiblioteca(str):
+    """Erro de add_source: a pasta escolhida nao tem a subpasta do acervo.
+
+    E uma str (as mensagens de erro continuam sendo texto), mas o handler a
+    reconhece e oferece "usar esta pasta mesmo assim" em vez de so recusar.
+    """
+
+
+def add_source(name, raw_root, aceitar_pasta=False):
     """Cadastra uma fonte local. Devolve (fonte, erro).
 
-    A fonte precisa conter uma pasta com o nome escolhido na instalacao
-    (localfs.catalog_dir_name()) — a mesma convencao do Drive. Ela pode estar
-    na pasta escolhida ou ate dois niveis abaixo, ja que o volume que o
-    usuario seleciona costuma ficar acima do acervo ("/Volumes/MeuHD" com os
-    filmes em "MeuHD/Filmes/<nome do app>/...").
+    Se houver uma pasta com o nome escolhido na instalacao
+    (localfs.catalog_dir_name()) na pasta escolhida ou ate dois niveis abaixo,
+    ela vira a raiz — o volume que o usuario seleciona costuma ficar acima do
+    acervo ("/Volumes/MeuHD" com os filmes em "MeuHD/Filmes/<nome do app>/...").
 
-    Sem essa pasta o cadastro e recusado: o scanner le a estrutura em posicao
-    fixa, entao aceitar uma pasta qualquer produziria um catalogo vazio sem
-    explicacao.
+    Sem ela, a primeira tentativa e recusada com SemPastaBiblioteca. Quem
+    confirma (aceitar_pasta=True) usa a propria pasta escolhida como acervo: o
+    leigo nao tem como saber da convencao, e a pasta ampla demais (home,
+    volumes) continua barrada por validate_root.
     """
     root, err = validate_root(raw_root)
     if err:
@@ -189,12 +197,13 @@ def add_source(name, raw_root):
 
     catalog = _localfs.find_catalog_dir(root)
     if catalog is None:
-        nome = _localfs.catalog_dir_name()
-        return None, (
-            f'Nao encontrei uma pasta "{nome}" em {root}. '
-            f"Crie uma pasta com esse nome e ponha os filmes dentro dela — "
-            f"uma pasta por filme ({nome}/Filme (2024)/filme.mkv) ou o "
-            f"arquivo solto direto nela. Tags você cria depois no app.")
+        if not aceitar_pasta:
+            return None, SemPastaBiblioteca(
+                f'A pasta "{root.name or root}" nao tem uma subpasta '
+                f'"{_localfs.catalog_dir_name()}". Posso usar a propria pasta '
+                f"como acervo: o que estiver nela (filmes soltos ou uma pasta por "
+                f"filme) entra no catalogo.")
+        catalog = root
     descended = catalog != root
     root = catalog
 
@@ -404,3 +413,64 @@ def detect_volumes():
     # As que ja estao prontas primeiro.
     found.sort(key=lambda c: (not c["pronto"], c["name"].lower()))
     return found
+
+
+# ── Navegador de pastas (admin) ──────────────────────────────
+
+def _pastas_de_partida():
+    """Atalhos do navegador de pastas: home, pastas de midia e volumes."""
+    out = []
+    home = Path.home()
+    out.append({"name": "Pasta pessoal", "path": str(home)})
+    for kind, base in _candidate_dirs():
+        if kind == "volume:direct" or kind == "folder":
+            if base.is_dir():
+                out.append({"name": base.name or str(base), "path": str(base)})
+            continue
+        try:
+            for entry in sorted(base.iterdir()):
+                if (entry.is_dir() and not entry.name.startswith(".")
+                        and entry.name not in _SKIP_VOLUME_NAMES):
+                    out.append({"name": entry.name, "path": str(entry)})
+        except (OSError, PermissionError):
+            continue
+    vistos, unicos = set(), []
+    for item in out:
+        if item["path"] not in vistos:
+            vistos.add(item["path"])
+            unicos.append(item)
+    return unicos
+
+
+def browse(raw_path):
+    """Lista as subpastas de `raw_path` para o seletor de pasta da UI.
+
+    Sem caminho, devolve so os atalhos (home, midia, volumes). So le nomes de
+    pasta: e a mesma informacao que o admin ja daria digitando o caminho.
+    """
+    raw = (raw_path or "").strip()
+    if not raw:
+        return {"path": "", "parent": None, "pastas": [],
+                "atalhos": _pastas_de_partida(), "videos": 0, "usavel": False}
+    try:
+        base = Path(os.path.expanduser(raw)).resolve()
+    except (OSError, RuntimeError):
+        return {"erro": "Caminho invalido."}
+    if not base.is_dir() or not os.access(base, os.R_OK):
+        return {"erro": "Nao consigo abrir essa pasta."}
+    pastas = sorted(({"name": p.name, "path": str(p)} for p in _localfs._subdirs(base, 500)),
+                    key=lambda x: x["name"].lower())
+    videos = 0
+    try:
+        with os.scandir(base) as it:
+            for e in it:
+                if (not e.name.startswith(".") and e.is_file(follow_symlinks=False)
+                        and Path(e.name).suffix.lower() in VIDEO_EXTENSIONS):
+                    videos += 1
+    except (OSError, PermissionError):
+        pass
+    parent = base.parent if base.parent != base else None
+    _, erro_uso = validate_root(str(base))
+    return {"path": str(base), "parent": str(parent) if parent else None,
+            "pastas": pastas, "videos": videos,
+            "usavel": erro_uso is None, "motivo": erro_uso or ""}

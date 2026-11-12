@@ -41,12 +41,25 @@
   }
 
   function _scrapeFormChave(msg) {
+    const ab = '<a target="_blank" rel="noopener noreferrer" href=';
+    const cadastro = ab + '"https://www.themoviedb.org/signup">themoviedb.org/signup</a>';
+    const painel = ab + '"https://www.themoviedb.org/settings/api">themoviedb.org/settings/api</a>';
     document.getElementById('scrapeBox').innerHTML =
-      '<div class="rclone-help">Sinopse, elenco, nota e pôster vêm do TMDB, a mesma base do Kodi, do '
-      + 'Jellyfin e do tinyMediaManager. Crie uma conta gratuita em themoviedb.org e gere uma '
-      + '"API Key (v3 auth)" em Configurações › API. A chave fica só neste computador.</div>'
+      '<div class="rclone-help">Para mostrar pôster, sinopse, elenco e nota, o app consulta o TMDB '
+      + '(a mesma base do Kodi e do Jellyfin). É grátis e leva uns 3 minutos. '
+      + 'A chave fica só neste computador.</div>'
+      + '<ol class="phone-steps">'
+      + '<li>Crie uma conta gratuita: ' + cadastro
+      + ' e confirme o e-mail.</li>'
+      + '<li>Abra ' + painel
+      + ' e peça uma chave (<b>Request an API Key</b>), escolhendo uso <b>pessoal</b>/<b>Developer</b>. '
+      + 'O formulário pede um endereço de site: pode usar <code>http://localhost</code>; '
+      + 'em descrição, algo como "catálogo pessoal de filmes".</li>'
+      + '<li>Copie a <b>Chave da API</b> (<i>API Key</i>, 32 letras e números). '
+      + 'Não é o "Token de Acesso de Leitura", que é bem mais comprido.</li>'
+      + '<li>Cole aqui embaixo:</li></ol>'
       + '<div class="user-form" style="flex-direction:column;align-items:stretch">'
-      + '<input type="password" id="scrapeKeyInput" placeholder="Cole a API Key aqui" autocomplete="off">'
+      + '<input type="password" id="scrapeKeyInput" placeholder="Cole a chave aqui" autocomplete="off">'
       + '<button class="rclone-action-btn primary" data-act="_scrapeSalvarChave">Salvar chave</button></div>'
       + (msg ? '<div class="user-msg err">' + escHtml(msg) + '</div>' : '');
   }
@@ -54,6 +67,16 @@
   async function _scrapeSalvarChave() {
     const chave = (document.getElementById('scrapeKeyInput').value || '').trim();
     if (!chave) return;
+    // Erros comuns de quem nunca fez isso: colar o token longo ou texto a mais.
+    if (chave.length > 40 || chave.indexOf('eyJ') === 0) {
+      _scrapeFormChave('Isso parece o "Token de Acesso de Leitura". Use a "Chave da API" (API Key), '
+        + 'a menor, com 32 letras e números.');
+      return;
+    }
+    if (!/^[0-9a-fA-F]{32}$/.test(chave)) {
+      _scrapeFormChave('A chave tem 32 letras e números (de 0 a 9 e de a a f). Confira se copiou inteira, sem espaços.');
+      return;
+    }
     const r = await _scrapePost('/api/scrape/key/set', { api_key: chave });
     if (r.ok) _scrapeAba('organizar'); else _scrapeFormChave(r.data.error || 'Não foi possível salvar.');
   }

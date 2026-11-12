@@ -36,14 +36,14 @@ class SetupActivity : AppCompatActivity() {
         achados.removeAllViews()
         estado.setText(R.string.procurando)
         lifecycleScope.launch {
-            val lista = Servidor.procurar()
+            val lista = Servidor.procurarDetalhado()
             if (lista.isEmpty()) {
                 estado.setText(R.string.nenhum)
                 return@launch
             }
             estado.text = getString(R.string.app_name)
-            for (base in lista) {
-                achados.addView(botao(base))
+            for (achado in lista) {
+                achados.addView(botao(achado.base, achado.nome))
             }
             // Foco no primeiro achado: com controle remoto, nada pior do que
             // uma tela com opcoes e nenhuma delas selecionada.
@@ -51,8 +51,10 @@ class SetupActivity : AppCompatActivity() {
         }
     }
 
-    private fun botao(base: String): View = Button(this).apply {
-        text = base.removePrefix("http://")
+    private fun botao(base: String, nome: String = ""): View = Button(this).apply {
+        // Com mais de um servidor na rede, o nome do computador e o que os distingue.
+        val endereco = base.removePrefix("http://")
+        text = if (nome.isEmpty()) endereco else "$nome ($endereco)"
         setOnClickListener { conectar(base) }
     }
 
@@ -63,7 +65,7 @@ class SetupActivity : AppCompatActivity() {
                 estado.setText(R.string.nenhum)
                 return@launch
             }
-            Servidor.salvar(this@SetupActivity, base)
+            Servidor.salvar(this@SetupActivity, base, Servidor.identificar(base))
             startActivity(Intent(this@SetupActivity, MainActivity::class.java))
             finish()
         }

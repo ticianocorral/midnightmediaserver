@@ -53,6 +53,10 @@
       renderGeneroView(path.slice(GENERO_PREFIXO.length));
       return;
     }
+    if (path && path.indexOf(GENERO_NFO_PREFIXO) === 0) {
+      renderGeneroNfoView(decodeURIComponent(path.slice(GENERO_NFO_PREFIXO.length)));
+      return;
+    }
 
     const isHome = isHomePage(path);
     const url = isHome ? '/api/genres' : ('/api/list?path=' + encodeURIComponent(path));
@@ -263,6 +267,8 @@
       </div>`;
 
     _loadHomeStats();
+    _boasVindasSeVazio(container);
+    _checklistInicial(container);
 
     // Fetch recent movies sorted by actual creation time (from server)
     cachedFetch('/api/recent-movies?limit=30').then(movies => {
@@ -381,6 +387,100 @@
   // mostrar o que importa num acervo com varias fontes, em vez de contar
   // generos. As contagens de filme e serie sao as mesmas das paginas A-Z e
   // Series (ver cached_movie_count/cached_series_count no servidor).
+  // Dica de primeira vez: aparece no topo da tela uma única vez (por navegador)
+  // e some ao dispensar. Só entra se a tela ainda for a mesma e tiver conteúdo.
+  function _dicaPrimeiraVez(chave, texto) {
+    if (_lsGet('ms_dica_' + chave)) return;
+    const caminho = currentPath;
+    setTimeout(() => {
+      const c = document.getElementById('content');
+      if (!c || currentPath !== caminho || document.getElementById('dica-' + chave)) return;
+      if (!c.querySelector('.genre-section, .colecao-lista, .series-grid, .movie-grid')) return;
+      const d = document.createElement('div');
+      d.className = 'dica-primeira-vez';
+      d.id = 'dica-' + chave;
+      d.innerHTML = '<svg class="icon-svg"><use href="#i-bulb"></use></svg><span>' + escHtml(texto) + '</span>'
+        + '<button class="rclone-action-btn"' + attrAcao('dispensarDica', [chave]) + '>Entendi</button>';
+      c.insertBefore(d, c.firstChild);
+    }, 120);
+  }
+  function dispensarDica(chave) {
+    _lsSet('ms_dica_' + chave, '1');
+    const el = document.getElementById('dica-' + chave);
+    if (el) el.remove();
+  }
+
+  // Primeiros passos do admin: some quando tudo está feito ou ao dispensar.
+  // "Celular/TV" não tem como ser detectado, então conta como feito ao abrir.
+  function _lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function _lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function dispensarChecklist() {
+    _lsSet('ms_checklist_off', '1');
+    const el = document.getElementById('checklistInicial');
+    if (el) el.remove();
+  }
+  function checklistCelular() { _lsSet('ms_checklist_celular', '1'); openPhoneModal(); }
+  async function _checklistInicial(container) {
+    if (_lsGet('ms_checklist_off')) return;
+    try {
+      const me = (await (await fetch('/api/auth/status')).json()).user || {};
+      if (me.role !== 'admin') return;
+      const [st, perf, scr] = await Promise.all([
+        fetch('/api/cache-status').then(r => r.json()),
+        fetch('/api/profiles').then(r => r.json()).catch(() => ({})),
+        fetch('/api/scrape/status').then(r => r.json()).catch(() => ({}))
+      ]);
+      if (!(st.movies > 0 || st.series > 0)) return;       // vazio: vale o cartão de boas-vindas
+      if (!document.getElementById('statMovies')) return;   // trocou de tela
+      const passos = [
+        [true, 'Adicionar seus filmes', ''],
+        [(perf.profiles || []).length > 1, 'Criar um perfil para cada pessoa da casa', 'openProfilesManager'],
+        [!!scr.configurado, 'Buscar pôsteres e sinopses (opcional)', 'openScrapeModal'],
+        [!!_lsGet('ms_checklist_celular'), 'Ver no celular ou na TV', 'checklistCelular']
+      ];
+      if (passos.every(p => p[0])) { _lsSet('ms_checklist_off', '1'); return; }
+      const feitos = passos.filter(p => p[0]).length;
+      const html = '<div class="checklist-inicial" id="checklistInicial">'
+        + '<div class="checklist-topo"><b>Primeiros passos · ' + feitos + ' de ' + passos.length + '</b>'
+        + '<button class="rclone-action-btn" data-act="dispensarChecklist">Dispensar</button></div>'
+        + passos.map(p => '<div class="checklist-item' + (p[0] ? ' feito' : '') + '">'
+          + (p[0] ? '<svg class="icon-svg"><use href="#i-check"></use></svg> ' : '<svg class="icon-svg"><use href="#i-plus"></use></svg> ')
+          + (p[0] || !p[2]
+              ? '<span>' + escHtml(p[1]) + '</span>'
+              : '<button class="rclone-action-btn"' + attrAcao(p[2], []) + '>' + escHtml(p[1]) + '</button>')
+          + '</div>').join('')
+        + '</div>';
+      container.insertAdjacentHTML('afterbegin', html);
+    } catch (e) {}
+  }
+
+  // Acervo vazio: em vez de contadores zerados, diz o que fazer agora. Quem não
+  // é admin não pode adicionar fontes, então só é orientado a pedir.
+  async function _boasVindasSeVazio(container) {
+    try {
+      const st = await (await fetch('/api/cache-status')).json();
+      if ((st.movies || 0) > 0 || (st.series || 0) > 0) return;
+      const me = (await (await fetch('/api/auth/status')).json()).user || {};
+      if (!document.getElementById('statMovies')) return;   // trocou de tela
+      const icone = '<div class="empty-icon"><svg class="icon-svg"><use href="#i-film"></use></svg></div>';
+      container.innerHTML = me.role === 'admin'
+        ? '<div class="empty-state onboarding">' + icone
+          + '<h3>Vamos colocar seus filmes aqui</h3>'
+          + '<p>O acervo ainda está vazio. De onde vêm seus filmes?</p>'
+          + '<div class="onboarding-acoes">'
+          + '<button class="rclone-action-btn primary" data-act="onboardingEscolherPasta">'
+          + '<svg class="icon-svg"><use href="#i-folder"></use></svg> Uma pasta do computador, HD ou pendrive</button>'
+          + '<button class="rclone-action-btn" data-act="openNuvemWizard">'
+          + '<svg class="icon-svg"><use href="#i-cloud"></use></svg> Uma nuvem (Drive, B2, S3...)</button>'
+          + '</div>'
+          + '<p class="onboarding-dica">Depois de escolher, eu procuro os filmes sozinho e '
+          + 'aviso quando terminar. Seus arquivos não são alterados.</p></div>'
+        : '<div class="empty-state onboarding">' + icone
+          + '<h3>Ainda não há filmes por aqui</h3>'
+          + '<p>Peça a quem administra o servidor para adicionar os filmes.</p></div>';
+    } catch (e) {}
+  }
+
   function _loadHomeStats() {
     cachedFetch('/api/cache-status').then(st => {
       if (!st) return;
@@ -426,6 +526,7 @@
   const COLECAO_PREFIXO = 'colecao:';
   const LISTA_COLECOES = 'colecoes';
   const GENERO_PREFIXO = 'genero:';
+  const GENERO_NFO_PREFIXO = 'gnfo:';   // gênero do NFO (filtro automático, separado das tags)
   const SERIE_PREFIXO = 'serie:';
   const LISTA_SERIES = 'series';
   const LISTA_FILMES = '__az__';
@@ -494,6 +595,7 @@
       '<svg class="icon-svg"><use href="#i-tv"></use></svg> Séries';
     document.getElementById('heroDesc').textContent = '';
 
+    _dicaPrimeiraVez('series', 'Aqui ficam suas séries, com temporadas e episódios. Abra uma série e o app lembra onde você parou em cada episódio.');
     cachedFetch('/api/series').then(series => {
       if (!series || series.length === 0) {
         container.innerHTML = '<div class="empty-state">'
@@ -564,6 +666,7 @@
       ? '<button class="btn btn-primary colecao-nova-btn" data-act="openColecaoModal">'
         + '<svg class="icon-svg"><use href="#i-plus"></use></svg> Nova coleção</button>'
       : '';
+    _dicaPrimeiraVez('colecoes', 'Coleções agrupam filmes que combinam (uma saga, uma franquia). Elas são criadas aqui no app, sem mexer nas pastas.');
     cachedFetch('/api/collections').then(cols => {
       document.getElementById('heroDesc').innerHTML =
         '<svg class="icon-svg"><use href="#i-layers"></use></svg> '

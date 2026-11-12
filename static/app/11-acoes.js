@@ -73,7 +73,7 @@
     selectSubtitleSize, showMovieInfo, skip, switchProfile, toggleAirplay, toggleAssistido,
     toggleCast, toggleFullscreen, toggleInfantil, toggleMute, togglePlay, togglePlayerMore,
     toggleSidebar, toggleSubtitleColorMenu, toggleSubtitleSizeMenu, toggleSubtitles,
-    voltarDoFilme
+    voltarDoFilme, addSourceAceitar, dispensarChecklist, dispensarDica, checklistCelular, srcBrowse, srcBrowseUse, onboardingEscolherPasta
   });
 
   (function () {

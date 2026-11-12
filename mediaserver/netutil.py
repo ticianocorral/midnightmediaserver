@@ -272,3 +272,18 @@ def find_free_port():
         except OSError:
             print(f"[Midnight Media Server] ERRO: Porta {port} ainda está ocupada. Saia a instância anterior com: pkill -9 -f 'python.*server.py'", flush=True)
             sys.exit(1)
+
+
+def nome_da_maquina():
+    """Nome curto e seguro (letras, numeros e hifen) do computador.
+
+    Serve para distinguir dois servidores na mesma rede: nome de arquivo de
+    backup na nuvem, anuncio Bonjour e rotulo nas telas.
+    """
+    import re
+    try:
+        bruto = socket.gethostname().split(".")[0]
+    except OSError:
+        bruto = ""
+    nome = re.sub(r"[^A-Za-z0-9]+", "-", bruto).strip("-")
+    return nome[:40] or "servidor"

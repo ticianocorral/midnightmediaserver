@@ -224,13 +224,22 @@ def iniciar_windows(py, rclone):
                      creationflags=flags, close_fds=True)
 
 
+def nome_anuncio():
+    """Nome do servico na rede: com o nome do computador, para a TV distinguir
+    dois servidores (o app da TV so procura "media-server" dentro do nome)."""
+    import re
+    maquina = re.sub(r"[^A-Za-z0-9]+", "-", socket.gethostname().split(".")[0]).strip("-")[:40]
+    return "%s (%s)" % (NOME, maquina) if maquina else NOME
+
+
 def passo_bonjour(log):
     """Anuncia o servidor na rede pra TV achar sozinha (_media-server._tcp)."""
+    anuncio = nome_anuncio()
     if SISTEMA == "mac":
         la = HOME / "Library" / "LaunchAgents"
         plist = la / "com.mediaserver.mdns.plist"
         plist.write_text(plist_mac("com.mediaserver.mdns",
-                                   ["/usr/bin/dns-sd", "-R", NOME, "_media-server._tcp", ".", str(PORTA)],
+                                   ["/usr/bin/dns-sd", "-R", anuncio, "_media-server._tcp", ".", str(PORTA)],
                                    log_path=str(CACHE / "mdns.log")))
         mac_carregar(plist)
         log("Anuncio Bonjour ativo")
@@ -242,7 +251,7 @@ def passo_bonjour(log):
         sd = HOME / ".config" / "systemd" / "user"
         (sd / "media-server-mdns.service").write_text(
             "[Unit]\nDescription=%s (Bonjour)\n\n[Service]\nExecStart=%s -s \"%s\" _media-server._tcp %d\n"
-            "Restart=on-failure\n\n[Install]\nWantedBy=default.target\n" % (NOME, avahi, NOME, PORTA))
+            "Restart=on-failure\n\n[Install]\nWantedBy=default.target\n" % (NOME, avahi, anuncio, PORTA))
         executar(["systemctl", "--user", "daemon-reload"])
         executar(["systemctl", "--user", "enable", "--now", "media-server-mdns.service"])
         log("Anuncio Bonjour ativo (avahi)")
@@ -252,7 +261,7 @@ def passo_bonjour(log):
             log("Bonjour nao instalado no Windows: a TV usa o endereco digitado (opcional)")
             return
         executar(["schtasks", "/Create", "/F", "/TN", "Media Server Bonjour", "/SC", "ONLOGON", "/RL",
-                  "LIMITED", "/TR", '"%s" -R "%s" _media-server._tcp . %d' % (dnssd, NOME, PORTA)])
+                  "LIMITED", "/TR", '"%s" -R "%s" _media-server._tcp . %d' % (dnssd, anuncio, PORTA)])
         log("Anuncio Bonjour agendado")
 
 

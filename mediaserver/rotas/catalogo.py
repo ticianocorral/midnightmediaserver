@@ -21,6 +21,8 @@ from ..queries import (
     cached_generos,
     cached_generos_de,
     cached_genero_filmes,
+    cached_generos_nfo,
+    cached_genero_nfo_filmes,
     cached_movie_infantil,
     cached_serie,
     cached_series_list,
@@ -301,6 +303,25 @@ class CatalogoRotas:
             self._send_error("Missing 'id' parameter", 400)
             return
         data = cached_genero_filmes(gid, so_infantil=self._so_infantil())
+        if data is None:
+            self._send_error("Genero nao encontrado", 404)
+            return
+        self._send_json(data)
+        return
+
+    # Gêneros do NFO: filtro automático (1º e 2º gênero de cada filme).
+    def _get_api_generos_nfo(self, path, params):
+        """GET /api/generos-nfo"""
+        self._send_json(cached_generos_nfo(so_infantil=self._so_infantil()))
+        return
+
+    def _get_api_genero_nfo(self, path, params):
+        """GET /api/genero-nfo"""
+        nome = params.get("nome", [""])[0].strip()
+        if not nome:
+            self._send_error("Missing 'nome' parameter", 400)
+            return
+        data = cached_genero_nfo_filmes(nome, so_infantil=self._so_infantil())
         if data is None:
             self._send_error("Genero nao encontrado", 404)
             return

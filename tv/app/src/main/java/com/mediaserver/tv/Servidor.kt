@@ -31,19 +31,24 @@ object Servidor {
 
     private const val PREFS = "media-server"
     private const val CHAVE = "servidor"
+    private const val CHAVE_NOME = "servidor_nome"
     private const val TIMEOUT_MS = 400
 
     fun salvo(ctx: Context): String? =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CHAVE, null)
 
-    fun salvar(ctx: Context, base: String) {
+    /** Nome do computador do servidor salvo (null em instalacoes antigas). */
+    fun nomeSalvo(ctx: Context): String? =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CHAVE_NOME, null)
+
+    fun salvar(ctx: Context, base: String, nome: String? = null) {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putString(CHAVE, base).apply()
+            .edit().putString(CHAVE, base).putString(CHAVE_NOME, nome).apply()
     }
 
     fun esquecer(ctx: Context) {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().remove(CHAVE).apply()
+            .edit().remove(CHAVE).remove(CHAVE_NOME).apply()
     }
 
     /** Aceita "192.168.0.10", "192.168.0.10:9187" ou a URL inteira. */
@@ -59,7 +64,14 @@ object Servidor {
      * True quando o endereco responde algo que so o Midnight Media Server responderia.
      * Nao basta "abriu a porta": qualquer servico poderia estar ali.
      */
-    suspend fun responde(base: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun responde(base: String): Boolean = identificar(base) != null
+
+    /**
+     * Nome do computador do servidor em [base] ("" se for um servidor mais antigo,
+     * que ainda nao informa), ou null se ali nao ha um Midnight Media Server.
+     * Com dois servidores na rede e o nome que os distingue.
+     */
+    suspend fun identificar(base: String): String? = withContext(Dispatchers.IO) {
         var conexao: HttpURLConnection? = null
         try {
             conexao = (URL("$base/api/auth/status").openConnection() as HttpURLConnection).apply {
@@ -68,15 +80,18 @@ object Servidor {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/json")
             }
-            if (conexao.responseCode != 200) return@withContext false
+            if (conexao.responseCode != 200) return@withContext null
             val corpo = conexao.inputStream.bufferedReader().use { it.readText() }
-            corpo.contains("\"configured\"")
+            if (!corpo.contains("\"configured\"")) return@withContext null
+            Regex("\"machine\"\\s*:\\s*\"([^\"]*)\"").find(corpo)?.groupValues?.get(1) ?: ""
         } catch (e: Exception) {
-            false
+            null
         } finally {
             conexao?.disconnect()
         }
     }
+
+    class Achado(val base: String, val nome: String)
 
     /** Faixas /24 em que este aparelho esta, sem o ultimo octeto. */
     private fun faixasLocais(): List<String> {
@@ -100,20 +115,23 @@ object Servidor {
         return faixas.distinct()
     }
 
-    /** Endereco base de cada Midnight Media Server achado na rede. */
-    suspend fun procurar(): List<String> = coroutineScope {
-        val achados = mutableListOf<String>()
+    /** Cada Midnight Media Server achado na rede, com o nome do computador. */
+    suspend fun procurarDetalhado(): List<Achado> = coroutineScope {
+        val achados = mutableListOf<Achado>()
         for (faixa in faixasLocais()) {
             val sondas = (1..254).map { n ->
                 async(Dispatchers.IO) {
                     val base = "http://$faixa.$n:$PORTA"
-                    if (responde(base)) base else null
+                    identificar(base)?.let { Achado(base, it) }
                 }
             }
             achados += sondas.awaitAll().filterNotNull()
         }
         achados
     }
+
+    /** Endereco base de cada Midnight Media Server achado na rede. */
+    suspend fun procurar(): List<String> = procurarDetalhado().map { it.base }
 
     /**
      * Acha o servidor pelo anuncio Bonjour/mDNS que o Mac publica

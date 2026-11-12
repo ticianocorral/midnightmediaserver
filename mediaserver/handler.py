@@ -116,6 +116,7 @@ from . import scanner as _scanner
 from . import scraper as _scraper
 from . import organizador as _organizador
 from . import sources as _sources
+from .netutil import nome_da_maquina
 from . import branding as _branding
 from . import nuvem as _nuvem
 from . import thumbs as _thumbs
@@ -151,7 +152,7 @@ def _bust_asset_cache(html):
     """
     partes = sorted(p.name for p in (PROJECT_ROOT / "static" / "app").glob("*.js"))
     for asset in (["/static/app/" + nome for nome in partes]
-                  + ["/static/styles.css", "/static/tv.js", "/static/tv.css", "/static/tv-boot.js"]):
+                  + ["/static/styles.css", "/static/qr.js", "/static/tv.js", "/static/tv.css", "/static/tv-boot.js"]):
         try:
             if asset == "/static/tv-boot.js":
                 # o loader repassa este carimbo ao tv.js, tv.css e polyfill: vale o mais novo deles
@@ -203,6 +204,26 @@ from .rotas.admin import AdminRotas
 from .rotas.cache import CacheRotas
 from .rotas.catalogo import CatalogoRotas
 from .rotas.midia import MidiaRotas
+
+
+def _backup_e_desta_maquina(nome):
+    """Backup que esta maquina pode restaurar: o dela, ou um antigo sem nome de
+    maquina (formato anterior). O de outro computador nunca entra: restaurar o
+    catalogo alheio trocaria contas e fontes sem o usuario perceber."""
+    if not (nome.endswith(".zip") and nome.startswith(PREFIXO_BACKUP)):
+        return False
+    resto = nome[len(PREFIXO_BACKUP):-4]
+    return re.fullmatch(r"(%s-)?\d{4}-\d{2}-\d{2}" % re.escape(nome_da_maquina()), resto) is not None
+
+
+def _backup_e_desta_maquina(nome):
+    """Backup que esta maquina pode restaurar: o dela, ou um antigo sem nome de
+    maquina (formato anterior). O de outro computador nunca entra: restaurar o
+    catalogo alheio trocaria contas e fontes sem o usuario perceber."""
+    if not (nome.endswith(".zip") and nome.startswith(PREFIXO_BACKUP)):
+        return False
+    resto = nome[len(PREFIXO_BACKUP):-4]
+    return re.fullmatch(r"(%s-)?\d{4}-\d{2}-\d{2}" % re.escape(nome_da_maquina()), resto) is not None
 
 
 class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, MidiaRotas, http.server.BaseHTTPRequestHandler):
@@ -1789,7 +1810,9 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         zip_path = None
         try:
             zip_path = self._generate_backup_zip()
-            filename = f"media-server-backup-{time.strftime('%Y-%m-%d')}.zip"
+            # O nome da maquina evita que dois servidores na mesma nuvem
+            # sobrescrevam o backup um do outro no mesmo dia.
+            filename = f"{PREFIXO_BACKUP}{nome_da_maquina()}-{time.strftime('%Y-%m-%d')}.zip"
             remote_path = destino_backup() + "/" + filename
 
             with open(zip_path, "rb") as f:
@@ -1833,7 +1856,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
                 listou = True
                 for f in result:
                     nome_f = f.get("Name", "")
-                    if nome_f.endswith(".zip") and nome_f.startswith(PREFIXO_BACKUP):
+                    if _backup_e_desta_maquina(nome_f):
                         f["_pasta"] = pasta
                         candidatos.append(f)
             zips = candidatos
@@ -1968,9 +1991,13 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
 
     def _handle_source_add(self):
         body = self._read_json_body() or {}
-        source, err = _sources.add_source(body.get("name", ""), body.get("path", ""))
+        source, err = _sources.add_source(body.get("name", ""), body.get("path", ""),
+                                          aceitar_pasta=bool(body.get("aceitar_pasta")))
         if err:
-            self._send_json({"status": "error", "error": err}, 400)
+            payload = {"status": "error", "error": str(err)}
+            if isinstance(err, _sources.SemPastaBiblioteca):
+                payload["codigo"] = "sem_pasta_biblioteca"
+            self._send_json(payload, 400)
             return
         # Primeiro scan ja sai daqui: sem ele a fonte apareceria vazia.
         scan = _scanner.start_background_scan(source["id"])
@@ -2655,6 +2682,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         "/api/refresh": "_get_api_refresh",
         "/api/sources": "_get_api_sources",
         "/api/sources/detect": "_get_api_sources_detect",
+        "/api/sources/browse": "_get_api_sources_browse",
         "/api/sources/add": "_get_api_sources_add",
         "/api/sources/remove": "_get_api_sources_remove",
         "/api/nuvem/status": "_get_api_nuvem_status",
@@ -2684,6 +2712,8 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         "/api/collection": "_get_api_collection",
         "/api/generos": "_get_api_generos",
         "/api/genero": "_get_api_genero",
+        "/api/generos-nfo": "_get_api_generos_nfo",
+        "/api/genero-nfo": "_get_api_genero_nfo",
         "/api/generos/de": "_get_api_generos_de",
         "/api/infantil/marcar": "_get_api_infantil_marcar",
         "/api/colecoes/create": "_get_api_colecoes_create",
@@ -2733,6 +2763,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
             self._send_json({"configured": _auth_configured(),
                              "authenticated": user is not None,
                              "account": info is not None,
+                             "machine": nome_da_maquina(),
                              "user": user})
             return
 

@@ -173,7 +173,7 @@
         <p class="lead">Um servidor auto-hospedado que transforma a sua nuvem, um HD externo ou um pendrive numa biblioteca de filmes e séries no estilo streaming. Leve, instantâneo e sem assinatura.</p>
         <div class="cta">
           <a class="btn primary" href="#instalar">Instalar agora</a>
-          <a class="btn" href="https://github.com/ticianocorral/midnightmediaserver/releases/latest">Baixar a última versão</a>
+          <a class="btn" id="dl" href="https://github.com/ticianocorral/midnightmediaserver/releases/latest">Baixar a última versão</a>
         </div>
         <div class="badges">
           <span>Python 3.9+</span><span>rclone</span><span>Windows · macOS · Linux</span><span>Licença MIT</span>
@@ -246,6 +246,25 @@ Instalador-Media-Server-Linux.sh</pre>
 
 <div class="osd-fixed" aria-hidden="true"><span><em>▶</em> PLAY</span><span id="tc">00:00:00</span></div>
 
+<script>
+  // botao de download que descobre o sistema do visitante; sem rede ou sem
+  // arquivo correspondente, o link continua levando a pagina da ultima versao
+  (function () {
+    var a = document.getElementById('dl'); if (!a) return;
+    var ua = navigator.userAgent, so = /Windows/.test(ua) ? ['Windows', /\.exe$/i]
+      : /Mac/.test(ua) && !/iPhone|iPad/.test(ua) ? ['macOS', /\.dmg$/i]
+      : /Linux/.test(ua) && !/Android/.test(ua) ? ['Linux', /\.deb$/i] : null;
+    if (!so) return;
+    a.textContent = 'Baixar para ' + so[0];
+    fetch('https://api.github.com/repos/ticianocorral/midnightmediaserver/releases/latest')
+      .then(function (r) { return r.json(); })
+      .then(function (rel) {
+        (rel.assets || []).some(function (x) {
+          if (so[1].test(x.name)) { a.href = x.browser_download_url; return true; }
+        });
+      }).catch(function () {});
+  })();
+</script>
 <script>
   // contador de fita: a rolagem da página "corre" uma fita de 2 horas
   (function () {

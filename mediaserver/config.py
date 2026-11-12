@@ -172,6 +172,7 @@ TOKEN_PATHS = frozenset({"/api/stream", "/api/subtitle", "/api/prepared"})
 # para qualquer conta logada: cadastrar e remover fonte e decisao de admin.
 ADMIN_PATHS = frozenset({
     "/api/sources/add", "/api/sources/remove", "/api/sources/detect",
+    "/api/sources/browse",
     "/api/branding", "/api/branding/set",
     "/api/nuvem/conectar", "/api/nuvem/desconectar", "/api/nuvem/status",
     "/api/rclone/remotes", "/api/rclone/providers", "/api/rclone/wizard",

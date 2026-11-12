@@ -815,6 +815,73 @@ def cached_generos_de(alvo):
     return [r["genero_id"] for r in rows]
 
 
+# ── Gêneros do NFO (filtro por gênero, separado das tags) ─────
+
+def generos_principais(bruto, limite=2):
+    """Os `limite` primeiros gêneros do NFO de um filme, sem repetir.
+
+    O NFO costuma listar vários gêneros; o filme é classificado só pelos dois
+    primeiros (a ordem do NFO manda), para não aparecer em dez listas.
+    """
+    try:
+        lista = json.loads(bruto) if bruto else []
+    except (TypeError, ValueError):
+        return []
+    saida, vistos = [], set()
+    for g in lista if isinstance(lista, list) else []:
+        nome = " ".join(str(g).split())
+        chave = nome.casefold()
+        if nome and chave not in vistos:
+            vistos.add(chave)
+            saida.append(nome)
+        if len(saida) >= limite:
+            break
+    return saida
+
+
+def _filmes_por_genero_nfo(conn, so_infantil=False):
+    """{chave: {"nome": rotulo, "alvos": [pasta, ...]}} a partir de movie_meta."""
+    rows = conn.execute(
+        """SELECT m.folder_path AS alvo, m.genres AS genres
+           FROM movie_meta m JOIN folders f ON f.path = m.folder_path
+           WHERE f.has_video = 1 AND f.tipo = 'filme' AND m.genres IS NOT NULL
+             AND m.genres != '' AND m.genres != '[]'""").fetchall()
+    grupos = {}
+    for r in rows:
+        if so_infantil and not _e_infantil(conn, r["alvo"]):
+            continue
+        for nome in generos_principais(r["genres"]):
+            g = grupos.setdefault(nome.casefold(), {"nome": nome, "alvos": []})
+            g["alvos"].append(r["alvo"])
+    return grupos
+
+
+def cached_generos_nfo(so_infantil=False):
+    """Gêneros vindos do NFO, com a contagem de filmes, em ordem alfabética."""
+    conn = get_db()
+    try:
+        grupos = _filmes_por_genero_nfo(conn, so_infantil)
+    finally:
+        conn.close()
+    lista = [{"nome": g["nome"], "total": len(g["alvos"])} for g in grupos.values()]
+    lista.sort(key=lambda g: g["nome"].casefold())
+    return lista
+
+
+def cached_genero_nfo_filmes(nome, so_infantil=False):
+    """Os filmes cujo gênero principal (1º ou 2º do NFO) é `nome`."""
+    conn = get_db()
+    try:
+        grupo = _filmes_por_genero_nfo(conn, so_infantil).get(" ".join(str(nome).split()).casefold())
+        if not grupo:
+            return None
+        filmes = [e for e in (_entrada_de_filme(conn, a) for a in grupo["alvos"]) if e]
+    finally:
+        conn.close()
+    filmes.sort(key=lambda m: (m.get("title") or "").lower())
+    return {"name": grupo["nome"], "movies": filmes}
+
+
 def _entrada_de_filme(conn, alvo):
     """alvo -> card de filme (pasta ou arquivo solto), ou None se sumiu."""
     visto = bool(conn.execute(
