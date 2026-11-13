@@ -14,10 +14,10 @@
   // ── Layout previsivel ────────────────────────────────────────
   // O viewport e "width=device-width", e a largura em CSS px de uma TV varia
   // com a densidade — perto demais do corte de 768px do layout de celular.
-  // Fixar 1280 garante o layout de desktop em qualquer aparelho, e de quebra
-  // amplia tudo: numa tela de 1920 a WebView escala 1280 para 1920.
+  // Fixar 1670 garante o layout de desktop em qualquer aparelho, e de quebra
+  // amplia tudo: numa tela de 1920 a WebView escala 1670 para 1920 (1,15x).
   var vp = document.querySelector('meta[name="viewport"]');
-  if (vp) vp.setAttribute('content', 'width=1280, initial-scale=1.0');
+  if (vp) vp.setAttribute('content', 'width=1670, initial-scale=1.0');
   document.documentElement.classList.add('modo-tv');
 
   // ── O que vira focavel ───────────────────────────────────────
@@ -32,15 +32,22 @@
   // nenhum e ainda engole uma parada da navegacao.
   var IGNORAR = '.sidebar-backdrop, .modal-overlay, .player-overlay';
 
-  function marcarFocaveis() {
-    var nodes = document.querySelectorAll(CLICAVEL);
-    for (var i = 0; i < nodes.length; i++) {
-      var el = nodes[i];
-      if (el.hasAttribute('tabindex')) continue;
-      if (el.matches(IGNORAR)) continue;
-      el.setAttribute('tabindex', '0');
-      el.classList.add('tv-focavel');
-    }
+  function marcar(el) {
+    if (el.hasAttribute('tabindex')) return;
+    if (el.matches(IGNORAR)) return;
+    el.setAttribute('tabindex', '0');
+    el.classList.add('tv-focavel');
+  }
+
+  // raiz = so o trecho que mudou; sem argumento varre a pagina toda (so na
+  // abertura). Varrer o documento inteiro a cada mudanca deixava a navegacao
+  // lenta na TV: o A-Z tem milhares de cartoes.
+  function marcarFocaveis(raiz) {
+    raiz = raiz || document;
+    if (raiz.nodeType !== 1 && raiz.nodeType !== 9) return;
+    if (raiz.nodeType === 1 && raiz.matches(CLICAVEL)) marcar(raiz);
+    var nodes = raiz.querySelectorAll(CLICAVEL);
+    for (var i = 0; i < nodes.length; i++) marcar(nodes[i]);
   }
 
   // ── Enter ativa ──────────────────────────────────────────────
@@ -154,12 +161,25 @@
   // 'pendente' ficar preso em true e a marcacao nunca mais voltar. Numa TV
   // isso seria o controle morrer depois de trocar de app e voltar.
   var pendente = false;
-  function agendar() {
+  var novos = [];
+  var checarPlayer = false;
+  function agendar(muts) {
+    for (var i = 0; i < muts.length; i++) {
+      var m = muts[i];
+      if (m.type === 'childList') {
+        for (var j = 0; j < m.addedNodes.length; j++) novos.push(m.addedNodes[j]);
+      } else if (m.target && m.target.id === 'playerOverlay') {
+        checarPlayer = true;          // so o overlay do player importa nos atributos
+      }
+    }
+    if (!novos.length && !checarPlayer) return;
     if (pendente) return;
     pendente = true;
     setTimeout(function () {
       pendente = false;
-      marcarFocaveis();
+      var lote = novos; novos = [];
+      checarPlayer = false;
+      for (var k = 0; k < lote.length; k++) marcarFocaveis(lote[k]);
       sincronizarPlayer();
       garantirFoco();
     }, 0);
@@ -173,7 +193,7 @@
     // sem isso a navegacao espacial ficaria ligada por cima dele.
     new MutationObserver(agendar).observe(document.body, {
       childList: true, subtree: true,
-      attributes: true, attributeFilter: ['class', 'style'],
+      attributes: true, attributeFilter: ['class'],
     });
   }
 

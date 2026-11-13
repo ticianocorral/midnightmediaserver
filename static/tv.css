@@ -1,6 +1,6 @@
 /* Modo TV — so carrega com ?tv=1.
  *
- * A ampliacao geral nao esta aqui: ela vem do viewport fixo em 1280 que o
+ * A ampliacao geral nao esta aqui: ela vem do viewport fixo em 1670 que o
  * tv.js aplica, que a propria TV escala para 1920. O que sobra para o CSS e o
  * que a web nao precisa: anel de foco visivel a tres metros e margem de
  * overscan, porque muita TV corta as bordas da imagem.
@@ -18,7 +18,6 @@
    perde no meio de uma grade de cartazes. */
 .modo-tv .movie-card:focus {
   transform: scale(1.06);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
   z-index: 3;
   position: relative;
 }
@@ -43,5 +42,14 @@
    conteudo salta de cartao em cartao. */
 .modo-tv,
 .modo-tv .main {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
+
+/* Desempenho: a GPU da TV e fraca. Sem transicao, sem desfoque (backdrop-filter
+   e o blur de 40px do fundo da ficha) e sem transicao no cartao: o foco muda na hora. */
+.modo-tv *, .modo-tv *::before, .modo-tv *::after {
+  transition: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.modo-tv .movie-info-bg { filter: brightness(0.25) !important; }

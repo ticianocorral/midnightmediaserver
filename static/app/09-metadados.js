@@ -450,6 +450,16 @@
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
     {
+      version: '1.29.3',
+      title: 'TV: escala 1,15x, navegação mais rápida e correção do menu de legenda',
+      changes: [
+        'Escala da interface na TV em 1,15x',
+        'Navegação com o controle mais rápida: sem varredura da página inteira e sem animações pesadas',
+        'Menu de legenda do player da TV não fecha o app ao mudar tamanho ou cor',
+        'Trocar de perfil mantém o modo TV',
+      ],
+    },
+    {
       version: '1.29.2',
       title: 'Certificado automático no celular, gêneros recolhidos e prévia do metadado',
       changes: [

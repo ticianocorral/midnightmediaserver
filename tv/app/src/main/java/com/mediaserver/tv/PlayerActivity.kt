@@ -332,7 +332,7 @@ class PlayerActivity : AppCompatActivity() {
             "Cor: " + CORES[corLegenda].nome,
             "Fechar"
         )
-        val adaptador = ArrayAdapter(this, android.R.layout.simple_list_item_1, linhas())
+        val adaptador = ArrayAdapter(this, android.R.layout.simple_list_item_1, linhas().toMutableList())
         val dialogo = AlertDialog.Builder(this)
             .setTitle("Legenda")
             .setAdapter(adaptador, null)
