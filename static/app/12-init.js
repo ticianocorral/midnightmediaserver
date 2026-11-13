@@ -17,7 +17,7 @@
         else if (t < 1073741824) h = (t / 1048576).toFixed(1) + 'M';
         else h = (t / 1073741824).toFixed(2) + 'G';
         if (s.usage.details.vfs > 0) h += ' (VFS)';
-        document.getElementById('cacheUsageSize').textContent = h;
+        const el = document.getElementById('cacheUsageSize'); if (el) el.textContent = h;
       }
     } catch(_) {}
   }

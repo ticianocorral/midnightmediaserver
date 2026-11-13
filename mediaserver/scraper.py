@@ -28,6 +28,7 @@ em fontes locais.
 """
 
 import json
+import ssl
 import os
 import re
 import time
@@ -83,6 +84,21 @@ def configurado():
 
 # ── Cliente HTTP minimo (sem dependencia) ───────────────────
 
+def _ctx_ssl():
+    """Contexto TLS com CAs confiaveis mesmo onde o Python nao acha as do sistema
+    (Python do python.org no macOS, app empacotado): tenta certifi, depois os
+    caminhos comuns, e por fim o padrao."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        pass
+    for f in ("/etc/ssl/cert.pem", "/etc/ssl/certs/ca-certificates.crt"):
+        if os.path.exists(f):
+            return ssl.create_default_context(cafile=f)
+    return ssl.create_default_context()
+
+
 def _get(caminho, params):
     chave = get_api_key()
     if not chave:
@@ -92,7 +108,7 @@ def _get(caminho, params):
     params.setdefault("language", "pt-BR")
     url = TMDB_BASE + caminho + "?" + urllib.parse.urlencode(params)
     try:
-        with urllib.request.urlopen(url, timeout=_TIMEOUT) as resp:
+        with urllib.request.urlopen(url, timeout=_TIMEOUT, context=_ctx_ssl()) as resp:
             corpo = resp.read()
         return json.loads(corpo.decode("utf-8")), None
     except urllib.error.HTTPError as e:
@@ -311,7 +327,7 @@ def _escrever_atomico(caminho, dados_bytes):
 def _baixar_imagem(url):
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Midnight Media Server"})
-        with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT, context=_ctx_ssl()) as resp:
             dados = resp.read(_MAX_IMG_BYTES + 1)
         if len(dados) > _MAX_IMG_BYTES:
             return None

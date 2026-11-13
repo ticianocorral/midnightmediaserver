@@ -87,6 +87,34 @@ def _primary_local_hostname():
     return "media-server.local"
 
 
+def _mkcert_bin():
+    """mkcert do pacote (bin/, instaladores nativos) ou o do sistema; None se nao houver."""
+    try:
+        from .config import PROJECT_ROOT
+        emb = PROJECT_ROOT / "bin" / ("mkcert.exe" if os.name == "nt" else "mkcert")
+        if emb.is_file():
+            return str(emb)
+    except Exception:
+        pass
+    achado = shutil.which("mkcert")
+    if achado:
+        return achado
+    local = Path.home() / ".local" / "bin" / "mkcert"
+    return str(local) if local.is_file() and os.access(local, os.X_OK) else None
+
+
+def _caroot(cert_dir):
+    """CA do app: pasta propria, ao lado do certificado. Assim o app nunca mexe no
+    chaveiro do sistema nem pede senha — o celular so precisa baixar o rootCA.pem."""
+    return Path(cert_dir) / "ca"
+
+
+def _env_mkcert(cert_dir):
+    env = dict(os.environ)
+    env["CAROOT"] = str(_caroot(cert_dir))
+    return env
+
+
 def _ensure_ssl_cert(cert_dir, local_ip):
     """Generate a locally-trusted SSL cert using mkcert (preferred) or openssl.
 
@@ -101,6 +129,14 @@ def _ensure_ssl_cert(cert_dir, local_ip):
     hostnames = ["localhost", *_local_hostnames()]
     # Tokens exatos como o openssl mostra na seção Subject Alternative Name
     required = [f"DNS:{n}" for n in hostnames] + [f"IP Address:{local_ip}"]
+
+    mk = _mkcert_bin()
+    # Cert antigo de openssl (sem CA para o celular baixar): refaz com o mkcert.
+    sem_ca = bool(mk) and not (_caroot(cert_dir) / "rootCA.pem").is_file()
+    if sem_ca and cert_path.exists():
+        print("[Midnight Media Server] Cert sem CA para o celular; refazendo com mkcert...", flush=True)
+        cert_path.unlink(missing_ok=True)
+        key_path.unlink(missing_ok=True)
 
     # Check if existing cert still covers this IP and the hostnames
     if cert_path.exists() and key_path.exists():
@@ -120,13 +156,14 @@ def _ensure_ssl_cert(cert_dir, local_ip):
             pass
 
     # Prefer mkcert (CA-trusted = Cast SDK works)
-    if shutil.which("mkcert"):
+    if mk:
         print("[Midnight Media Server] Generating CA-trusted SSL certificate via mkcert...", flush=True)
         try:
+            _caroot(cert_dir).mkdir(parents=True, exist_ok=True)
             subprocess.run(
-                ["mkcert", "-key-file", str(key_path), "-cert-file", str(cert_path),
+                [mk, "-key-file", str(key_path), "-cert-file", str(cert_path),
                  *hostnames, local_ip],
-                check=True, capture_output=True, timeout=15,
+                check=True, capture_output=True, timeout=30, env=_env_mkcert(cert_dir),
             )
             key_path.chmod(0o600)
             print(f"[Midnight Media Server] mkcert cert created: {cert_path}", flush=True)
@@ -168,11 +205,16 @@ def mkcert_root_ca_path():
     Devolve None se o mkcert nao estiver instalado ou a CA nao existir.
     """
     candidatos = []
+    try:
+        from .config import CACHE_DIR
+        candidatos.append(_caroot(CACHE_DIR))     # a CA propria do app vem primeiro
+    except Exception:
+        pass
     env_caroot = os.environ.get("CAROOT")
     if env_caroot:
         candidatos.append(Path(env_caroot))
     try:
-        res = subprocess.run(["mkcert", "-CAROOT"],
+        res = subprocess.run([_mkcert_bin() or "mkcert", "-CAROOT"],
                              capture_output=True, text=True, timeout=5)
         if res.returncode == 0 and res.stdout.strip():
             candidatos.append(Path(res.stdout.strip()))

@@ -20,6 +20,7 @@ permissions:
 env:
   TAG: ${{ github.event.release.tag_name || inputs.tag }}
   RCLONE_VERSAO: "1.68.2"
+  MKCERT_VERSAO: "1.4.4"
   PYINSTALLER_VERSAO: "6.10.0"
   PYTHON_VERSAO: "3.12"
 
@@ -44,10 +45,14 @@ jobs:
           curl -fsSL "$base/SHA256SUMS" | grep "$arq" | sha256sum -c -
           unzip -q "$arq"
           echo "RCLONE_BIN=$PWD/rclone-v${RCLONE_VERSAO}-windows-amd64/rclone.exe" >> "$GITHUB_ENV"
+          curl -fsSLo mkcert.exe "https://github.com/FiloSottile/mkcert/releases/download/v${MKCERT_VERSAO}/mkcert-v${MKCERT_VERSAO}-windows-amd64.exe"
+          echo "d2660b50a9ed59eada480750561c96abc2ed4c9a38c6a24d93e30e0977631398  mkcert.exe" | sha256sum -c -
+          chmod +x mkcert.exe
+          echo "MKCERT_BIN=$PWD/mkcert.exe" >> "$GITHUB_ENV"
       - name: Empacotar
         shell: bash
         run: |
-          pip install "pyinstaller==${PYINSTALLER_VERSAO}"
+          pip install "pyinstaller==${PYINSTALLER_VERSAO}" certifi
           python packaging/gerar_icones.py build/icones
           export ICONES="$PWD/build/icones"
           pyinstaller --noconfirm --distpath dist --workpath build/pyi packaging/media-server.spec
@@ -86,9 +91,13 @@ jobs:
           curl -fsSL "$base/SHA256SUMS" | grep "$arq" | shasum -a 256 -c -
           unzip -q "$arq"
           echo "RCLONE_BIN=$PWD/rclone-v${RCLONE_VERSAO}-osx-arm64/rclone" >> "$GITHUB_ENV"
+          curl -fsSLo mkcert "https://github.com/FiloSottile/mkcert/releases/download/v${MKCERT_VERSAO}/mkcert-v${MKCERT_VERSAO}-darwin-arm64"
+          echo "c8af0df44bce04359794dad8ea28d750437411d632748049d08644ffb66a60c6  mkcert" | shasum -a 256 -c -
+          chmod +x mkcert
+          echo "MKCERT_BIN=$PWD/mkcert" >> "$GITHUB_ENV"
       - name: Empacotar
         run: |
-          pip install "pyinstaller==${PYINSTALLER_VERSAO}"
+          pip install "pyinstaller==${PYINSTALLER_VERSAO}" certifi
           python packaging/gerar_icones.py build/icones
           export ICONES="$PWD/build/icones"
           pyinstaller --noconfirm --distpath dist --workpath build/pyi packaging/media-server.spec
@@ -122,9 +131,13 @@ jobs:
           curl -fsSL "$base/SHA256SUMS" | grep "$arq" | sha256sum -c -
           unzip -q "$arq"
           echo "RCLONE_BIN=$PWD/rclone-v${RCLONE_VERSAO}-linux-amd64/rclone" >> "$GITHUB_ENV"
+          curl -fsSLo mkcert "https://github.com/FiloSottile/mkcert/releases/download/v${MKCERT_VERSAO}/mkcert-v${MKCERT_VERSAO}-linux-amd64"
+          echo "6d31c65b03972c6dc4a14ab429f2928300518b26503f58723e532d1b0a3bbb52  mkcert" | sha256sum -c -
+          chmod +x mkcert
+          echo "MKCERT_BIN=$PWD/mkcert" >> "$GITHUB_ENV"
       - name: Empacotar
         run: |
-          pip install "pyinstaller==${PYINSTALLER_VERSAO}"
+          pip install "pyinstaller==${PYINSTALLER_VERSAO}" certifi
           python packaging/gerar_icones.py build/icones
           export ICONES="$PWD/build/icones"
           pyinstaller --noconfirm --distpath dist --workpath build/pyi packaging/media-server.spec

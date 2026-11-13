@@ -2550,3 +2550,21 @@ button, input, select, textarea { font-family: inherit; }
 .dica-primeira-vez span { flex: 1; line-height: 1.45; }
 
 .sidebar-conta { margin-left: auto; opacity: .5; font-size: 12px; }
+
+  /* Gêneros do NFO: recolhidos e rolável, abaixo das tags. */
+  .sidebar-generos-toggle {
+    width: 100%; background: none; border: 0; cursor: pointer;
+    font-family: inherit; text-align: left;
+  }
+  .sidebar-generos-toggle:hover { color: var(--text2); }
+  .sidebar-generos-seta { margin-left: auto; transition: transform .15s; transform: rotate(-90deg); }
+  .sidebar-generos-toggle.aberto .sidebar-generos-seta { transform: none; }
+  .sidebar-generos-lista { max-height: 260px; overflow-y: auto; }
+  .sidebar-generos-busca {
+    width: calc(100% - 24px); margin: 4px 12px 6px; padding: 6px 10px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px; color: var(--text); font: inherit; font-size: 12px;
+  }
+  .sidebar-generos-lista .sidebar-item { font-size: 12px; padding-block: 5px; gap: 8px; }
+  .sidebar-generos-lista .sidebar-item .icon { display: none; }
+  .sidebar-generos-lista .sidebar-conta { font-size: 10px; }

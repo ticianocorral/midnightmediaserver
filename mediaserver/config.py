@@ -191,7 +191,7 @@ ADMIN_PATHS = frozenset({
     "/api/generos/renomear",
     "/api/scrape/status", "/api/scrape/pendentes", "/api/scrape/search",
     "/api/scrape/apply", "/api/scrape/key/set",
-    "/api/scrape/capas", "/api/scrape/capa",
+    "/api/scrape/capas", "/api/scrape/capa", "/api/scrape/preview",
     "/api/organizar/itens", "/api/organizar/buscar", "/api/organizar/aplicar",
     "/api/organizar/desfazer", "/api/organizar/historico",
 })

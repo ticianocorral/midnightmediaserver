@@ -266,6 +266,26 @@
     });
   }
 
+  function toggleGeneros() {
+    const t = document.querySelector('.sidebar-generos-toggle');
+    const l = document.querySelector('.sidebar-generos-lista');
+    if (!t || !l) return;
+    const abrir = l.hidden;
+    l.hidden = !abrir;
+    t.classList.toggle('aberto', abrir);
+    try { localStorage.setItem('generosAbertos', abrir ? '1' : '0'); } catch (e) {}
+  }
+
+  function filtrarGeneros(q) {
+    q = (q || '').trim().toLowerCase();
+    document.querySelectorAll('.sidebar-generos-lista .sidebar-item').forEach(function (b) {
+      b.hidden = q && b.getAttribute('data-nome').indexOf(q) === -1;
+    });
+  }
+  document.addEventListener('input', function (e) {
+    if (e.target.classList && e.target.classList.contains('sidebar-generos-busca')) filtrarGeneros(e.target.value);
+  });
+
   function loadSidebarGenres(force) {
     const container = document.getElementById('sidebarGenres');
     if (_sidebarGenresLoaded && !force) return;
@@ -278,18 +298,6 @@
     ]).then(([generos, generosNfo]) => {
       const isAdmin = _me && _me.role === 'admin';
       let html = '';
-      // Gêneros do NFO: filtro automático (1º e 2º gênero de cada filme),
-      // separado das tags, que a pessoa cria e atribui.
-      if (generosNfo && generosNfo.length) {
-        html += '<div class="sidebar-source-label"><svg class="icon-svg">'
-          + '<use href="#i-film"></use></svg> Gêneros</div>';
-        generosNfo.forEach(g => {
-          html += '<button class="sidebar-item" data-nav="' + escHtml(GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)) + '"'
-            + attrAcao('loadPath', [GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)]) + '>'
-            + '<span class="icon"><svg class="icon-svg"><use href="#i-film"></use></svg></span> '
-            + escHtml(g.nome) + ' <span class="sidebar-conta">' + g.total + '</span></button>';
-        });
-      }
       html += '<div class="sidebar-source-label"><svg class="icon-svg">'
         + '<use href="#i-layers"></use></svg> Tags'
         + (isAdmin
@@ -304,6 +312,30 @@
       if (!generos || !generos.length) {
         html += '<div class="sidebar-sem-genero">Use o <b>+</b> para criar tags '
           + 'e reunir filmes nelas.</div>';
+      }
+      // Gêneros do NFO: filtro automático, mas as tags é que importam — por
+      // isso ficam DEPOIS delas, recolhidos, em lista rolável com busca.
+      if (generosNfo && generosNfo.length) {
+        const ativoNfo = (currentPath || '').indexOf(GENERO_NFO_PREFIXO) === 0;
+        let aberto = ativoNfo;
+        try { aberto = aberto || localStorage.getItem('generosAbertos') === '1'; } catch (e) {}
+        html += '<button class="sidebar-source-label sidebar-generos-toggle' + (aberto ? ' aberto' : '') + '"'
+          + attrAcao('toggleGeneros', []) + '><svg class="icon-svg"><use href="#i-film"></use></svg> Gêneros'
+          + ' <span class="sidebar-conta">' + generosNfo.length + '</span>'
+          + '<span class="sidebar-generos-seta">▾</span></button>'
+          + '<div class="sidebar-generos-lista"' + (aberto ? '' : ' hidden') + '>';
+        if (generosNfo.length > 8) {
+          html += '<input type="search" class="sidebar-generos-busca" placeholder="Filtrar gêneros…"'
+            + '>';
+        }
+        generosNfo.forEach(g => {
+          html += '<button class="sidebar-item" data-nome="' + escHtml(g.nome.toLowerCase()) + '" data-nav="'
+            + escHtml(GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)) + '"'
+            + attrAcao('loadPath', [GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)]) + '>'
+            + '<span class="icon"><svg class="icon-svg"><use href="#i-film"></use></svg></span> '
+            + escHtml(g.nome) + ' <span class="sidebar-conta">' + g.total + '</span></button>';
+        });
+        html += '</div>';
       }
       container.innerHTML = html;
       _updateSidebarActive();
