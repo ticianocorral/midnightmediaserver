@@ -48,7 +48,7 @@
     fetch('/api/clear-cache', { method: 'POST' }).then(r => r.json()).then(d => {
       if (d.status === 'ok') {
         showToast('🧹 Cache limpo com sucesso!', 'success');
-        document.getElementById('cacheUsageSize').textContent = '0B';
+        const el = document.getElementById('cacheUsageSize'); if (el) el.textContent = '0B';
         // O botao agora fica dentro do gerenciador: se ele estiver aberto,
         // a lista precisa refletir que nada esta mais baixado.
         if (document.getElementById('cacheManagerModal').classList.contains('active')) {

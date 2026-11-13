@@ -117,6 +117,19 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 ## 📋 Changelog
 
+### v1.29.2 — Certificado automático no celular, gêneros recolhidos e prévia do metadado
+
+- QR de 2 passos para instalar no celular, com a CA gerada pelo próprio app
+
+- Gêneros recolhidos e com busca abaixo das tags
+
+- Prévia do metadado antes de salvar
+
+- Correção do certificado SSL ao buscar no TMDB
+
+- Indicador de cache removido da barra lateral
+
+
 ### v1.29.1 — Correção do certificado SSL ao buscar no TMDB
 
 - Busca de metadados e capas funciona nos instaladores (macOS) sem erro de certificado

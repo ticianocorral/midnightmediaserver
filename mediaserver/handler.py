@@ -2654,6 +2654,7 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         "/api/scrape/pendentes": "_get_api_scrape_pendentes",
         "/api/scrape/search": "_get_api_scrape_search",
         "/api/scrape/capas": "_get_api_scrape_capas",
+        "/api/scrape/preview": "_get_api_scrape_preview",
         "/api/organizar/itens": "_get_api_organizar_itens",
         "/api/organizar/buscar": "_get_api_organizar_buscar",
         "/api/organizar/historico": "_get_api_organizar_historico",

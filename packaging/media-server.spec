@@ -4,6 +4,7 @@
 #
 # Variaveis de ambiente (preenchidas pelo workflow):
 #   RCLONE_BIN   caminho do binario do rclone a embutir (pasta bin/ do pacote)
+#   MKCERT_BIN   caminho do binario do mkcert a embutir (CA que o celular instala)
 #   ICONES       pasta gerada por packaging/gerar_icones.py
 #   VERSAO       versao do app (ex.: 1.26.0)
 import os
@@ -12,6 +13,7 @@ import sys
 RAIZ = os.path.abspath(os.path.join(SPECPATH, ".."))
 VERSAO = os.environ.get("VERSAO", "0.0.0")
 RCLONE = os.environ["RCLONE_BIN"]
+MKCERT = os.environ.get("MKCERT_BIN", "")
 ICONES = os.environ.get("ICONES", "")
 
 datas = [
@@ -21,6 +23,8 @@ datas = [
     (os.path.join(RAIZ, "static"), "static"),
 ]
 binaries = [(RCLONE, "bin")]
+if MKCERT and os.path.isfile(MKCERT):
+    binaries.append((MKCERT, "bin"))
 
 a = Analysis(
     [os.path.join(RAIZ, "server.py")],

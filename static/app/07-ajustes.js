@@ -297,36 +297,31 @@
     const appUrl = 'https://' + host + porta;
     const ipUrl = ip ? 'https://' + ip + porta : appUrl;
     const caUrl = 'http://' + host + ':' + httpPort + '/ca.crt';
-    _phoneUrls = { app: appUrl, ip: ipUrl, ca: caUrl };
+    const httpUrl = ip ? 'http://' + ip + ':' + httpPort : '';
+    const caIp = ip ? 'http://' + ip + ':' + httpPort + '/ca.crt' : caUrl;
+    _phoneUrls = { app: appUrl, ip: ipUrl, ca: caUrl, http: httpUrl };
 
-    const qr = (typeof qrSvg === 'function') ? qrSvg(appUrl, 168) : '';
+    const qrOf = u => (typeof qrSvg === 'function') ? qrSvg(u, 168) : '';
+    const passo = (n, titulo, qrUrl, texto) => '<div class="phone-qr"><div class="user-section-title">Passo ' + n + ' — ' + titulo + '</div>'
+      + qrOf(qrUrl) + '<div class="src-hint">' + texto + '</div></div>';
     box.innerHTML =
-      (qr ? '<div class="phone-qr">' + qr + '<div class="src-hint">Aponte a câmera do celular '
-        + 'para abrir o app (faça antes o passo do certificado abaixo).</div></div>' : '')
+      '<div class="src-hint">O celular precisa estar no <b>mesmo Wi-Fi</b> do computador. São só 2 passos, uma vez só.</div>'
+      + passo(1, 'instalar a chave de segurança', caIp,
+          'Aponte a câmera para o QR. O celular baixa um arquivo; instale-o: '
+          + '<b>iPhone</b> — abra no <b>Safari</b> e toque em <b>Permitir</b> quando perguntar sobre baixar o perfil. '
+          + 'Depois abra Ajustes: aparece “Perfil baixado” no topo (ou em Geral › VPN e Gerenciamento de Dispositivo) › Instalar. '
+          + 'Por fim, Ajustes › Geral › Sobre › Ajustes de Confiança do Certificado, e ative a chave “mkcert”. <b>Android</b> — Configurações › busque “certificado” › Instalar certificado › '
+          + 'Certificado de CA. Ele serve só para este app abrir sem aviso de segurança.')
+      + passo(2, 'abrir o app', appUrl,
+          'Aponte a câmera para este QR. Para deixar como app na tela inicial: <b>iPhone</b> — Compartilhar › Adicionar à Tela de Início; '
+          + '<b>Android</b> — menu ⋮ › Instalar app.')
+      + (httpUrl ? '<div class="src-hint">Só quer assistir, sem instalar nada? Abra <code>' + escHtml(httpUrl) + '</code> no navegador do celular.</div>' : '')
       + '<div class="phone-url">'
       + '<code>' + escHtml(appUrl) + '</code>'
       + '<button class="user-btn" data-act="copyPhone" data-args="[{&quot;$&quot;:&quot;this&quot;},&quot;app&quot;]">Copiar</button>'
       + '</div>'
       + '<div class="src-hint">O celular precisa estar no mesmo Wi-Fi do computador. '
       + 'Use este endereço em vez do IP: o nome .local continua valendo mesmo se o roteador trocar o IP do Mac.</div>'
-
-      + '<div class="user-section-title">iPhone / iPad</div>'
-      + '<ol class="phone-steps">'
-      + '<li>Instale o certificado do app: abra <a href="' + escHtml(caUrl) + '"><code>' + escHtml(caUrl) + '</code></a> '
-      + 'no Safari e permita o download. Depois vá em Ajustes › Geral › VPN e Gerenciamento de Dispositivo, instale o perfil '
-      + 'e ative a confiança em Ajustes › Geral › Sobre › Ajustes de Confiança do Certificado.</li>'
-      + '<li>Abra <code>' + escHtml(appUrl) + '</code> no Safari — deve abrir sem aviso de certificado.</li>'
-      + '<li>Toque em Compartilhar › Adicionar à Tela de Início. O app entra na tela inicial com ícone e nome próprios.</li>'
-      + '</ol>'
-
-      + '<div class="user-section-title">Android</div>'
-      + '<ol class="phone-steps">'
-      + '<li>Instale o certificado do app: abra <a href="' + escHtml(caUrl) + '"><code>' + escHtml(caUrl) + '</code></a> '
-      + 'no Chrome. Depois, nas Configurações do Android, busque "certificado" › Instalar certificado › Certificado de CA e escolha o arquivo baixado.</li>'
-      + '<li>Abra <code>' + escHtml(appUrl) + '</code> no Chrome.</li>'
-      + '<li>Menu ⋮ › Instalar app (ou Adicionar à tela inicial). O Android cria um app de verdade, com ícone próprio.</li>'
-      + '</ol>'
-      + '<div class="src-hint">Nomes <code>.local</code> só resolvem no Android 12 ou mais novo — em aparelhos mais antigos, use o endereço por IP abaixo.</div>'
 
       + '<div class="phone-alt">'
       + 'Não conseguiu pelo nome? Use o IP: <code>' + escHtml(ipUrl) + '</code> '

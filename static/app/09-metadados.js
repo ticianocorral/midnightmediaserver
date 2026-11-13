@@ -410,7 +410,37 @@
       : '<div class="user-msg">Nenhum resultado. Ajuste o texto da busca.</div>';
   }
 
+  // "Usar este" não grava na hora: baixa o metadado, mostra e só salva se a
+  // pessoa confirmar.
   async function _scrapeAplicar(pathEnc, tmdbId) {
+    const area = document.getElementById('scrapeResultados');
+    area.innerHTML = '<div class="loading" style="min-height:80px"><div class="spinner"></div><span>Baixando metadado...</span></div>';
+    let d;
+    try { d = await (await fetch('/api/scrape/preview?path=' + encodeURIComponent(decodeURIComponent(pathEnc)) + '&tmdb_id=' + encodeURIComponent(tmdbId))).json(); }
+    catch (e) { d = { erro: 'Falha de conexão.' }; }
+    if (d.erro || !d.meta) {
+      area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro || 'Sem dados.') + '</div>';
+      return;
+    }
+    const m = d.meta;
+    const lin = (rot, v) => (v && String(v).length) ? '<div class="src-hint" style="margin:2px 0"><b>' + rot + ':</b> ' + escHtml(String(v)) + '</div>' : '';
+    const lista = a => (a || []).join(', ');
+    area.innerHTML = '<div class="user-row" style="align-items:flex-start">'
+      + (m.poster ? '<img src="' + escHtml(m.poster) + '" alt="" style="width:92px;aspect-ratio:2/3;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
+      + '<div class="src-main"><div class="user-name">' + escHtml(m.title || '') + (m.year ? ' (' + m.year + ')' : '') + '</div>'
+      + lin('Título original', m.originaltitle !== m.title ? m.originaltitle : '')
+      + lin('Gêneros', lista(m.genres)) + lin('Duração', m.runtime ? m.runtime + ' min' : '')
+      + lin('Nota', m.rating ? m.rating + (m.votes ? ' (' + m.votes + ' votos)' : '') : '')
+      + lin('Direção', lista(m.directors)) + lin('Elenco', lista((m.actors || []).slice(0, 8).map(a => a.name)))
+      + lin('País', lista(m.country)) + lin('Estúdios', lista((m.studios || []).slice(0, 4))) + lin('Coleção', m.set_name)
+      + (m.tagline ? '<div class="src-hint" style="margin:4px 0;font-style:italic">' + escHtml(m.tagline) + '</div>' : '')
+      + '<div class="src-hint" style="margin:6px 0;color:var(--text2)">' + escHtml(m.plot || 'Sem sinopse.') + '</div></div></div>'
+      + '<div style="display:flex;gap:10px;margin-top:10px">'
+      + '<button class="rclone-action-btn primary"' + attrAcao('_scrapeConfirmar', [pathEnc, tmdbId]) + '>Salvar este metadado</button>'
+      + '<button class="user-btn"' + attrAcao('_scrapeBuscar', [pathEnc]) + '>Voltar aos resultados</button></div>';
+  }
+
+  async function _scrapeConfirmar(pathEnc, tmdbId) {
     const r = await _scrapePost('/api/scrape/apply', { path: decodeURIComponent(pathEnc), tmdb_id: tmdbId });
     showToast(r.ok ? 'Metadados aplicados.' : (r.data.error || 'Não foi possível aplicar.'), r.ok ? 'success' : 'error');
     if (r.ok) _scrapePendentes();
@@ -419,6 +449,17 @@
   // ==================== CHANGELOG MODAL ====================
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
+    {
+      version: '1.29.2',
+      title: 'Certificado automático no celular, gêneros recolhidos e prévia do metadado',
+      changes: [
+        'QR de 2 passos para instalar no celular, com a CA gerada pelo próprio app',
+        'Gêneros recolhidos e com busca abaixo das tags',
+        'Prévia do metadado antes de salvar',
+        'Correção do certificado SSL ao buscar no TMDB',
+        'Indicador de cache removido da barra lateral',
+      ],
+    },
     {
       version: '1.29.1',
       title: 'Correção do certificado SSL ao buscar no TMDB',
