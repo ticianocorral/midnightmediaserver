@@ -117,6 +117,17 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 ## 📋 Changelog
 
+### v1.29.3 — TV: escala 1,15x, navegação mais rápida e correção do menu de legenda
+
+- Escala da interface na TV em 1,15x
+
+- Navegação com o controle mais rápida: sem varredura da página inteira e sem animações pesadas
+
+- Menu de legenda do player da TV não fecha o app ao mudar tamanho ou cor
+
+- Trocar de perfil mantém o modo TV
+
+
 ### v1.29.2 — Certificado automático no celular, gêneros recolhidos e prévia do metadado
 
 - QR de 2 passos para instalar no celular, com a CA gerada pelo próprio app

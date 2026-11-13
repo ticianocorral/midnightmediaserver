@@ -55,6 +55,13 @@ class MainActivity : AppCompatActivity() {
         // fonte da TV em um nivel alto a pagina inteira estufa como se tivesse
         // recebido 125%. Travar em 100 deixa a escala nas maos do viewport.
         web.settings.textZoom = 100
+        // Sem isto a WebView ignora o <meta viewport width=...> do modo TV e a
+        // pagina renderiza em 960px CSS (densidade 2): tudo 2x maior.
+        web.settings.useWideViewPort = true
+        web.settings.loadWithOverviewMode = true
+        // Mesmo valor do viewport de static/tv.js, fixo: a WebView so aplica a
+        // escala sozinha se a pagina carregar depois.
+        aplicarEscala()
 
         // O cookie de sessao vale 90 dias, mas so sobrevive a fechar o app se
         // for gravado em disco. Sem o flush do onPause, cada abertura do app
@@ -90,8 +97,19 @@ class MainActivity : AppCompatActivity() {
             // true = bloqueia a navegacao.
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val permitido = mesmaOrigemDoServidor(request.url.toString())
-                if (!permitido) Log.w("Midnight Media Server", "navegacao bloqueada: ${request.url}")
-                return !permitido
+                if (!permitido) {
+                    Log.w("Midnight Media Server", "navegacao bloqueada: ${request.url}")
+                    return true
+                }
+                // Trocar de perfil passa por /perfis e volta para "/" sem ?tv=1: a pagina
+                // perdia o modo TV e a escala, entao o ?tv=1 e reposto.
+                if (!request.isForMainFrame || request.url.getQueryParameter("tv") != null) return false
+                view.loadUrl(request.url.buildUpon().appendQueryParameter("tv", "1").build().toString())
+                return true
+            }
+
+            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                aplicarEscala()
             }
         }
         web.loadUrl("$base/?tv=1")
@@ -221,7 +239,13 @@ class MainActivity : AppCompatActivity() {
         web.evaluateJavascript("window.tvPlaybackEnded($posicao, $duracao, $legTam, $legCor, $saidas, $atual)", null)
     }
 
+    private fun aplicarEscala() {
+        val dm = resources.displayMetrics
+        web.setInitialScale((dm.widthPixels / LARGURA_CSS / dm.density * 100).toInt())
+    }
+
     companion object {
+        private const val LARGURA_CSS = 1670f
         private const val COD_PLAYER = 1
     }
 }
