@@ -420,6 +420,17 @@
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
     {
+      version: '1.29.0',
+      title: 'Primeiro uso guiado, filtro por gênero e vários servidores na rede',
+      changes: [
+        'Home vazia com o próximo passo e checklist de primeiros passos',
+        'Pasta sem a subpasta Media Server pode ser usada como acervo, com seletor de pastas',
+        'Guia passo a passo da chave do TMDB, QR code para o celular e dicas de primeira vez',
+        'Filtro por gênero do NFO (1º e 2º gênero de cada filme), separado das tags',
+        'Dois servidores na mesma rede: backup com o nome da máquina, Bonjour com nome e TV que não troca de servidor sozinha',
+      ],
+    },
+    {
       version: '1.28.2',
       title: 'Correções de segurança (HTTPS, força bruta e senha)',
       changes: [
