@@ -420,6 +420,13 @@
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
     {
+      version: '1.29.1',
+      title: 'Correção do certificado SSL ao buscar no TMDB',
+      changes: [
+        'Busca de metadados e capas funciona nos instaladores (macOS) sem erro de certificado',
+      ],
+    },
+    {
       version: '1.29.0',
       title: 'Primeiro uso guiado, filtro por gênero e vários servidores na rede',
       changes: [

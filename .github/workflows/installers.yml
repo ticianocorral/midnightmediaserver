@@ -47,7 +47,7 @@ jobs:
       - name: Empacotar
         shell: bash
         run: |
-          pip install "pyinstaller==${PYINSTALLER_VERSAO}"
+          pip install "pyinstaller==${PYINSTALLER_VERSAO}" certifi
           python packaging/gerar_icones.py build/icones
           export ICONES="$PWD/build/icones"
           pyinstaller --noconfirm --distpath dist --workpath build/pyi packaging/media-server.spec
@@ -88,7 +88,7 @@ jobs:
           echo "RCLONE_BIN=$PWD/rclone-v${RCLONE_VERSAO}-osx-arm64/rclone" >> "$GITHUB_ENV"
       - name: Empacotar
         run: |
-          pip install "pyinstaller==${PYINSTALLER_VERSAO}"
+          pip install "pyinstaller==${PYINSTALLER_VERSAO}" certifi
           python packaging/gerar_icones.py build/icones
           export ICONES="$PWD/build/icones"
           pyinstaller --noconfirm --distpath dist --workpath build/pyi packaging/media-server.spec
@@ -124,7 +124,7 @@ jobs:
           echo "RCLONE_BIN=$PWD/rclone-v${RCLONE_VERSAO}-linux-amd64/rclone" >> "$GITHUB_ENV"
       - name: Empacotar
         run: |
-          pip install "pyinstaller==${PYINSTALLER_VERSAO}"
+          pip install "pyinstaller==${PYINSTALLER_VERSAO}" certifi
           python packaging/gerar_icones.py build/icones
           export ICONES="$PWD/build/icones"
           pyinstaller --noconfirm --distpath dist --workpath build/pyi packaging/media-server.spec

@@ -117,6 +117,11 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 ## 📋 Changelog
 
+### v1.29.1 — Correção do certificado SSL ao buscar no TMDB
+
+- Busca de metadados e capas funciona nos instaladores (macOS) sem erro de certificado
+
+
 ### v1.29 — Primeiro uso guiado, filtro por gênero e vários servidores na rede
 
 - Home vazia com o próximo passo e checklist de primeiros passos
