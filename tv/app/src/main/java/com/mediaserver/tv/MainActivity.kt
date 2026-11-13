@@ -100,9 +100,13 @@ class MainActivity : AppCompatActivity() {
         // o servidor estar desligado: em vez de tela escura, mostra o aviso com
         // o botao Atualizar, que tambem re-escaneia a rede.
         lifecycleScope.launch {
-            if (!Servidor.responde(base)) {
+            val nome = Servidor.identificar(base)
+            if (nome == null) {
                 Log.w("Midnight Media Server", "servidor salvo $base nao responde")
                 mostrarAviso()
+            } else if (Servidor.nomeSalvo(this@MainActivity) == null && nome.isNotEmpty()) {
+                // Instalacao antiga: aprende o nome agora, para reconhecer o servidor depois.
+                Servidor.salvar(this@MainActivity, base, nome)
             }
         }
 
@@ -138,8 +142,20 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             var destino: String? = if (Servidor.responde(base)) base else null
             if (destino == null) {
-                destino = Servidor.procurar().firstOrNull()
-                if (destino != null) Servidor.salvar(this@MainActivity, destino)
+                val achados = Servidor.procurarDetalhado()
+                val nomeSalvo = Servidor.nomeSalvo(this@MainActivity)
+                // So troca sozinho quando da para ter certeza de que e o mesmo
+                // servidor com outro IP. Com outro computador na rede, pergunta.
+                val mesmo = if (!nomeSalvo.isNullOrEmpty()) achados.firstOrNull { it.nome == nomeSalvo }
+                            else achados.singleOrNull()
+                if (mesmo != null) {
+                    destino = mesmo.base
+                    Servidor.salvar(this@MainActivity, mesmo.base, mesmo.nome.ifEmpty { nomeSalvo ?: "" })
+                } else if (achados.isNotEmpty()) {
+                    startActivity(Intent(this@MainActivity, SetupActivity::class.java))
+                    finish()
+                    return@launch
+                }
             }
             botaoAtualizar.isEnabled = true
             botaoAtualizar.setText(R.string.atualizar)

@@ -119,7 +119,19 @@
   "comum": 400,
   "infantil": 400
  },
+ "/api/genero-nfo": {
+  "admin": 400,
+  "anon": 401,
+  "comum": 400,
+  "infantil": 400
+ },
  "/api/generos": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 200
+ },
+ "/api/generos-nfo": {
   "admin": 200,
   "anon": 401,
   "comum": 200,
@@ -343,6 +355,12 @@
  },
  "/api/sources/add": {
   "admin": 405,
+  "anon": 401,
+  "comum": 403,
+  "infantil": 403
+ },
+ "/api/sources/browse": {
+  "admin": 200,
   "anon": 401,
   "comum": 403,
   "infantil": 403

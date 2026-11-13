@@ -299,8 +299,11 @@
     const caUrl = 'http://' + host + ':' + httpPort + '/ca.crt';
     _phoneUrls = { app: appUrl, ip: ipUrl, ca: caUrl };
 
+    const qr = (typeof qrSvg === 'function') ? qrSvg(appUrl, 168) : '';
     box.innerHTML =
-      '<div class="phone-url">'
+      (qr ? '<div class="phone-qr">' + qr + '<div class="src-hint">Aponte a câmera do celular '
+        + 'para abrir o app (faça antes o passo do certificado abaixo).</div></div>' : '')
+      + '<div class="phone-url">'
       + '<code>' + escHtml(appUrl) + '</code>'
       + '<button class="user-btn" data-act="copyPhone" data-args="[{&quot;$&quot;:&quot;this&quot;},&quot;app&quot;]">Copiar</button>'
       + '</div>'
@@ -406,16 +409,15 @@
     if (candidates.length > 0) {
       html += '<div class="user-section-title">Detectadas neste computador</div>'
         + '<div class="src-hint">As marcadas com <svg class="icon-svg"><use href="#i-check"></use></svg> '
-        + 'já têm uma pasta <b>Media Server</b> dentro e entram na hora.</div>'
+        + 'já estão organizadas; nas outras, a própria pasta vira o acervo.</div>'
         + '<div class="src-detected">';
       candidates.forEach(c => {
         const icon = c.kind === 'volume' ? '#i-hard-drive' : '#i-folder';
-        // Sem a pasta Media Server dentro, o cadastro seria recusado — melhor
-        // deixar isso visivel antes do clique.
-        const dica = c.pronto ? c.path : c.path + ' — sem uma pasta Media Server dentro';
+        // Sem a pasta Media Server dentro, a propria pasta vira o acervo.
+        const dica = c.pronto ? c.path : c.path + ' — a própria pasta será usada como acervo';
         html += '<button class="src-detected-btn' + (c.pronto ? ' pronto' : '') + '" '
           + 'title="' + escHtml(dica) + '" '
-          + attrAcao('addSource', [c.name, c.path]) + '>'
+          + attrAcao('addSource', [c.name, c.path, true]) + '>'
           + '<svg class="icon-svg"><use href="' + icon + '"></use></svg> ' + escHtml(c.name)
           + (c.pronto
               ? ' <svg class="icon-svg"><use href="#i-check"></use></svg>'
@@ -425,29 +427,32 @@
       html += '</div>';
     }
 
-    const nomeBiblioteca = (window.__LOGICAL_ROOT__ || '/Media Server').slice(1);
     html += '<div class="user-section-title">Adicionar uma pasta</div>'
-      + '<div class="src-hint">A pasta precisa ter uma pasta <b>' + escHtml(nomeBiblioteca) + '</b> dentro '
-      + '(ou até dois níveis abaixo), com os filmes nela:<br>'
-      + '<code>' + escHtml(nomeBiblioteca) + ' / Filme (ano) / filme.mkv</code> — com o '
-      + '<code>.nfo</code> e o <code>poster.jpg</code> junto do vídeo. '
-      + 'Arquivo solto também vale, e as tags você cria no app.</div>'
+      + '<div class="src-hint">Escolha a pasta onde estão seus filmes (no computador, num HD externo ou pendrive). '
+      + 'Pode ser uma pasta por filme ou os arquivos soltos; não precisa organizar antes.</div>'
+      + '<div class="user-form">'
+      + '<button class="user-btn" data-act="srcBrowse" data-args="[&quot;&quot;]">'
+      + '<svg class="icon-svg"><use href="#i-folder"></use></svg> Escolher pasta…</button>'
+      + '</div>'
+      + '<div id="srcBrowser"></div>'
+      + '<details class="src-avancado"><summary class="src-hint">Prefiro digitar o caminho</summary>'
       + '<div class="user-form">'
       + '<input type="text" id="srcName" placeholder="Nome (ex.: HD Externo)" autocomplete="off">'
       + '<input type="text" id="srcPath" placeholder="Caminho (ex.: /Volumes/MeuHD/Filmes)" autocomplete="off">'
       + '<button class="user-btn" data-act="addSourceFromForm">'
       + '<svg class="icon-svg"><use href="#i-plus"></use></svg> Adicionar</button>'
-      + '</div>'
+      + '</div></details>'
       + '<div id="sourcesMsg"></div>';
 
     document.getElementById('sourcesBox').innerHTML = html;
+    if (_abrirNavegadorAoCarregar) { _abrirNavegadorAoCarregar = false; srcBrowse(''); }
     const input = document.getElementById('srcPath');
     if (input) {
       input.addEventListener('keydown', e => { if (e.key === 'Enter') addSourceFromForm(); });
     }
   }
 
-  async function _srcPost(url, body) {
+  async function _srcPost(url, body, nome, caminho) {
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -456,7 +461,17 @@
       });
       const data = await res.json();
       if (data.status !== 'ok') {
-        _srcMsg(data.error || 'Falhou.', 'err');
+        if (data.codigo === 'sem_pasta_biblioteca') {
+          const el = document.getElementById('sourcesMsg');
+          if (el) {
+            el.className = 'user-msg err';
+            el.innerHTML = escHtml(data.error) + '<div style="margin-top:10px">'
+              + '<button class="user-btn"' + attrAcao('addSourceAceitar', [nome, caminho]) + '>'
+              + 'Usar esta pasta mesmo assim</button></div>';
+          }
+        } else {
+          _srcMsg(data.error || 'Falhou.', 'err');
+        }
         return null;
       }
       return data;
@@ -466,13 +481,66 @@
     }
   }
 
-  async function addSource(name, path) {
-    const data = await _srcPost('/api/sources/add', { name: name, path: path });
+  function _baseName(path) {
+    return String(path || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop() || 'Meus filmes';
+  }
+
+  async function addSource(name, path, aceitar) {
+    const data = await _srcPost('/api/sources/add',
+      { name: name, path: path, aceitar_pasta: !!aceitar }, name, path);
     if (!data) return;
     _invalidateCatalog();
     await _loadSources();
     _srcMsg(data.message || 'Fonte adicionada.', 'ok');
     showToast('💽 ' + name + ' adicionada ao acervo', '');
+    // O servidor já começou o primeiro scan: acompanha na barra lateral e, ao
+    // terminar, a home mostra quantos filmes entraram.
+    if (data.scan !== 'already_scanning') _watchScanProgress();
+  }
+
+  // Pasta sem a subpasta do acervo: em vez de só recusar, oferece usar a própria.
+  function addSourceAceitar(name, path) { addSource(name, path, true); }
+
+  // Seletor de pasta: navega pelas pastas do computador (só nomes de pasta) e
+  // evita que o leigo tenha que digitar um caminho.
+  async function srcBrowse(path) {
+    const box = document.getElementById('srcBrowser');
+    if (!box) return;
+    box.innerHTML = '<div class="loading" style="min-height:60px"><div class="spinner"></div></div>';
+    let d;
+    try { d = await (await fetch('/api/sources/browse?path=' + encodeURIComponent(path || ''))).json(); }
+    catch (e) { box.innerHTML = '<div class="user-msg err">Erro de rede.</div>'; return; }
+    if (d.erro) { box.innerHTML = '<div class="user-msg err">' + escHtml(d.erro) + '</div>'; return; }
+    const item = (nome, p) => '<button class="src-detected-btn"' + attrAcao('srcBrowse', [p]) + '>'
+      + '<svg class="icon-svg"><use href="#i-folder"></use></svg> ' + escHtml(nome) + '</button>';
+    let html = '<div class="src-browser">';
+    if (!d.path) {
+      html += '<div class="src-hint">Comece por um destes lugares:</div><div class="src-detected">'
+        + (d.atalhos || []).map(a => item(a.name, a.path)).join('') + '</div>';
+    } else {
+      html += '<div class="src-path">' + escHtml(d.path) + '</div><div class="src-detected">'
+        + '<button class="src-detected-btn"' + attrAcao('srcBrowse', [d.parent || '']) + '>'
+        + '<svg class="icon-svg"><use href="#i-folder"></use></svg> ⬆ Voltar</button>'
+        + d.pastas.map(f => item(f.name, f.path)).join('') + '</div>'
+        + (d.pastas.length ? '' : '<div class="src-hint">Nenhuma subpasta aqui.</div>')
+        + '<div class="src-hint">' + (d.videos
+            ? d.videos + (d.videos === 1 ? ' vídeo nesta pasta.' : ' vídeos nesta pasta.')
+            : 'Nenhum vídeo direto nesta pasta (os das subpastas também entram).') + '</div>'
+        + (d.usavel
+            ? '<button class="user-btn"' + attrAcao('srcBrowseUse', [d.path]) + '>'
+              + '<svg class="icon-svg"><use href="#i-check"></use></svg> Usar esta pasta</button>'
+            : '<div class="user-msg err">' + escHtml(d.motivo || 'Esta pasta não pode ser usada.') + '</div>');
+    }
+    box.innerHTML = html + '</div>';
+  }
+
+  function srcBrowseUse(path) { addSource(_baseName(path), path, true); }
+
+  // Atalho da home vazia: abre as fontes já no seletor de pasta.
+  let _abrirNavegadorAoCarregar = false;
+  function onboardingEscolherPasta() {
+    _abrirNavegadorAoCarregar = true;
+    openSourcesModal();
   }
 
   function addSourceFromForm() {
@@ -480,7 +548,7 @@
     const nameEl = document.getElementById('srcName');
     const path = pathEl ? pathEl.value.trim() : '';
     if (!path) { _srcMsg('Informe o caminho da pasta.', 'err'); return; }
-    addSource(nameEl && nameEl.value.trim() ? nameEl.value.trim() : path.split('/').pop(), path);
+    addSource(nameEl && nameEl.value.trim() ? nameEl.value.trim() : _baseName(path), path);
   }
 
   // Remocao em duas etapas: o primeiro clique so arma o botao. Tirar uma fonte

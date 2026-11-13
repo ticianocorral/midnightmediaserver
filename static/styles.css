@@ -2528,3 +2528,25 @@ button, input, select, textarea { font-family: inherit; }
 .proximo-btn.primario:hover { background: var(--primary-hover); }
 .proximo-btn:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
 @media (max-width: 700px) { .proximo-card { right: 12px; bottom: 100px; } }
+
+/* Primeiro uso: acervo vazio e seletor de pasta */
+.empty-state.onboarding { padding: 56px 20px; }
+.onboarding-acoes { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 22px 0 14px; }
+.onboarding-dica { font-size: 13px; opacity: .7; }
+.src-browser { margin: 8px 0 14px; }
+.src-avancado { margin-top: 10px; }
+.src-avancado summary { cursor: pointer; }
+
+.checklist-inicial { margin: 0 0 22px; padding: 16px 18px; border: 1px solid var(--border, #2e2e33); border-radius: 8px; background: var(--surface); }
+.checklist-topo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.checklist-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; }
+.checklist-item.feito { opacity: .55; text-decoration: line-through; }
+.checklist-item a { color: inherit; text-decoration: underline; }
+
+.phone-qr { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.phone-qr svg { border-radius: 6px; flex: none; }
+
+.dica-primeira-vez { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; padding: 12px 14px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border, #2e2e33); font-size: 14px; }
+.dica-primeira-vez span { flex: 1; line-height: 1.45; }
+
+.sidebar-conta { margin-left: auto; opacity: .5; font-size: 12px; }

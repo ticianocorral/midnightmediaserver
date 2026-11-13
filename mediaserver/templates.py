@@ -1,6 +1,9 @@
 """HTML servido pelo proprio Python (nao vem do index.html)."""
 
+import html
+
 from .config import MIN_PASSWORD_LEN
+from .netutil import nome_da_maquina
 from . import branding as _branding
 
 
@@ -28,17 +31,19 @@ def _login_page(setup=False, codigo=None):
         if codigo:
             # Quem abre a pagina no proprio computador ja tem acesso a maquina,
             # entao o codigo (que existe para barrar a rede) vem preenchido.
-            sub = ("Primeiro acesso. Como voce esta neste computador, o codigo "
-                   "ja veio preenchido. Esta e a conta unica da casa: depois "
-                   "voce cria os perfis de cada pessoa.")
+            sub = ("Bem-vindo! Crie o login da casa: ele fica com voce, que "
+                   "administra o servidor. Depois cada pessoa ganha o proprio "
+                   "perfil (com historico e, se quiser, PIN). O codigo de "
+                   "seguranca ja veio preenchido porque voce esta neste computador.")
         else:
-            sub = ("Primeiro acesso. O codigo de 6 digitos aparece no terminal "
-                   "onde o %s esta rodando. Esta e a conta unica da casa: depois "
-                   "voce cria os perfis de cada pessoa." % marca["nome"])
+            sub = ("Bem-vindo! Crie o login da casa: ele fica com quem administra "
+                   "o servidor. Depois cada pessoa ganha o proprio perfil. O "
+                   "codigo de seguranca de 6 digitos aparece no terminal onde o "
+                   "%s esta rodando." % marca["nome"])
         action = "/api/auth/setup"
         button = "Criar conta e entrar"
         extra_top = (
-            '<label for="code">Codigo de instalacao</label>'
+            '<label for="code">Codigo de seguranca</label>'
             '<input id="code" type="text" inputmode="numeric" pattern="[0-9]{6}" '
             'maxlength="6" autocomplete="off" required placeholder="000000"%s>'
             % (' value="%s"' % codigo if codigo else ""))
@@ -48,7 +53,10 @@ def _login_page(setup=False, codigo=None):
             'required minlength="%d">'
             '<label for="perfil">Nome do seu perfil</label>'
             '<input id="perfil" type="text" maxlength="20" autocomplete="off" '
-            'placeholder="Ex.: Ticiano">' % MIN_PASSWORD_LEN)
+            'placeholder="Ex.: Ticiano">'
+            '<p class="sub" style="margin:-8px 0 16px;font-size:12px">O perfil e o seu '
+            'nome na hora de assistir. Os outros perfis (filhos, familia) voce cria depois.</p>'
+            % MIN_PASSWORD_LEN)
         hint = ("Depois disso nao existe auto-cadastro. Os perfis (com avatar, "
                 "perfil infantil e PIN) voce cria na tela de escolha de perfil.")
         autocomplete = "new-password"
@@ -89,6 +97,7 @@ __FONTE__
   }
   .brand { margin: 0; line-height: 0; }
   .wordmark { height: 34px; width: auto; display: block; }
+  .maquina { margin: 12px 0 0; font-size: 12px; color: #8f8a7e; }
   h1 { font-size: 19px; font-weight: 600; margin: 18px 0 6px; }
   p.sub { margin: 0 0 22px; font-size: 14px; line-height: 1.5; color: #a8a296; }
   label {
@@ -117,6 +126,7 @@ __FONTE__
 </head><body>
   <form class="card" id="form" autocomplete="on">
     <div class="brand">__WORDMARK__</div>
+    <p class="maquina">Servidor: __MAQUINA__</p>
     <h1>__HEADING__</h1>
     <p class="sub">__SUB__</p>
     __EXTRA_TOP__
@@ -180,7 +190,7 @@ __FONTE__
         ("__FONTE__", _FONT_FACE), ("__BUTTON__", button), ("__EXTRA_TOP__", extra_top),
         ("__EXTRA_BOTTOM__", extra_bottom), ("__HINT__", hint),
         ("__AC__", autocomplete), ("__MIN__", str(MIN_PASSWORD_LEN)),
-        ("__WORDMARK__", _WORDMARK), ("__MARCA__", marca["nome"]), ("__COR__", cor),
+        ("__WORDMARK__", _WORDMARK), ("__MAQUINA__", html.escape(nome_da_maquina())), ("__MARCA__", marca["nome"]), ("__COR__", cor),
         ("__COR_HOVER__", cor_hover), ("__COR_RGB__", cor_rgb),
     ):
         page = page.replace(token, value)
@@ -501,6 +511,7 @@ def _profiles_page():
   </div>
 </header>
 <main>
+  <p class="sub" style="margin-bottom:4px">Servidor: __MAQUINA__</p>
   <h1 id="titulo">Quem está assistindo?</h1>
   <p class="sub" id="subtitulo"></p>
   <div class="grid" id="grade"></div>
@@ -550,4 +561,5 @@ def _profiles_page():
 </div>
 <script>__JS__</script>
 </body></html>""".replace("__FONTE__", _FONT_FACE).replace("__CSS__", css).replace("__JS__", _PROFILES_JS) \
-        .replace("__WORDMARK__", wordmark).replace("__NOME__", marca["nome"])
+        .replace("__WORDMARK__", wordmark).replace("__NOME__", marca["nome"]) \
+        .replace("__MAQUINA__", html.escape(nome_da_maquina()))

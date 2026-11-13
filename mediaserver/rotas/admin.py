@@ -6,6 +6,7 @@ Metodos _get_<caminho> chamados pela tabela de rotas do MediaServerHandler (hand
 from .. import scraper as _scraper
 from .. import organizador as _organizador
 from .. import branding as _branding
+from .. import sources as _sources
 
 
 class AdminRotas:
@@ -85,6 +86,12 @@ class AdminRotas:
     def _get_api_sources_detect(self, path, params):
         """GET /api/sources/detect"""
         self._handle_sources_detect()
+        return
+
+    def _get_api_sources_browse(self, path, params):
+        """GET /api/sources/browse"""
+        r = _sources.browse(params.get("path", [""])[0])
+        self._send_json(r, 400 if "erro" in r else 200)
         return
 
     def _get_api_sources_add(self, path, params):

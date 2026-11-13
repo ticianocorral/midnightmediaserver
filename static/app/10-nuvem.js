@@ -18,7 +18,7 @@
   function _renderNuvemPanel(st, s) {
     var html = '<div class="rclone-subhead"><svg class="icon-svg"><use href="#i-cloud"></use></svg> Nuvem</div>';
     if (st && st.configurado) {
-      html += '<div class="rclone-row"><span class="rclone-label">Remote</span>'
+      html += '<div class="rclone-row"><span class="rclone-label">Conexão</span>'
         + _rcloneBadge(true, escHtml(st.remote) + (st.tipo ? ' <span class="rclone-mini">' + escHtml(st.tipo) + '</span>' : ''), '') + '</div>';
       html += '<div class="rclone-row"><span class="rclone-label">Pasta do acervo</span>'
         + _rcloneBadge(true, st.pasta ? escHtml(st.pasta) : 'raiz do remote', '') + '</div>';
@@ -33,9 +33,9 @@
       return html;
     }
     html += '<div class="rclone-help"><svg class="icon-svg"><use href="#i-bulb"></use></svg> '
-      + 'Conecte qualquer nuvem que o rclone conhece — Backblaze B2, Google Drive, S3, '
-      + 'Dropbox, SFTP... Use um remote que já existe no seu rclone.conf ou crie um '
-      + 'novinho pelo assistente.</div>';
+      + 'Conecte Backblaze B2, Google Drive, S3, '
+      + 'Dropbox, SFTP e outras. Use uma nuvem já configurada ou conecte uma '
+      + 'nova pelo passo a passo.</div>';
     html += '<div class="rclone-actions">'
       + '<button class="rclone-action-btn primary" data-act="openNuvemWizard"><svg class="icon-svg"><use href="#i-cloud"></use></svg> Conectar nuvem</button>'
       + '</div>';
@@ -82,12 +82,12 @@
       '<div class="wizard-origem">'
       + '<button class="wizard-opcao" data-act="_wizardPassoExistente">'
       + '<span class="wizard-opcao-icone"><svg class="icon-svg"><use href="#i-layers"></use></svg></span>'
-      + '<span><b>Usar um remote existente</b><br>'
-      + '<small>Escolha na lista do seu rclone.conf</small></span></button>'
+      + '<span><b>Usar uma conexão que já existe</b><br>'
+      + '<small>Escolha entre as nuvens já configuradas neste computador</small></span></button>'
       + '<button class="wizard-opcao" data-act="_wizardPassoNovoTipo">'
       + '<span class="wizard-opcao-icone"><svg class="icon-svg"><use href="#i-plus"></use></svg></span>'
-      + '<span><b>Criar um remote novo</b><br>'
-      + '<small>Assistente com os campos de cada nuvem</small></span></button>'
+      + '<span><b>Conectar uma nuvem nova</b><br>'
+      + '<small>Passo a passo para Drive, Backblaze, S3 e outras</small></span></button>'
       + '</div>'
       + '<div class="colecao-passos"><span></span>'
       + '<button class="rclone-action-btn" data-act="closeNuvemWizard">Cancelar</button></div>');
@@ -95,19 +95,19 @@
 
   function _wizardPassoExistente() {
     _wizard.passo = 'existente';
-    _wizardCorpo('<div class="loading" style="min-height:90px"><div class="spinner"></div><span>Listando remotes...</span></div>');
+    _wizardCorpo('<div class="loading" style="min-height:90px"><div class="spinner"></div><span>Procurando conexões...</span></div>');
     fetch('/api/rclone/remotes').then(r => r.json()).then(remotes => {
       if (!Array.isArray(remotes)) {
-        _wizardErro((remotes && remotes.error) || 'Falha ao listar remotes.');
+        _wizardErro((remotes && remotes.error) || 'Não consegui listar as conexões.');
         return;
       }
       _wizard.remotes = remotes;
       if (!remotes.length) {
-        _wizardCorpo('<p class="colecao-dica">Seu rclone.conf ainda não tem remote nenhum. '
+        _wizardCorpo('<p class="colecao-dica">Você ainda não tem nenhuma nuvem conectada. '
           + 'Crie um pelo assistente:</p>'
           + '<div class="colecao-passos">'
           + '<button class="rclone-action-btn" data-act="_wizardPassoOrigem">← Voltar</button>'
-          + '<button class="rclone-action-btn primary" data-act="_wizardPassoNovoTipo">Criar remote</button>'
+          + '<button class="rclone-action-btn primary" data-act="_wizardPassoNovoTipo">Conectar uma nuvem</button>'
           + '</div>');
         return;
       }
@@ -116,10 +116,10 @@
         + attrAcao('_wizardEscolherRemote', [{$: 'this'}, r.nome]) + '>'
         + '<b>' + escHtml(r.nome) + '</b>'
         + '<span class="wizard-remoto-tipo">' + escHtml(r.tipo || '?') + '</span></button>').join('');
-      _wizardCorpo('<div class="colecao-secao-titulo">Escolha o remote</div>'
+      _wizardCorpo('<div class="colecao-secao-titulo">Escolha a nuvem</div>'
         + '<div class="wizard-lista">' + opcoes + '</div>'
-        + '<label class="colecao-campo"><span>Pasta do acervo dentro do remote <em>(opcional)</em></span>'
-        + '<input id="wizardPasta" type="text" placeholder="deixe vazio para usar a raiz do remote"></label>'
+        + '<label class="colecao-campo"><span>Pasta dos filmes dentro da nuvem <em>(opcional)</em></span>'
+        + '<input id="wizardPasta" type="text" placeholder="deixe vazio para usar a pasta principal"></label>'
         + '<div class="colecao-passos">'
         + '<button class="rclone-action-btn" data-act="_wizardPassoOrigem">← Voltar</button>'
         + '<button class="rclone-action-btn primary" data-act="_wizardConectar">Conectar</button>'
@@ -141,7 +141,7 @@
   function _wizardConectar() {
     if (!_wizard) return;
     if (_wizard.passo === 'existente' && !_wizard.remote) {
-      _wizardErro('Escolha um remote da lista.');
+      _wizardErro('Escolha uma nuvem da lista.');
       return;
     }
     const pasta = _wizardPastaLida();
@@ -166,7 +166,7 @@
 
   function nuvemDesconectar() {
     _confirmarGenerico('Desconectar a nuvem?',
-      'O app deixa de mostrar o acervo da nuvem. O remote e os arquivos ficam intactos no rclone.',
+      'O app deixa de mostrar o acervo da nuvem. Seus arquivos na nuvem não são tocados.',
       function() {
         fetch('/api/nuvem/desconectar', { method: 'POST' })
           .then(r => r.json())
@@ -235,8 +235,8 @@
         + ' autocomplete="off"></label>'
         + (o.ajuda ? '<div class="wizard-ajuda">' + escHtml(o.ajuda) + '</div>' : '');
     }).join('');
-    _wizardCorpo('<div class="colecao-secao-titulo">Novo remote: ' + escHtml(p.nome) + '</div>'
-      + '<label class="colecao-campo"><span>Nome do remote</span>'
+    _wizardCorpo('<div class="colecao-secao-titulo">Nova nuvem: ' + escHtml(p.nome) + '</div>'
+      + '<label class="colecao-campo"><span>Nome para esta nuvem</span>'
       + '<input id="wizardNome" type="text" value="' + escHtml(tipo) + '" maxlength="30"></label>'
       + campos
       + '<div class="colecao-passos">'
@@ -247,7 +247,7 @@
 
   function _wizardCriarRemote() {
     const nome = (document.getElementById('wizardNome').value || '').trim();
-    if (!nome) { _wizardErro('Dê um nome ao remote.'); return; }
+    if (!nome) { _wizardErro('Dê um nome a esta nuvem.'); return; }
     const p = _wizard.providers.find(x => x.tipo === _wizard.tipo);
     const parametros = {};
     (p ? p.opcoes : []).forEach(o => {
@@ -261,19 +261,19 @@
       body: JSON.stringify({ nome: nome, tipo: _wizard.tipo, parametros: parametros }),
     }).then(r => r.json()).then(data => {
       if (data.status === 'ok') {
-        showToast('✅ Remote "' + data.nome + '" criado e testado.', 'success');
+        showToast('✅ Nuvem "' + data.nome + '" conectada e testada.', 'success');
         _wizard.remote = data.nome;
         _wizard.passo = 'existente';
-        _wizardCorpo('<p class="colecao-dica">Remote <b>' + escHtml(data.nome) + '</b> criado e respondendo. '
+        _wizardCorpo('<p class="colecao-dica">Nuvem <b>' + escHtml(data.nome) + '</b> criado e respondendo. '
           + 'Agora diga onde o acervo mora dentro dele (ou use a raiz):</p>'
           + '<label class="colecao-campo"><span>Pasta do acervo <em>(opcional)</em></span>'
-          + '<input id="wizardPasta" type="text" placeholder="raiz do remote"></label>'
+          + '<input id="wizardPasta" type="text" placeholder="pasta principal"></label>'
           + '<div class="colecao-passos">'
           + '<button class="rclone-action-btn" data-act="_wizardPassoOrigem">← Voltar</button>'
           + '<button class="rclone-action-btn primary" data-act="_wizardConectar">Conectar</button>'
           + '</div>');
       } else {
-        _wizardErro(data.error || 'Falha ao criar o remote.');
+        _wizardErro(data.error || 'Falha ao conectar a nuvem.');
         if (btn) { btn.disabled = false; btn.textContent = 'Criar e testar'; }
       }
     }).catch(() => {
@@ -466,6 +466,19 @@
   // Acompanha o scan em andamento: barra de progresso, limpeza dos timers e
   // recarga do catalogo no fim. Usado pelo botao Atualizar e pelo scan de uma
   // fonte so, no modal de Fontes.
+  // Ao fim de um scan, diz quantos filmes há (ou que a pasta não rendeu nenhum).
+  async function _avisarTotalDeFilmes() {
+    try {
+      const st = await (await fetch('/api/cache-status')).json();
+      const n = st.movies || 0;
+      showToast(n ? ('Encontrei ' + n + (n === 1 ? ' filme' : ' filmes') + ' no acervo')
+                  : 'Não encontrei filmes nessa fonte. Confira se a pasta tem vídeos.',
+                n ? 'success' : 'info');
+      const modal = document.getElementById('sourcesModal');
+      if (modal && modal.classList.contains('active')) _loadSources();
+    } catch (e) {}
+  }
+
   function _watchScanProgress() {
     const btn = document.getElementById('refreshBtn');
     const icon = btn ? btn.querySelector('.icon') : null;
@@ -514,6 +527,7 @@
           loadSidebarGenres(true);
           showToast('Escaneamento concluído!', 'success');
           loadPath(currentPath || '');
+          _avisarTotalDeFilmes();
         } else if (s.phase === 'error') {
           clearInterval(_scanProgressTimer);
           _scanProgressTimer = null;

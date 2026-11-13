@@ -272,9 +272,25 @@
     _sidebarGenresLoaded = true;
     // A barra lateral lista só as tags criadas na interface — gênero por
     // pasta deixou de existir. O "+" (admin) cria uma tag nova na hora.
-    cachedFetch('/api/generos').then(generos => {
+    Promise.all([
+      cachedFetch('/api/generos'),
+      cachedFetch('/api/generos-nfo').catch(() => [])
+    ]).then(([generos, generosNfo]) => {
       const isAdmin = _me && _me.role === 'admin';
-      let html = '<div class="sidebar-source-label"><svg class="icon-svg">'
+      let html = '';
+      // Gêneros do NFO: filtro automático (1º e 2º gênero de cada filme),
+      // separado das tags, que a pessoa cria e atribui.
+      if (generosNfo && generosNfo.length) {
+        html += '<div class="sidebar-source-label"><svg class="icon-svg">'
+          + '<use href="#i-film"></use></svg> Gêneros</div>';
+        generosNfo.forEach(g => {
+          html += '<button class="sidebar-item" data-nav="' + escHtml(GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)) + '"'
+            + attrAcao('loadPath', [GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)]) + '>'
+            + '<span class="icon"><svg class="icon-svg"><use href="#i-film"></use></svg></span> '
+            + escHtml(g.nome) + ' <span class="sidebar-conta">' + g.total + '</span></button>';
+        });
+      }
+      html += '<div class="sidebar-source-label"><svg class="icon-svg">'
         + '<use href="#i-layers"></use></svg> Tags'
         + (isAdmin
             ? ' <button class="sidebar-genre-add" data-act="openGeneroNovoModal" title="Criar tag">+</button>'
