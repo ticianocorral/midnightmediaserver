@@ -450,6 +450,13 @@
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
     {
+      version: '1.29.4',
+      title: 'TV: página pausada enquanto o vídeo toca',
+      changes: [
+        'A tela do app fica pausada por baixo do player da TV, liberando CPU e GPU para o vídeo',
+      ],
+    },
+    {
       version: '1.29.3',
       title: 'TV: escala 1,15x, navegação mais rápida e correção do menu de legenda',
       changes: [

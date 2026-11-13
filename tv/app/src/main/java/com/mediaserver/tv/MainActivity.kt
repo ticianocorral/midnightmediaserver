@@ -186,9 +186,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Com o player aberto, esta Activity fica por baixo e a pagina continuaria
+    // rodando (JS, timers, animacoes) disputando CPU e GPU com o video — num chip
+    // simples isso tira a fluidez. Pausar a WebView enquanto o player esta na frente.
     override fun onPause() {
         super.onPause()
         CookieManager.getInstance().flush()
+        web.onPause()
+        web.pauseTimers()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        web.onResume()
+        web.resumeTimers()
     }
 
     /** O que a pagina enxerga como window.MediaServerTV. */
