@@ -117,6 +117,11 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 ## 📋 Changelog
 
+### v1.29.4 — TV: página pausada enquanto o vídeo toca
+
+- A tela do app fica pausada por baixo do player da TV, liberando CPU e GPU para o vídeo
+
+
 ### v1.29.3 — TV: escala 1,15x, navegação mais rápida e correção do menu de legenda
 
 - Escala da interface na TV em 1,15x
