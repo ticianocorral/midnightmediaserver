@@ -117,15 +117,15 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 ## 📋 Changelog
 
-### v1.29.6 — Busca de metadado com confirmação e idioma pt-BR/US
+### v1.29.6 — Editor de capa e sinopse em uma tela só
 
-- Escolher o filme mostra o metadado para confirmar antes de salvar
+- O melhor resultado já vem escolhido: clique na capa, escolha a sinopse e salve
 
-- Idioma do metadado: Português (BR) ou English (US)
+- Sinopse em Português ou English, editável antes de salvar
 
 - Salvar sempre sobrescreve banco, .nfo e capa, sem guardar o anterior
 
-- Mesma tela de busca na ficha e em Sem metadado
+- Botão Capa e sinopse na ficha e a mesma tela em Sem metadado; capas de série também
 
 
 ### v1.29.5 — Baixar metadado e capa na ficha, metadado some ao apagar o .nfo e legenda nova na TV

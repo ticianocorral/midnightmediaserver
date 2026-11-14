@@ -52,7 +52,7 @@
     _generoToggleChip, _loadRcloneStatus, _orgAbrirCapas, _orgAplicar, _orgBuscar,
     _orgBuscarDoCampo, _orgBuscarTecla, _orgDesfazer, _orgEscolher, _orgFecharBusca,
     _orgLimpar, _orgProcurar, _orgSemCapa, _orgSugerir, _scrapeAba, _scrapeAbrirBusca,
-    _metaPreview, _metaSalvar, _scrapeIdioma, _scrapePendentes, _scrapeSalvarChave, _wizardConectar,
+    _metaEscolherCapa, _metaEscolherFilme, _metaEscolherSinopse, _metaSalvar, _scrapePendentes, _scrapeSalvarChave, _wizardConectar,
     _wizardCriarRemote, _wizardEscolherRemote, _wizardEscolherTipo, _wizardFiltrarTipos,
     _wizardPassoExistente, _wizardPassoNovoTipo, _wizardPassoOrigem, abrirBusca, abrirColecao,
     addSource, addSourceFromForm, backupToCloud, buscaTecla, cancelarProximo, clearCache,

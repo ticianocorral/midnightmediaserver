@@ -57,10 +57,11 @@ class AdminRotas:
             meta = _scraper.para_movie_meta(dados) if dados else None
         if meta:
             poster = meta.pop("_poster_path", None)
+            meta["poster_path"] = poster
             meta["poster"] = ("https://image.tmdb.org/t/p/w185" + poster) if poster else None
             meta.pop("video_info", None)
             meta.pop("audio_info", None)
-        self._send_json({"meta": meta, "erro": erro})
+        self._send_json({"meta": meta, "erro": erro, "local": _sources.is_local(folder_path)})
         return
 
     def _get_api_scrape_capas(self, path, params):
@@ -69,7 +70,10 @@ class AdminRotas:
             tmdb_id = int(params.get("tmdb_id", ["0"])[0])
         except ValueError:
             tmdb_id = 0
-        capas, erro = _scraper.listar_capas(tmdb_id) if tmdb_id else ([], "Filme não informado.")
+        folder_path = params.get("path", [""])[0]
+        tipo = self._tipo_da_pasta(folder_path) if folder_path else "filme"
+        capas, erro = (_scraper.listar_capas(tmdb_id, tipo, params.get("idioma", [""])[0])
+                       if tmdb_id else ([], "Filme não informado."))
         self._send_json({"capas": capas, "erro": erro})
         return
 

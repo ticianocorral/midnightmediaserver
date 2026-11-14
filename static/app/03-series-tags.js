@@ -577,10 +577,10 @@
 
   function pillCapaHtml(alvo, titulo) {
     return '<button class="pill-acao pill-acao-btn"'
-      + attrAcao('openCapaModal', [alvo, titulo]) + ' title="Escolher outra capa do TMDB">'
+      + attrAcao('openCapaModal', [alvo, titulo]) + ' title="Escolher capa e sinopse no TMDB">'
       + '<span class="pill-acao-icone"><svg class="icon-svg"><use href="#i-film"></use></svg></span>'
-      + '<span class="switch-texto"><span class="switch-rotulo">Capa</span>'
-      + '<span class="switch-nota">Trocar</span></span>'
+      + '<span class="switch-texto"><span class="switch-rotulo">Capa e sinopse</span>'
+      + '<span class="switch-nota">Editar</span></span>'
       + '</button>';
   }
 
