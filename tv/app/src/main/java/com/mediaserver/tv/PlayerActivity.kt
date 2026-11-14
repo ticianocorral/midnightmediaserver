@@ -25,7 +25,10 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.text.Cue
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.Dispatchers
@@ -59,8 +62,8 @@ class PlayerActivity : AppCompatActivity() {
 
     // Mesmos tamanhos e cores da pagina (app.js: subtitleSizes / subtitleColors),
     // para a escolha valer nos dois lugares. O indice volta no resultado.
-    private var tamanhoLegenda = 2
-    private var corLegenda = 0
+    private var tamanhoLegenda = 1          // Média
+    private var corLegenda = 1              // Branco
     private var legendaAtiva = true
 
     // Fila de episodios: [0] e o que a pagina abriu; os demais vem depois.
@@ -88,13 +91,40 @@ class PlayerActivity : AppCompatActivity() {
         val url = intent.getStringExtra(EXTRA_URL) ?: run { finish(); return }
         val legenda = intent.getStringExtra(EXTRA_LEGENDA).orEmpty()
         val posicao = intent.getLongExtra(EXTRA_POSICAO, 0L)
-        tamanhoLegenda = intent.getIntExtra(EXTRA_LEG_TAM, tamanhoLegenda).coerceIn(0, TAMANHOS.size - 1)
-        corLegenda = intent.getIntExtra(EXTRA_LEG_COR, corLegenda).coerceIn(0, CORES.size - 1)
+        // Na TV a legenda SEMPRE abre em Média e Branca: nao herda a escolha da
+        // pagina. O que for mudado vale so ate sair do filme.
 
         val item = montarItem(url, legenda)
         fila = montarFila(url, legenda)
 
-        player = ExoPlayer.Builder(this).build().also { p ->
+        // Prefere decodificador de HARDWARE. Em varias TVs a lista traz o
+        // OMX.google.* (software) antes do da fabricante, e o ExoPlayer pega o
+        // primeiro: o video "toca certinho" mas sem fluidez, no limite da CPU.
+        val seletor = MediaCodecSelector { mime, seguro, tunelado ->
+            MediaCodecSelector.DEFAULT.getDecoderInfos(mime, seguro, tunelado)
+                .sortedBy { d ->
+                    if (d.softwareOnly || d.name.startsWith("OMX.google") || d.name.startsWith("c2.android")) 1 else 0
+                }
+        }
+        val fabrica = DefaultRenderersFactory(this)
+            .setMediaCodecSelector(seletor)
+            .setEnableDecoderFallback(true)
+        player = ExoPlayer.Builder(this, fabrica).build().also { p ->
+            // Registra no log qual decodificador entrou e quantos quadros caem.
+            p.addAnalyticsListener(object : AnalyticsListener {
+                override fun onVideoDecoderInitialized(
+                    eventTime: AnalyticsListener.EventTime, decoderName: String,
+                    initializedTimestampMs: Long, initializationDurationMs: Long
+                ) {
+                    Log.i("Midnight Media ServerPlayer", "decodificador de video: $decoderName")
+                }
+
+                override fun onDroppedVideoFrames(
+                    eventTime: AnalyticsListener.EventTime, droppedFrames: Int, elapsedMs: Long
+                ) {
+                    Log.i("Midnight Media ServerPlayer", "quadros descartados: $droppedFrames em ${elapsedMs}ms")
+                }
+            })
             val view = findViewById<PlayerView>(R.id.player)
             playerView = view
             view.player = p
@@ -104,6 +134,10 @@ class PlayerActivity : AppCompatActivity() {
             // log mostra o motivo. O Toast e o minimo para o dono da TV saber
             // que o app ouviu o comando e foi o servidor/codec que recusou.
             p.addListener(object : androidx.media3.common.Player.Listener {
+                override fun onCues(cueGroup: androidx.media3.common.text.CueGroup) {
+                    mostrarLegenda(cueGroup.cues.joinToString("\n") { it.text?.toString().orEmpty() })
+                }
+
                 override fun onPlaybackStateChanged(estado: Int) {
                     // Fim do episodio: emenda o seguinte, se houver e nao foi cancelado.
                     if (estado == Player.STATE_ENDED && temProximo() && !proximoCancelado) avancar()
@@ -246,21 +280,25 @@ class PlayerActivity : AppCompatActivity() {
      * 40%), com o tamanho e a cor escolhidos no botao Legenda.
      */
     private fun aplicarEstiloLegenda() {
-        val sv = playerView.subtitleView ?: return
-        sv.setApplyEmbeddedStyles(false)
-        sv.setApplyEmbeddedFontSizes(false)
-        sv.setStyle(
-            CaptionStyleCompat(
-                CORES[corLegenda].cor,
-                0x66000000.toInt(),
-                android.graphics.Color.TRANSPARENT,
-                CaptionStyleCompat.EDGE_TYPE_NONE,
-                android.graphics.Color.TRANSPARENT,
-                android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
-            )
-        )
-        sv.setFractionalTextSize(TAMANHOS[tamanhoLegenda].fracao)
-        sv.setBottomPaddingFraction(0.05f)
+        // O SubtitleView do ExoPlayer fica desligado: quem desenha e o TextView
+        // legenda_apple (caixa arredondada, fonte Inter).
+        playerView.subtitleView?.visibility = View.GONE
+        val tv = findViewById<TextView>(R.id.legenda_apple)
+        val dm = resources.displayMetrics
+        tv.typeface = androidx.core.content.res.ResourcesCompat.getFont(this, R.font.inter_medium)
+        tv.setTextColor(CORES[corLegenda].cor)
+        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, TAMANHOS[tamanhoLegenda].fracao * dm.heightPixels)
+        tv.maxWidth = (dm.widthPixels * 0.7f).toInt()
+        (tv.layoutParams as android.widget.FrameLayout.LayoutParams).bottomMargin = (dm.heightPixels * 0.07f).toInt()
+        tv.requestLayout()
+    }
+
+    /** Mostra (ou esconde) o texto da legenda na caixa. */
+    private fun mostrarLegenda(texto: String) {
+        val tv = findViewById<TextView>(R.id.legenda_apple)
+        val t = texto.trim()
+        tv.text = t
+        tv.visibility = if (t.isEmpty()) View.GONE else View.VISIBLE
     }
 
     /** Capa + nome no topo e o botao Legenda; somem junto com os controles. */
@@ -323,8 +361,7 @@ class PlayerActivity : AppCompatActivity() {
         val p = player ?: return
         val tocava = p.isPlaying
         p.pause()
-        val sv = playerView.subtitleView
-        sv?.setCues(listOf(Cue.Builder().setText("Exemplo de legenda").build()))
+        mostrarLegenda("Exemplo de legenda")
 
         fun linhas() = listOf(
             "Legenda: " + if (legendaAtiva) "ativada" else "desativada",
@@ -338,7 +375,7 @@ class PlayerActivity : AppCompatActivity() {
             .setAdapter(adaptador, null)
             .create()
         dialogo.setOnDismissListener {
-            sv?.setCues(null)
+            mostrarLegenda(p.currentCues.cues.joinToString("\n") { it.text?.toString().orEmpty() })
             if (tocava) p.play()
             playerView.showController()
         }
@@ -433,10 +470,10 @@ class PlayerActivity : AppCompatActivity() {
 
         // Espelham subtitleSizes e subtitleColors do app.js (mesma ordem).
         private val TAMANHOS = listOf(
-            OpcaoTamanho("Pequena", 0.035f),
-            OpcaoTamanho("Média", 0.045f),
-            OpcaoTamanho("Grande", 0.06f),
-            OpcaoTamanho("Extra grande", 0.08f)
+            OpcaoTamanho("Pequena", 0.045f),
+            OpcaoTamanho("Média", 0.06f),
+            OpcaoTamanho("Grande", 0.075f),
+            OpcaoTamanho("Extra grande", 0.095f)
         )
         private val CORES = listOf(
             OpcaoCor("Amarelo", 0xFFFFD700.toInt()),

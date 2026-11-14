@@ -686,10 +686,16 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         if self._tipo_da_pasta(folder_path) == "serie":
             ok, erro, _n = _scraper.aplicar_serie(folder_path, tmdb_id)
         else:
-            ok, erro = _scraper.aplicar(folder_path, tmdb_id)
+            ok, erro = _scraper.aplicar(folder_path, tmdb_id,
+                                        substituir=bool(body.get("substituir")))
         if not ok:
             self._send_json({"status": "error", "error": erro}, 502)
             return
+        if body.get("substituir") and _sources.is_local(folder_path):
+            # reindexa a fonte: o catalogo passa a enxergar o .nfo e o poster novos
+            src = _sources.resolve(folder_path)
+            if src and src.get("id"):
+                _scanner.start_background_scan(src["id"])
         self._send_json({"status": "ok"})
 
     def _handle_scrape_capa(self):

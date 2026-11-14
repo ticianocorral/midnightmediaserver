@@ -12,6 +12,27 @@
         android:background="#000000"
         android:focusable="true" />
 
+    <!-- Legenda no estilo Apple TV: caixa arredondada translucida, fonte Inter
+         (parecida com a SF). Desenhada aqui porque o SubtitleView do ExoPlayer
+         so sabe fundo retangular. Tamanho e margem entram por codigo. -->
+    <TextView
+        android:id="@+id/legenda_apple"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:background="@drawable/fundo_legenda"
+        android:gravity="center"
+        android:paddingStart="20dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="8dp"
+        android:shadowColor="#80000000"
+        android:shadowDx="0"
+        android:shadowDy="2"
+        android:shadowRadius="4"
+        android:textColor="#FFFFFF"
+        android:visibility="gone" />
+
     <!-- Capa, nome e o botao de legenda: aparecem junto com os controles do
          player e somem com eles. -->
     <LinearLayout

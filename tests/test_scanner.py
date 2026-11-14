@@ -66,6 +66,18 @@ def test_remover_arquivo_some_do_catalogo(acervo):
     assert "Filme 0.mkv" not in nomes
 
 
+def test_metadado_some_quando_o_nfo_local_e_apagado(acervo):
+    # regressao: o filme sem .nfo nem poster continuava com o metadado antigo no banco
+    pasta = acervo / "Movies" / "Filme 5 (1985)"
+    _arq(pasta / "Filme 5.nfo", b"<movie><title>Filme 5</title><year>1985</year></movie>")
+    scanner.scan_all()
+    folder = [r["path"] for r in _consulta("SELECT path FROM folders WHERE path LIKE ?", "%/Filme 5 (1985)")][0]
+    assert _consulta("SELECT 1 FROM movie_meta WHERE folder_path=?", folder)
+    (pasta / "Filme 5.nfo").unlink()
+    scanner.scan_all()
+    assert not _consulta("SELECT 1 FROM movie_meta WHERE folder_path=?", folder)
+
+
 def test_scan_sem_nuvem_nao_derruba_as_fontes_locais(acervo):
     # regressao: scan_cloud levantava CaminhoInvalido e scan_all abortava
     assert scanner.scan_cloud() is False
@@ -86,3 +98,15 @@ def test_consulta_por_arquivo_usa_o_indice(acervo):
 def test_partir_caminho():
     assert db.partir_caminho("/a/b/c.mkv") == ("/a/b", "c.mkv")
     assert db.partir_caminho("/c.mkv") == ("", "c.mkv")
+
+
+def test_substituir_arquivos_guarda_o_nfo_antigo(tmp_path):
+    from mediaserver import scraper
+    pasta = tmp_path / "Filme (2000)"
+    _arq(pasta / "Filme (2000).nfo", b"<movie><title>Velho</title></movie>")
+    _arq(pasta / "Filme (2000).mkv")
+    meta = {"title": "Novo", "year": "2000", "genres": [], "actors": [], "directors": [],
+            "writers": [], "studios": [], "country": [], "tags": []}
+    assert scraper.substituir_arquivos(pasta, meta)
+    assert "Novo" in (pasta / "Filme (2000).nfo").read_text(encoding="utf-8")
+    assert "Velho" in (pasta / "Filme (2000).nfo.anterior").read_text(encoding="utf-8")

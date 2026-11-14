@@ -117,6 +117,17 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 ## 📋 Changelog
 
+### v1.29.5 — Baixar metadado e capa na ficha, metadado some ao apagar o .nfo e legenda nova na TV
+
+- Botão Baixar metadado e capa na ficha do filme: sobrepõe banco, .nfo e poster (o antigo vira .anterior)
+
+- Filme local sem .nfo não mostra mais metadado antigo do banco
+
+- TV: decodificador de hardware, legenda Média/Branca no estilo Apple TV com fonte Inter
+
+- TV: legenda e escala ajustadas
+
+
 ### v1.29.4 — TV: página pausada enquanto o vídeo toca
 
 - A tela do app fica pausada por baixo do player da TV, liberando CPU e GPU para o vídeo

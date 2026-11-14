@@ -497,9 +497,47 @@ def aplicar_capa(folder_path, tmdb_id, poster_path):
 
 # ── Aplicar: o unico caminho que grava alguma coisa ─────────
 
-def aplicar(folder_path, tmdb_id):
+def substituir_arquivos(pasta, meta):
+    """Troca o .nfo e o poster da pasta pelos do TMDB. O que existia nao e
+    apagado: o .nfo vira <nome>.nfo.anterior e a capa, poster.anterior.<ext>.
+    Devolve True se gravou o .nfo."""
+    try:
+        existentes = [p for p in pasta.iterdir() if p.is_file()]
+    except OSError:
+        return False
+    nfos = [p for p in existentes if p.suffix.lower() == ".nfo"]
+    nome_nfo = nfos[0].stem if nfos else pasta.name
+    for p in nfos:
+        try:
+            os.replace(p, p.with_name(p.name + ".anterior"))
+        except OSError:
+            pass
+    gravou = False
+    try:
+        _escrever_atomico(pasta / (nome_nfo + ".nfo"), _construir_nfo_xml(meta).encode("utf-8"))
+        gravou = True
+    except OSError:
+        pass
+    escolhida = meta.get("_poster_path")
+    if escolhida and _capa_valida(escolhida):
+        dados_img = _baixar_imagem(IMG_POSTER + escolhida)
+        if dados_img:
+            try:
+                for p in existentes:
+                    if p.stem.lower() in _NOMES_CAPA and p.suffix.lower() in (".jpg", ".jpeg", ".png"):
+                        os.replace(p, pasta / ("poster.anterior" + p.suffix.lower()))
+                        break
+                _escrever_atomico(pasta / "poster.jpg", dados_img)
+            except OSError:
+                pass
+    return gravou
+
+
+def aplicar(folder_path, tmdb_id, substituir=False):
     """Busca os detalhes de UM filme escolhido na tela de revisao, grava no
-    banco e, se der, escreve na pasta local. Devolve (ok, erro)."""
+    banco e, se der, escreve na pasta local. Com `substituir`, o metadado novo
+    SOBREPOE o que ja existe (banco, .nfo e poster); o antigo fica como .anterior.
+    Devolve (ok, erro)."""
     dados, erro = detalhes(tmdb_id)
     if erro:
         return False, erro
@@ -514,6 +552,11 @@ def aplicar(folder_path, tmdb_id):
     finally:
         conn.close()
 
+    if substituir and _sources.is_local(folder_path):
+        pasta = _sources.local_real_path(folder_path)
+        if pasta is not None and pasta.is_dir():
+            substituir_arquivos(pasta, meta)
+            return True, None
     _escrever_local_se_possivel(folder_path, meta)
     return True, None
 

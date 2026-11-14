@@ -46,7 +46,7 @@
   function _capaBuscarTecla(ev) { if (ev.key === 'Enter') _capaBuscar(); }
 
   const ACOES = Object.freeze({
-    _capaBuscar, _capaBuscarTecla, _capaClicada, _capaEscolherFilme, _cmDeleteCache,
+    _capaBaixarTudo, _capaBuscar, _capaBuscarTecla, _capaClicada, _capaEscolherFilme, _cmDeleteCache,
     _cmDownload, _colecaoEscolherCapa, _colecaoFiltrar, _colecaoIrParaCapa,
     _colecaoRenderPasso1, _colecaoSalvar, _colecaoToggle, _desmarcarEpisodio, _generoCriarEDar,
     _generoToggleChip, _loadRcloneStatus, _orgAbrirCapas, _orgAplicar, _orgBuscar,
