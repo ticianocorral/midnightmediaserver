@@ -211,7 +211,7 @@ def listar_itens(source_id):
 
 # ── Busca (so devolve candidatos) ────────────────────────────
 
-def buscar(source_id, origem, query=None):
+def buscar(source_id, origem, query=None, idioma=None):
     """Candidatos do TMDB para um item, ja com o destino que cada um geraria."""
     raiz, erro = _raiz_local(source_id)
     if erro:
@@ -226,7 +226,7 @@ def buscar(source_id, origem, query=None):
         if v and not titulo:
             titulo, ano = limpar_nome(v[0][0])
     texto = (query or "").strip() or (nome_padrao(titulo, ano) if titulo else base)
-    cands, erro = _scraper.buscar_candidatos(texto)
+    cands, erro = _scraper.buscar_candidatos(texto, idioma=idioma)
     if erro:
         return [], erro
     for c in cands:
@@ -326,31 +326,11 @@ def _remapear_banco(antigo, novo):
         conn.close()
 
 
-def _aplicar_um(src_cfg, raiz, item):
-    """Organiza UM item. Devolve (resultado_dict, None) ou (None, erro)."""
-    origem_rel = str(item.get("origem") or "")
-    try:
-        tmdb_id = int(item.get("tmdb_id"))
-    except (TypeError, ValueError):
-        return None, "Falta escolher o filme."
-    # valida o caminho ANTES de falar com o TMDB
-    pre = _dentro(raiz, origem_rel)
-    if pre is None or not pre.exists():
-        return None, "Item não encontrado na fonte."
-    dados, erro = _scraper.detalhes(tmdb_id)
-    if erro:
-        return None, erro
-    if not dados or not dados.get("id"):
-        return None, "O TMDB não devolveu dados para esse filme."
-    meta = _scraper.para_movie_meta(dados)
-    nome_base = nome_padrao(meta.get("title"), meta.get("year"))
-    if not nome_base:
-        return None, "Título inválido."
-    destino_rel = "%s/%s" % (CONTAINER_FILMES, nome_base)
+def _executar(raiz, tipo, origem_rel, destino_rel, nome_base):
+    """Move os arquivos de origem_rel para destino_rel/nome_base.*, desfazendo
+    tudo se algo falhar. Devolve ((destino_dir, feitos, criadas, removidas), None)
+    ou (None, erro)."""
     origem = _dentro(raiz, origem_rel)
-    if origem is None or not origem.exists():
-        return None, "Item não encontrado na fonte."
-    tipo = "pasta" if origem.is_dir() else "arquivo"
     try:
         movs = _planejar_movimentos(raiz, tipo, origem_rel, destino_rel, nome_base)
     except ValueError as e:
@@ -404,25 +384,100 @@ def _aplicar_um(src_cfg, raiz, item):
         except OSError:
             pass
 
+    return (destino_dir, feitos, criadas, removidas), None
+
+
+def _resultado(src_cfg, raiz, origem_rel, destino_rel, titulo, mov, novos=()):
+    destino_dir, feitos, criadas, removidas = mov
+    return {
+        "origem": origem_rel, "destino": destino_rel, "titulo": titulo,
+        "movimentos": [[s.relative_to(raiz).as_posix(), d.relative_to(raiz).as_posix()]
+                       for s, d in feitos],
+        "criadas": [d.relative_to(raiz).as_posix() for d in criadas],
+        "removidas": [d.relative_to(raiz).as_posix() for d in removidas],
+        "gerados": [p.relative_to(raiz).as_posix() for p in novos],
+        "mapa": [_logico(src_cfg, origem_rel), _logico(src_cfg, destino_rel)],
+    }
+
+
+def renomear_no_lugar(folder_logico, titulo, ano):
+    """Renomeia a pasta de UM filme local (e o video, legendas e .nfo) para
+    "Titulo (Ano)" no idioma do metadado salvo, sem tirar a pasta do lugar.
+    Fica no historico (da para desfazer). Devolve (path_logico_novo, None) se
+    renomeou, (None, None) se nao havia o que renomear, ou (None, erro)."""
+    src = _sources.resolve(folder_logico)
+    if not src or src.get("kind") != "local":
+        return None, None
+    raiz, erro = _raiz_local(src["id"])
+    if erro:
+        return None, erro
+    rel = ("/" + str(folder_logico).strip("/"))[len(src["mount"]):].strip("/")
+    nome_base = nome_padrao(titulo, ano)
+    origem = _dentro(raiz, rel) if rel else None
+    if not nome_base or origem is None or not origem.is_dir():
+        return None, None
+    videos = _videos_da_pasta(origem)
+    if len(videos) != 1 or _tem_videos_abaixo(origem):
+        return None, None   # nao e pasta de um filme so: nao mexe
+    pai = rel.rsplit("/", 1)[0] if "/" in rel else ""
+    destino_rel = (pai + "/" if pai else "") + nome_base
+    if destino_rel == rel and Path(videos[0][0]).stem == nome_base:
+        return None, None   # ja esta com esse nome
+    destino = _dentro(raiz, destino_rel)
+    if destino is None:
+        return None, "Nome inválido."
+    if destino_rel != rel and destino.exists() and not _mesmo_arquivo(destino, origem):
+        return None, "Já existe a pasta \"%s\". O metadado foi salvo, mas a pasta não foi renomeada." % nome_base
+    with _lock:
+        mov, erro = _executar(raiz, "pasta", rel, destino_rel, nome_base)
+        if erro:
+            return None, erro
+        res = _resultado(src, raiz, rel, destino_rel, titulo, mov)
+        _remapear_banco(*res["mapa"])
+        _registrar(src["id"], [res])
+    return res["mapa"][1], None
+
+
+def _aplicar_um(src_cfg, raiz, item):
+    """Organiza UM item. Devolve (resultado_dict, None) ou (None, erro)."""
+    origem_rel = str(item.get("origem") or "")
+    try:
+        tmdb_id = int(item.get("tmdb_id"))
+    except (TypeError, ValueError):
+        return None, "Falta escolher o filme."
+    # valida o caminho ANTES de falar com o TMDB
+    pre = _dentro(raiz, origem_rel)
+    if pre is None or not pre.exists():
+        return None, "Item não encontrado na fonte."
+    dados, erro = _scraper.detalhes(tmdb_id, item.get("idioma"))
+    if erro:
+        return None, erro
+    if not dados or not dados.get("id"):
+        return None, "O TMDB não devolveu dados para esse filme."
+    meta = _scraper.para_movie_meta(dados)
+    nome_base = nome_padrao(meta.get("title"), meta.get("year"))
+    if not nome_base:
+        return None, "Título inválido."
+    destino_rel = "%s/%s" % (CONTAINER_FILMES, nome_base)
+    origem = _dentro(raiz, origem_rel)
+    if origem is None or not origem.exists():
+        return None, "Item não encontrado na fonte."
+    tipo = "pasta" if origem.is_dir() else "arquivo"
+    mov, erro = _executar(raiz, tipo, origem_rel, destino_rel, nome_base)
+    if erro:
+        return None, erro
+    destino_dir, feitos, criadas, removidas = mov
+
     # a capa e a que a pessoa escolheu na tela; sem escolha vale a principal do
     # TMDB, e "sem_capa" deixa a pasta sem baixar nada
     novos = _scraper.escrever_arquivos(
         destino_dir, meta, nome_nfo=nome_base,
         poster_path=item.get("poster_path"), sem_capa=bool(item.get("sem_capa")))
 
-    logico_antigo = _logico(src_cfg, origem_rel)
-    logico_novo = _logico(src_cfg, destino_rel)
-    _remapear_banco(logico_antigo, logico_novo)
-    # filme solto: o progresso podia estar no path do arquivo
-    return {
-        "origem": origem_rel, "destino": destino_rel, "titulo": meta.get("title"),
-        "movimentos": [[s.relative_to(raiz).as_posix(), d.relative_to(raiz).as_posix()]
-                       for s, d in feitos],
-        "criadas": [d.relative_to(raiz).as_posix() for d in criadas],
-        "removidas": [d.relative_to(raiz).as_posix() for d in removidas],
-        "gerados": [p.relative_to(raiz).as_posix() for p in novos],
-        "mapa": [logico_antigo, logico_novo],
-    }, None
+    res = _resultado(src_cfg, raiz, origem_rel, destino_rel, meta.get("title"),
+                     (destino_dir, feitos, criadas, removidas), novos)
+    _remapear_banco(*res["mapa"])
+    return res, None
 
 
 def aplicar(source_id, itens):

@@ -59,6 +59,11 @@
     return '/api/stream?path=' + encodeURIComponent(filePath);
   }
 
+  // Capa já com caminho completo (mesmo "&i=2" de posterUrl).
+  function capaUrl(filePath) {
+    return streamUrl(filePath) + '&i=2';
+  }
+
   function posterUrl(folderPath, imageName) {
     if (!imageName) return null;
     // Algumas APIs (séries, coleções) já entregam o caminho completo da
@@ -67,7 +72,9 @@
     const fullPath = imageName.indexOf('/') === -1
       ? folderPath + '/' + imageName
       : imageName;
-    return '/api/stream?path=' + encodeURIComponent(fullPath);
+    // "&i=2": endereço novo para as capas. As antigas ficaram no cache do
+    // navegador por 1 dia; agora o servidor manda revalidar (ETag) a cada uso.
+    return '/api/stream?path=' + encodeURIComponent(fullPath) + '&i=2';
   }
 
   // ==================== FORMAT ====================

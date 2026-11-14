@@ -176,7 +176,7 @@
     area.innerHTML = '<div class="loading" style="min-height:60px"><div class="spinner"></div><span>Buscando no TMDB...</span></div>';
     const q = (texto !== undefined) ? texto : '';
     const d = await (await fetch('/api/organizar/buscar?source=' + encodeURIComponent(_org.source)
-      + '&origem=' + encodeURIComponent(it.origem) + (q ? '&q=' + encodeURIComponent(q) : ''))).json();
+      + '&origem=' + encodeURIComponent(it.origem) + (q ? '&q=' + encodeURIComponent(q) : '') + '&idioma=' + _idiomaAtual())).json();
     _org.busca[id] = d;
     _orgMostrarCandidatos(id, d);
   }
@@ -267,7 +267,7 @@
       if (_org.escolha[it.origem] || !it.titulo) continue;
       try {
         const d = await (await fetch('/api/organizar/buscar?source=' + encodeURIComponent(_org.source)
-          + '&origem=' + encodeURIComponent(it.origem))).json();
+          + '&origem=' + encodeURIComponent(it.origem) + '&idioma=' + _idiomaAtual())).json();
         const c = (d.candidatos || [])[0];
         if (c && it.ano && c.ano === it.ano &&
             (_orgNorm(c.titulo) === _orgNorm(it.titulo) || _orgNorm(c.titulo).startsWith(_orgNorm(it.titulo)))) {
@@ -284,7 +284,7 @@
 
   async function _orgAplicar() {
     const itens = Object.keys(_org.escolha).map(o => ({ origem: o, tmdb_id: _org.escolha[o].tmdb_id,
-      poster_path: _org.escolha[o].poster_path, sem_capa: !!_org.escolha[o].sem_capa }));
+      poster_path: _org.escolha[o].poster_path, sem_capa: !!_org.escolha[o].sem_capa, idioma: _idiomaAtual() }));
     if (!itens.length) return;
     if (!window.confirm('Mover e renomear ' + itens.length + ' filme(s) na fonte? Você pode desfazer depois pelo Histórico.')) return;
     const area = document.getElementById('orgResultado');
@@ -321,68 +321,208 @@
     _orgHistorico();
   }
 
-  // ----- Trocar a capa de UM filme (ficha do filme; só fonte local) -----
+  // ----- Capa e sinopse de UM filme/série (botão da ficha) -----
   async function openCapaModal(path, titulo) {
     document.getElementById('scrapeModal').classList.add('active');
     document.body.style.overflow = 'hidden';
     const st = await (await fetch('/api/scrape/status')).json().catch(() => ({}));
     if (!st.configurado) { _scrapeFormChave(); return; }
-    const box = document.getElementById('scrapeBox');
-    box.innerHTML = '<div class="rclone-help">Escolha o filme certo no TMDB. <b>Baixar metadado e capa</b> traz tudo do TMDB '
-      + 'e <b>sobrepõe</b> o que está no banco (e o .nfo e a capa da pasta, se for fonte local). O que existia não é apagado: '
-      + 'vira <b>.nfo.anterior</b> e <b>poster.anterior.jpg</b>. <b>Ver capas</b> troca só a capa. Sem fanart.</div>'
-      + '<div class="user-form"><input type="text" id="capaQuery" value="' + escHtml((titulo || '').replace(/\s*\(\d{4}\)\s*$/, '').trim()) + '" style="flex:1 1 auto" '
-      + attrAcao('_capaBuscarTecla', [{$: 'event'}], false, 'data-act-keydown') + '><button class="rclone-action-btn primary" data-act="_capaBuscar">Buscar filme</button></div>'
-      + '<div id="capaCands" style="margin-top:10px"></div><div id="capaGrade" style="margin-top:10px"></div><div id="capaMsg"></div>';
-    window._capaAlvo = path;
+    _metaTela(document.getElementById('scrapeBox'), path, titulo, null);
+  }
+
+  // ----- Editor de metadado (ficha do filme/série e "Sem metadado") -----
+  // Uma tela só: o melhor resultado já vem escolhido; a pessoa clica na capa,
+  // escolhe a sinopse (Português ou English, editável) e salva. Salvar sempre
+  // sobrescreve banco, .nfo e capa — nada do anterior é guardado — e, em
+  // filme local, renomeia a pasta e os arquivos pelo título no idioma escolhido.
+  const _meta = { path: '', voltar: null, cands: [], sel: null, metas: {}, idioma: 'pt-BR', capas: [], capa: null, local: true, gen: 0 };
+  const _IDIOMAS = [['pt-BR', 'Português'], ['en-US', 'English']];
+
+  function _idiomaAtual() {
+    try { const v = localStorage.getItem('scrapeIdioma'); if (v === 'pt-BR' || v === 'en-US') return v; } catch (e) { /* sem storage */ }
+    return 'pt-BR';
+  }
+
+  function _metaTela(el, path, titulo, voltar) {
+    Object.assign(_meta, { path: path, voltar: voltar, cands: [], sel: null, metas: {}, idioma: _idiomaAtual(), capas: [], capa: null });
+    el.innerHTML = (voltar ? '<button class="user-btn" style="margin-bottom:10px"' + attrAcao(voltar) + '>← Voltar</button>' : '')
+      + '<div class="user-form"><input type="text" id="capaQuery" placeholder="Nome do filme ou série" value="' + escHtml((titulo || '').replace(/\s*\(\d{4}\)\s*$/, '').trim()) + '" style="flex:1 1 auto" '
+      + attrAcao('_capaBuscarTecla', [{$: 'event'}], false, 'data-act-keydown') + '><button class="user-btn" data-act="_capaBuscar">Buscar</button></div>'
+      + '<div id="metaCands" style="margin-top:10px"></div>'
+      + '<div id="metaCorpo"></div><div id="capaMsg"></div>';
     _capaBuscar();
   }
 
+  const _carregando = t => '<div class="loading" style="min-height:60px"><div class="spinner"></div><span>' + t + '</span></div>';
+  const _rotulo = t => '<div class="src-hint" style="margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em;font-size:11px">' + t + '</div>';
+
   async function _capaBuscar() {
     const q = (document.getElementById('capaQuery').value || '').trim();
-    const area = document.getElementById('capaCands');
-    area.innerHTML = '<div class="loading" style="min-height:60px"><div class="spinner"></div><span>Buscando no TMDB...</span></div>';
-    const d = await (await fetch('/api/scrape/search?path=' + encodeURIComponent(window._capaAlvo) + '&q=' + encodeURIComponent(q))).json();
+    const area = document.getElementById('metaCands');
+    document.getElementById('metaCorpo').innerHTML = '';
+    document.getElementById('capaMsg').innerHTML = '';
+    area.innerHTML = _carregando('Buscando no TMDB...');
+    let d;
+    try {
+      d = await (await fetch('/api/scrape/search?path=' + encodeURIComponent(_meta.path) + '&q=' + encodeURIComponent(q)
+        + '&idioma=' + encodeURIComponent(_meta.idioma))).json();
+    } catch (e) { d = { erro: 'Falha de conexão.' }; }
     if (d.erro) { area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro) + '</div>'; return; }
-    const c = d.candidatos || [];
-    area.innerHTML = c.length ? c.map(x => '<div class="user-row" style="align-items:center">'
-      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:36px;height:52px;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
-      + '<div class="src-main"><div class="user-name">' + escHtml(x.titulo) + (x.ano ? ' (' + x.ano + ')' : '') + '</div></div>'
-      + '<button class="user-btn"' + attrAcao('_capaEscolherFilme', [x.id]) + '>Ver capas</button>'
-      + '<button class="rclone-action-btn primary" style="margin-left:6px"' + attrAcao('_capaBaixarTudo', [x.id]) + '>Baixar metadado e capa</button></div>').join('')
-      : '<div class="user-msg">Nenhum resultado. Ajuste o texto da busca.</div>';
+    _meta.cands = d.candidatos || [];
+    if (!_meta.cands.length) { area.innerHTML = '<div class="user-msg">Nenhum resultado. Ajuste o nome e busque de novo.</div>'; return; }
+    _metaEscolherFilme(0);
   }
 
-  function _capaEscolherFilme(tmdbId) {
-    window._capaTmdb = tmdbId;
-    _capasGrade('capaGrade', tmdbId, null, caminho => _capaAplicar(caminho));
+  // Faixa com os resultados; o escolhido fica destacado.
+  function _metaDesenharCands() {
+    const area = document.getElementById('metaCands');
+    if (!area) return;
+    area.innerHTML = '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">'
+      + _meta.cands.map((x, i) => {
+        const on = x.id === _meta.sel;
+        return '<button type="button"' + attrAcao('_metaEscolherFilme', [i]) + ' title="' + escHtml(x.titulo + (x.ano ? ' (' + x.ano + ')' : '')) + '"'
+          + ' style="flex:0 0 auto;display:flex;gap:8px;align-items:center;max-width:230px;padding:6px 10px 6px 6px;border-radius:6px;cursor:pointer;text-align:left;'
+          + 'background:' + (on ? 'rgba(255,255,255,.08)' : 'transparent') + ';color:inherit;border:1px solid ' + (on ? 'var(--cream)' : 'rgba(255,255,255,.12)') + '">'
+          + (x.poster ? '<img src="' + escHtml(x.poster) + '" alt="" style="width:30px;height:44px;object-fit:cover;border-radius:3px"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
+          + '<span style="overflow:hidden"><span style="display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(x.titulo) + '</span>'
+          + '<span class="src-hint">' + escHtml(x.ano || '') + '</span></span></button>';
+      }).join('') + '</div>';
   }
 
-  // Baixa o metadado e a capa do filme escolhido e SOBREPOE o que ja existe.
-  async function _capaBaixarTudo(tmdbId) {
-    if (!window.confirm('Baixar metadado e capa deste filme e sobrepor o que já existe? O .nfo e a capa atuais ficam como .anterior na pasta.')) return;
-    const msg = document.getElementById('capaMsg');
-    msg.innerHTML = '<div class="loading" style="min-height:40px"><div class="spinner"></div><span>Baixando metadado e capa...</span></div>';
-    const r = await _scrapePost('/api/scrape/apply', { path: window._capaAlvo, tmdb_id: tmdbId, substituir: true });
-    if (r.ok) {
-      msg.innerHTML = '<div class="user-msg ok">Metadado e capa substituídos. O catálogo está sendo atualizado.</div>';
-      showToast('Metadado e capa atualizados.', 'success');
-      Object.keys(_frontCache).forEach(k => _invalidateCache(k));   // a ficha e o grid recarregam com o dado novo
-    } else {
-      msg.innerHTML = '<div class="user-msg err">' + escHtml(r.data.error || 'Não foi possível baixar.') + '</div>';
+  // Escolher um resultado já carrega tudo: metadado nos dois idiomas e as capas.
+  async function _metaEscolherFilme(i) {
+    const c = _meta.cands[i];
+    if (!c) return;
+    const gen = ++_meta.gen;
+    _meta.sel = c.id; _meta.metas = {}; _meta.capas = []; _meta.capa = null;
+    _metaDesenharCands();
+    const corpo = document.getElementById('metaCorpo');
+    corpo.innerHTML = _carregando('Carregando capas e sinopse...');
+    document.getElementById('capaMsg').innerHTML = '';
+    const base = 'path=' + encodeURIComponent(_meta.path) + '&tmdb_id=' + encodeURIComponent(c.id);
+    const pega = url => fetch(url).then(r => r.json()).catch(() => ({ erro: 'Falha de conexão.' }));
+    const [pt, en, cp] = await Promise.all([
+      pega('/api/scrape/preview?' + base + '&idioma=pt-BR'),
+      pega('/api/scrape/preview?' + base + '&idioma=en-US'),
+      pega('/api/scrape/capas?' + base + '&idioma=' + encodeURIComponent(_meta.idioma)),
+    ]);
+    if (gen !== _meta.gen) return;   // a pessoa já escolheu outro
+    if (!pt.meta && !en.meta) {
+      corpo.innerHTML = '<div class="user-msg err">' + escHtml(pt.erro || en.erro || 'Sem dados.') + '</div>';
+      return;
     }
+    _meta.metas = { 'pt-BR': pt.meta, 'en-US': en.meta };
+    _meta.local = (pt.meta ? pt : en).local !== false;
+    _meta.serie = !!(pt.meta ? pt : en).serie;
+    if (!_meta.metas[_meta.idioma]) _meta.idioma = pt.meta ? 'pt-BR' : 'en-US';
+    _meta.capas = cp.capas || [];
+    const principal = (_meta.metas[_meta.idioma] || {}).poster_path;
+    _meta.capa = principal || (_meta.capas[0] && _meta.capas[0].path) || null;
+    corpo.innerHTML = '<div id="metaInfo"></div>'
+      + _rotulo('Capa') + '<div id="metaCapas"></div>'
+      + _rotulo('Sinopse') + '<div id="metaIdiomas" style="display:flex;gap:8px;margin-bottom:8px"></div>'
+      + '<textarea id="metaPlot" rows="5" style="width:100%;box-sizing:border-box;resize:vertical;font:inherit;font-size:13px;line-height:1.5;padding:10px;border-radius:6px;'
+      + 'background:rgba(255,255,255,.04);color:inherit;border:1px solid rgba(255,255,255,.12)"></textarea>'
+      + '<div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">'
+      + '<button class="rclone-action-btn primary" data-act="_metaSalvar">Salvar</button>'
+      + '<span class="src-hint">Substitui o que está no catálogo' + (_meta.local ? (_meta.serie ? ' e a capa da pasta.' : ', o .nfo e a capa, e renomeia a pasta e os arquivos pelo título no idioma escolhido.') : '. A nuvem é somente leitura: a capa não é gravada lá.') + '</span></div>';
+    _metaDesenharInfo(); _metaDesenharCapas(); _metaDesenharIdiomas();
+    document.getElementById('metaPlot').value = (_meta.metas[_meta.idioma] || {}).plot || '';
   }
 
-  async function _capaAplicar(caminho) {
-    if (!window.confirm('Usar esta capa? A atual vira poster.anterior.jpg na pasta.')) return;
+  function _metaDesenharInfo() {
+    const m = _meta.metas[_meta.idioma] || {};
+    const partes = [m.year, (m.genres || []).slice(0, 3).join(', '), m.runtime ? m.runtime + ' min' : '',
+      (m.directors || []).length ? 'Direção: ' + m.directors.slice(0, 2).join(', ') : ''].filter(Boolean);
+    document.getElementById('metaInfo').innerHTML = '<div style="margin-top:14px;font-size:16px;font-weight:600">' + escHtml(m.title || '') + '</div>'
+      + '<div class="src-hint" style="margin-top:2px">' + escHtml(partes.join(' · ')) + '</div>';
+  }
+
+  function _metaDesenharCapas() {
+    const el = document.getElementById('metaCapas');
+    if (!el) return;
+    if (!_meta.capas.length) {
+      const m = _meta.metas[_meta.idioma] || {};
+      el.innerHTML = m.poster ? '<img src="' + escHtml(m.poster) + '" alt="" style="width:92px;aspect-ratio:2/3;object-fit:cover;border-radius:4px">'
+        : '<div class="src-hint">O TMDB não tem capas para este título.</div>';
+      return;
+    }
+    el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;max-height:280px;overflow-y:auto;padding:2px">'
+      + _meta.capas.slice(0, 40).map((c, i) => {
+        const on = c.path === _meta.capa;
+        return '<button type="button"' + attrAcao('_metaEscolherCapa', [i]) + ' title="' + escHtml(c.idioma || 'sem idioma') + '"'
+          + ' style="padding:0;border:3px solid ' + (on ? 'var(--cream)' : 'transparent') + ';border-radius:6px;background:none;cursor:pointer;overflow:hidden;position:relative;opacity:' + (on ? '1' : '.75') + '">'
+          + '<img src="' + escHtml(c.thumb) + '" alt="" loading="lazy" style="width:100%;display:block;aspect-ratio:2/3;object-fit:cover">'
+          + (c.idioma ? '<span style="position:absolute;left:4px;bottom:4px;font-size:10px;background:rgba(0,0,0,.7);color:#fff;padding:1px 4px;border-radius:3px">' + escHtml(c.idioma) + '</span>' : '')
+          + '</button>';
+      }).join('') + '</div>';
+  }
+
+  function _metaDesenharIdiomas() {
+    document.getElementById('metaIdiomas').innerHTML = _IDIOMAS.map(([cod, rot]) => {
+      const tem = !!(_meta.metas[cod] && _meta.metas[cod].plot);
+      const on = cod === _meta.idioma;
+      return '<button type="button" class="user-btn"' + attrAcao('_metaEscolherSinopse', [cod]) + (tem ? '' : ' disabled title="Sem sinopse neste idioma"')
+        + (on ? ' style="border-color:var(--cream);color:var(--cream)"' : '') + '>' + rot + '</button>';
+    }).join('');
+  }
+
+  function _metaEscolherCapa(i) {
+    const c = _meta.capas[i];
+    if (!c) return;
+    _meta.capa = c.path;
+    _metaDesenharCapas();
+  }
+
+  // Trocar o idioma troca a sinopse, o título e os gêneros que vão para o .nfo.
+  function _metaEscolherSinopse(cod) {
+    if (!_meta.metas[cod]) return;
+    _meta.idioma = cod;
+    try { localStorage.setItem('scrapeIdioma', cod); } catch (e) { /* sem storage */ }
+    document.getElementById('metaPlot').value = _meta.metas[cod].plot || '';
+    _metaDesenharIdiomas(); _metaDesenharInfo();
+  }
+
+  // A capa nova tem o mesmo endereço da antiga: força as <img> já na tela
+  // (grid e ficha) a buscarem de novo.
+  function _recarregarCapas(pasta) {
+    const alvo = encodeURIComponent(pasta + '/');
+    const novo = u => u.replace(/&v=\d+/, '') + '&v=' + Date.now();
+    document.querySelectorAll('img').forEach(im => {
+      const src = im.getAttribute('src') || '';
+      if (src.indexOf('/api/stream?path=' + alvo) === 0) im.src = novo(src);
+    });
+    document.querySelectorAll('[style*="background-image"]').forEach(el => {
+      const m = /url\("?([^")]+)"?\)/.exec(el.style.backgroundImage || '');
+      if (m && m[1].indexOf('/api/stream?path=' + alvo) === 0) el.style.backgroundImage = cssUrl(novo(m[1]));
+    });
+  }
+
+  async function _metaSalvar() {
+    if (!_meta.sel) return;
     const msg = document.getElementById('capaMsg');
-    msg.innerHTML = '<div class="loading" style="min-height:40px"><div class="spinner"></div><span>Baixando a capa...</span></div>';
-    const r = await _scrapePost('/api/scrape/capa', { path: window._capaAlvo, tmdb_id: window._capaTmdb, poster_path: caminho });
+    msg.innerHTML = _carregando('Salvando...');
+    const r = await _scrapePost('/api/scrape/apply', {
+      path: _meta.path, tmdb_id: _meta.sel, substituir: true, idioma: _meta.idioma,
+      poster_path: _meta.capa, plot: (document.getElementById('metaPlot').value || '').trim(),
+    });
     if (r.ok) {
-      msg.innerHTML = '<div class="user-msg ok">Capa trocada. O catálogo está sendo atualizado.</div>';
-      showToast('Capa trocada.', 'success');
+      const antigo = _meta.path, novo = r.data.novo_path;
+      Object.keys(_frontCache).forEach(k => _invalidateCache(k));   // a ficha e o grid recarregam com o dado novo
+      if (r.data.aviso) showToast(r.data.aviso, 'error');
+      else showToast(novo ? 'Metadado salvo e pasta renomeada.' : 'Metadado salvo.', 'success');
+      if (_meta.voltar) { _scrapePendentes(); return; }
+      if (novo) {
+        // a pasta mudou de nome: reabre a ficha no endereço novo
+        _meta.path = novo;
+        closeScrapeModal();
+        if (typeof currentMovieFolder !== 'undefined' && currentMovieFolder === antigo) showMovieInfo(novo);
+        return;
+      }
+      _recarregarCapas(antigo);
+      msg.innerHTML = '<div class="user-msg ok" style="margin-top:10px">Salvo. O catálogo está sendo atualizado.</div>';
     } else {
-      msg.innerHTML = '<div class="user-msg err">' + escHtml(r.data.error || 'Não foi possível trocar a capa.') + '</div>';
+      msg.innerHTML = '<div class="user-msg err" style="margin-top:10px">' + escHtml(r.data.error || 'Não foi possível salvar.') + '</div>';
     }
   }
 
@@ -397,80 +537,31 @@
       + 'catálogo do app (a nuvem não é alterada); em pastas locais também é gravado o .nfo e o pôster.</div>'
       + lista.map(it => '<div class="user-row"><span class="user-name">' + escHtml(it.name)
         + (it.tipo === 'serie' ? ' <span class="src-hint">(série)</span>' : '') + '</span>'
-        + '<button class="user-btn"' + attrAcao('_scrapeAbrirBusca', [enc(it.path), enc(it.name)]) + '>Buscar</button></div>').join('');
+        + '<button class="user-btn"' + attrAcao('_scrapeAbrirBusca', [enc(it.path), enc(it.name)]) + '>Escolher capa e sinopse</button></div>').join('');
   }
 
   function _scrapeAbrirBusca(pathEnc, nomeEnc) {
-    const nome = decodeURIComponent(nomeEnc);
-    document.getElementById('scrapeCorpo').innerHTML =
-      '<button class="user-btn" data-act="_scrapePendentes">← Voltar</button>'
-      + '<div class="user-form" style="margin-top:10px"><input type="text" id="scrapeQuery" value="'
-      + escHtml(nome.replace(/\s*\(\d{4}\)\s*$/, '').trim()) + '" style="flex:1 1 auto">'
-      + '<button class="rclone-action-btn primary"' + attrAcao('_scrapeBuscar', [pathEnc]) + '>Buscar</button></div>'
-      + '<div id="scrapeResultados" style="margin-top:12px"></div>';
-    _scrapeBuscar(pathEnc);
-  }
-
-  async function _scrapeBuscar(pathEnc) {
-    const path = decodeURIComponent(pathEnc);
-    const q = (document.getElementById('scrapeQuery').value || '').trim();
-    const area = document.getElementById('scrapeResultados');
-    area.innerHTML = '<div class="loading" style="min-height:80px"><div class="spinner"></div><span>Buscando no TMDB...</span></div>';
-    const d = await (await fetch('/api/scrape/search?path=' + encodeURIComponent(path) + (q ? '&q=' + encodeURIComponent(q) : ''))).json();
-    if (d.erro) { area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro) + '</div>'; return; }
-    const c = d.candidatos || [];
-    area.innerHTML = c.length ? c.map(x => '<div class="user-row" style="align-items:flex-start">'
-      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:44px;height:64px;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
-      + '<div class="src-main"><div class="user-name">' + escHtml(x.titulo) + (x.ano ? ' (' + x.ano + ')' : '') + '</div>'
-      + '<div class="src-hint">' + escHtml((x.sinopse || '').slice(0, 140)) + '</div></div>'
-      + '<button class="user-btn"' + attrAcao('_scrapeAplicar', [pathEnc, x.id]) + '>Usar este</button></div>').join('')
-      : '<div class="user-msg">Nenhum resultado. Ajuste o texto da busca.</div>';
-  }
-
-  // "Usar este" não grava na hora: baixa o metadado, mostra e só salva se a
-  // pessoa confirmar.
-  async function _scrapeAplicar(pathEnc, tmdbId) {
-    const area = document.getElementById('scrapeResultados');
-    area.innerHTML = '<div class="loading" style="min-height:80px"><div class="spinner"></div><span>Baixando metadado...</span></div>';
-    let d;
-    try { d = await (await fetch('/api/scrape/preview?path=' + encodeURIComponent(decodeURIComponent(pathEnc)) + '&tmdb_id=' + encodeURIComponent(tmdbId))).json(); }
-    catch (e) { d = { erro: 'Falha de conexão.' }; }
-    if (d.erro || !d.meta) {
-      area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro || 'Sem dados.') + '</div>';
-      return;
-    }
-    const m = d.meta;
-    const lin = (rot, v) => (v && String(v).length) ? '<div class="src-hint" style="margin:2px 0"><b>' + rot + ':</b> ' + escHtml(String(v)) + '</div>' : '';
-    const lista = a => (a || []).join(', ');
-    area.innerHTML = '<div class="user-row" style="align-items:flex-start">'
-      + (m.poster ? '<img src="' + escHtml(m.poster) + '" alt="" style="width:92px;aspect-ratio:2/3;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
-      + '<div class="src-main"><div class="user-name">' + escHtml(m.title || '') + (m.year ? ' (' + m.year + ')' : '') + '</div>'
-      + lin('Título original', m.originaltitle !== m.title ? m.originaltitle : '')
-      + lin('Gêneros', lista(m.genres)) + lin('Duração', m.runtime ? m.runtime + ' min' : '')
-      + lin('Nota', m.rating ? m.rating + (m.votes ? ' (' + m.votes + ' votos)' : '') : '')
-      + lin('Direção', lista(m.directors)) + lin('Elenco', lista((m.actors || []).slice(0, 8).map(a => a.name)))
-      + lin('País', lista(m.country)) + lin('Estúdios', lista((m.studios || []).slice(0, 4))) + lin('Coleção', m.set_name)
-      + (m.tagline ? '<div class="src-hint" style="margin:4px 0;font-style:italic">' + escHtml(m.tagline) + '</div>' : '')
-      + '<div class="src-hint" style="margin:6px 0;color:var(--text2)">' + escHtml(m.plot || 'Sem sinopse.') + '</div></div></div>'
-      + '<div style="display:flex;gap:10px;margin-top:10px">'
-      + '<button class="rclone-action-btn primary"' + attrAcao('_scrapeConfirmar', [pathEnc, tmdbId]) + '>Salvar este metadado</button>'
-      + '<button class="user-btn"' + attrAcao('_scrapeBuscar', [pathEnc]) + '>Voltar aos resultados</button></div>';
-  }
-
-  async function _scrapeConfirmar(pathEnc, tmdbId) {
-    const r = await _scrapePost('/api/scrape/apply', { path: decodeURIComponent(pathEnc), tmdb_id: tmdbId });
-    showToast(r.ok ? 'Metadados aplicados.' : (r.data.error || 'Não foi possível aplicar.'), r.ok ? 'success' : 'error');
-    if (r.ok) _scrapePendentes();
+    _metaTela(document.getElementById('scrapeCorpo'), decodeURIComponent(pathEnc), decodeURIComponent(nomeEnc), '_scrapePendentes');
   }
 
   // ==================== CHANGELOG MODAL ====================
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
     {
+      version: '1.29.6',
+      title: 'Editor de capa e sinopse em uma tela só',
+      changes: [
+        'O melhor resultado já vem escolhido: clique na capa, escolha a sinopse e salve',
+        'Sinopse em Português ou English, editável; a pasta e os arquivos são renomeados pelo título nesse idioma (também no Organizar)',
+        'Salvar sempre sobrescreve banco, .nfo e capa, sem guardar o anterior',
+        'Botão Capa e sinopse na ficha e a mesma tela em Sem metadado; capas de série também',
+      ],
+    },
+    {
       version: '1.29.5',
       title: 'Baixar metadado e capa na ficha, metadado some ao apagar o .nfo e legenda nova na TV',
       changes: [
-        'Botão Baixar metadado e capa na ficha do filme: sobrepõe banco, .nfo e poster (o antigo vira .anterior)',
+        'Botão Baixar metadado e capa na ficha do filme: sobrepõe banco, .nfo e poster (o antigo é sobrescrito, sem cópia)',
         'Filme local sem .nfo não mostra mais metadado antigo do banco',
         'TV: decodificador de hardware, legenda Média/Branca no estilo Apple TV com fonte Inter',
         'TV: legenda e escala ajustadas',

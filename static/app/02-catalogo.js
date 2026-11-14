@@ -552,7 +552,7 @@
     // da classe: por isso o display de linha tambem sai daqui, senao a capa
     // fica empilhada em cima do titulo em vez de ao lado.
     if (poster) {
-      img.src = streamUrl(poster);
+      img.src = capaUrl(poster);
       img.style.display = '';
       img.onerror = function() {
         this.style.display = 'none';
@@ -629,7 +629,7 @@
           + '<div class="movie-grid">';
         grupos[l].forEach(s => {
           const titulo = escHtml(s.title);
-          const poster = s.poster ? streamUrl(s.poster) : null;
+          const poster = s.poster ? capaUrl(s.poster) : null;
           const meta = s.temporadas
             + (s.temporadas === 1 ? ' temporada · ' : ' temporadas · ')
             + s.episodios + (s.episodios === 1 ? ' episódio' : ' episódios');
@@ -683,7 +683,7 @@
       cols.forEach(c => {
         html += '<button class="colecao-item"' + attrAcao('abrirColecao', [c.id]) + '>'
           + (c.poster
-              ? '<img class="colecao-capa" src="' + streamUrl(c.poster) + '" alt="" '
+              ? '<img class="colecao-capa" src="' + capaUrl(c.poster) + '" alt="" '
                 + 'loading="lazy" ' + attrAcao('imgRemover', null, false, 'data-act-error') + '>'
               : '<span class="colecao-icone"><svg class="icon-svg"><use href="#i-layers"></use></svg></span>')
           + '<span class="colecao-nome">' + escHtml(c.name) + '</span>'
@@ -804,7 +804,7 @@
       // Filmes e séries lado a lado no seletor: uma coleção pode misturar.
       const seriesFormatadas = (series || []).map(s => ({
         path: s.path, name: s.name, title: s.title, is_serie: true,
-        poster: s.poster, _capaPronta: s.poster ? streamUrl(s.poster) : null,
+        poster: s.poster, _capaPronta: s.poster ? capaUrl(s.poster) : null,
       }));
       _colecaoTodos = (filmes || []).concat(seriesFormatadas);
       _colecao = {
@@ -813,7 +813,7 @@
         filmes: new Map(estado.filmes.map(f => [f.path, {
           path: f.path, title: f.title, poster: f.poster,
           is_serie: f.is_serie,
-          _capaPronta: f.is_serie && f.poster ? streamUrl(f.poster) : null,
+          _capaPronta: f.is_serie && f.poster ? capaUrl(f.poster) : null,
         }])),
       };
       _colecaoBusca = '';

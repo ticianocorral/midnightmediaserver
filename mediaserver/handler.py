@@ -684,19 +684,39 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
             self._send_json({"status": "error", "error": "Faltou path ou tmdb_id"}, 400)
             return
         if self._tipo_da_pasta(folder_path) == "serie":
-            ok, erro, _n = _scraper.aplicar_serie(folder_path, tmdb_id)
+            ok, erro, _n = _scraper.aplicar_serie(
+                folder_path, tmdb_id, body.get("idioma"), poster_path=body.get("poster_path"),
+                plot=body.get("plot"), substituir=bool(body.get("substituir")))
         else:
             ok, erro = _scraper.aplicar(folder_path, tmdb_id,
-                                        substituir=bool(body.get("substituir")))
+                                        substituir=bool(body.get("substituir")),
+                                        idioma=body.get("idioma"),
+                                        poster_path=body.get("poster_path"),
+                                        plot=body.get("plot"))
         if not ok:
             self._send_json({"status": "error", "error": erro}, 502)
             return
+        novo_path, aviso = None, None
         if body.get("substituir") and _sources.is_local(folder_path):
+            if self._tipo_da_pasta(folder_path) != "serie":
+                # a pasta e os arquivos acompanham o titulo no idioma escolhido
+                novo_path, aviso = self._renomear_pelo_titulo(folder_path)
             # reindexa a fonte: o catalogo passa a enxergar o .nfo e o poster novos
             src = _sources.resolve(folder_path)
             if src and src.get("id"):
                 _scanner.start_background_scan(src["id"])
-        self._send_json({"status": "ok"})
+        self._send_json({"status": "ok", "novo_path": novo_path, "aviso": aviso})
+
+    def _renomear_pelo_titulo(self, folder_path):
+        conn = get_db()
+        try:
+            row = conn.execute("SELECT title, year FROM movie_meta WHERE folder_path=?",
+                               (folder_path,)).fetchone()
+        finally:
+            conn.close()
+        if not row or not row["title"]:
+            return None, None
+        return _organizador.renomear_no_lugar(folder_path, row["title"], row["year"])
 
     def _handle_scrape_capa(self):
         """Troca a capa de um filme local pela escolhida (nunca fanart)."""
@@ -1240,12 +1260,23 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         try:
             if not real.is_file():
                 raise FileNotFoundError
-            size = real.stat().st_size
+            st = real.stat()
+            size = st.st_size
         except OSError:
             self._send_error("Arquivo indisponivel — a fonte esta conectada?", 404)
             return
 
         range_header = self.headers.get("Range")
+        # Imagem local: o navegador revalida a cada uso (ETag pelo mtime). Assim
+        # uma capa trocada aparece na hora, sem esperar o cache de 1 dia vencer.
+        etag = f'"{st.st_mtime_ns:x}-{size:x}"' if cache_imagem else None
+        if etag and not range_header and self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "no-cache")
+            self._send_media_cors()
+            self.end_headers()
+            return
         start, end = 0, max(size - 1, 0)
         partial = False
 
@@ -1269,8 +1300,9 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         self.send_header("Content-Length", str(length))
         self.send_header("Content-Type", mime)
         self.send_header("Accept-Ranges", "bytes")
-        if cache_imagem:
-            self.send_header("Cache-Control", "max-age=86400")
+        if etag:
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("ETag", etag)
         self._send_media_cors()
         self.end_headers()
 

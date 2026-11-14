@@ -117,6 +117,17 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 ## 📋 Changelog
 
+### v1.29.6 — Editor de capa e sinopse em uma tela só
+
+- O melhor resultado já vem escolhido: clique na capa, escolha a sinopse e salve
+
+- Sinopse em Português ou English, editável; a pasta e os arquivos são renomeados pelo título nesse idioma (também no Organizar)
+
+- Salvar sempre sobrescreve banco, .nfo e capa, sem guardar o anterior
+
+- Botão Capa e sinopse na ficha e a mesma tela em Sem metadado; capas de série também
+
+
 ### v1.29.5 — Baixar metadado e capa na ficha, metadado some ao apagar o .nfo e legenda nova na TV
 
 - Botão Baixar metadado e capa na ficha do filme: sobrepõe banco, .nfo e poster (o antigo vira .anterior)

@@ -99,6 +99,14 @@ def _ctx_ssl():
     return ssl.create_default_context()
 
 
+IDIOMAS = ("pt-BR", "en-US")
+
+
+def idioma_valido(valor):
+    """Idioma do metadado: so pt-BR ou en-US (padrao pt-BR)."""
+    return valor if valor in IDIOMAS else "pt-BR"
+
+
 def _get(caminho, params):
     chave = get_api_key()
     if not chave:
@@ -138,7 +146,7 @@ def _titulo_ano(nome_pasta):
 
 # ── Busca (nunca aplica sozinha — so devolve candidatos) ────
 
-def buscar_candidatos(nome_pasta, query=None, tipo="filme"):
+def buscar_candidatos(nome_pasta, query=None, tipo="filme", idioma=None):
     """Candidatos do TMDB pro nome de uma pasta. 'query' sobrepoe o titulo
     derivado do nome, pra quando o palpite automatico erra feio."""
     titulo, ano = _titulo_ano(nome_pasta)
@@ -146,7 +154,7 @@ def buscar_candidatos(nome_pasta, query=None, tipo="filme"):
         titulo, ano = _titulo_ano(query) if _RE_TITULO_ANO.match(query.strip()) else (query.strip(), ano)
     if not titulo:
         return [], None
-    params = {"query": titulo, "include_adult": "false"}
+    params = {"query": titulo, "include_adult": "false", "language": idioma_valido(idioma)}
     serie = tipo == "serie"
     if ano:
         params["first_air_date_year" if serie else "primary_release_year"] = ano
@@ -166,8 +174,9 @@ def buscar_candidatos(nome_pasta, query=None, tipo="filme"):
     return candidatos, None
 
 
-def detalhes(tmdb_id):
-    return _get("/movie/%d" % int(tmdb_id), {"append_to_response": "credits"})
+def detalhes(tmdb_id, idioma=None):
+    return _get("/movie/%d" % int(tmdb_id),
+                {"append_to_response": "credits", "language": idioma_valido(idioma)})
 
 
 def para_movie_meta(dados):
@@ -214,8 +223,9 @@ def para_movie_meta(dados):
 
 # ── Series: detalhes + episodios por temporada ──────────────
 
-def detalhes_serie(tmdb_id):
-    return _get("/tv/%d" % int(tmdb_id), {"append_to_response": "credits"})
+def detalhes_serie(tmdb_id, idioma=None):
+    return _get("/tv/%d" % int(tmdb_id),
+                {"append_to_response": "credits", "language": idioma_valido(idioma)})
 
 
 def para_serie_meta(dados):
@@ -253,8 +263,9 @@ def para_serie_meta(dados):
     }
 
 
-def _episodios_da_temporada(tmdb_id, numero):
-    dados, erro = _get("/tv/%d/season/%d" % (int(tmdb_id), int(numero)), {})
+def _episodios_da_temporada(tmdb_id, numero, idioma=None):
+    dados, erro = _get("/tv/%d/season/%d" % (int(tmdb_id), int(numero)),
+                       {"language": idioma_valido(idioma)})
     if erro or not dados:
         return [], erro
     saida = []
@@ -274,10 +285,10 @@ def _episodios_da_temporada(tmdb_id, numero):
     return saida, None
 
 
-def aplicar_serie(folder_path, tmdb_id):
+def aplicar_serie(folder_path, tmdb_id, idioma=None, poster_path=None, plot=None, substituir=False):
     """Grava no banco os dados da serie e de todos os episodios de todas as
     temporadas. Devolve (ok, erro, total_episodios)."""
-    dados, erro = detalhes_serie(tmdb_id)
+    dados, erro = detalhes_serie(tmdb_id, idioma)
     if erro:
         return False, erro, 0
     if not dados or not dados.get("id"):
@@ -288,12 +299,12 @@ def aplicar_serie(folder_path, tmdb_id):
         numero = temp.get("season_number")
         if numero is None:
             continue
-        eps, erro = _episodios_da_temporada(tmdb_id, numero)
+        eps, erro = _episodios_da_temporada(tmdb_id, numero, idioma)
         if erro:
             return False, erro, 0
         episodios.extend(eps)
 
-    meta = para_serie_meta(dados)
+    meta = _escolhas(para_serie_meta(dados), poster_path, plot)
     conn = get_db()
     try:
         _save_nfo_to_db(conn, folder_path, meta)
@@ -311,8 +322,11 @@ def aplicar_serie(folder_path, tmdb_id):
     if _sources.is_local(folder_path):
         pasta = _sources.local_real_path(folder_path)
         if pasta is not None and pasta.is_dir():
-            escrever_arquivos(pasta, {"_poster_path": meta.get("_poster_path")},
-                              sem_nfo=True)
+            if substituir:
+                substituir_arquivos(pasta, meta, sem_nfo=True)
+            else:
+                escrever_arquivos(pasta, {"_poster_path": meta.get("_poster_path")},
+                                  sem_nfo=True)
     return True, None, len(episodios)
 
 
@@ -443,11 +457,12 @@ def _capa_valida(caminho):
     return bool(caminho and _RE_CAPA.match(str(caminho)))
 
 
-def listar_capas(tmdb_id):
-    """Capas (posters) do filme para a pessoa escolher: portugues primeiro,
-    depois as sem idioma e o resto, cada grupo pela nota do TMDB."""
-    dados, erro = _get("/movie/%d/images" % int(tmdb_id),
-                       {"include_image_language": "pt,en,null", "language": "pt-BR"})
+def listar_capas(tmdb_id, tipo="filme", idioma=None):
+    """Capas (posters) do filme ou serie para a pessoa escolher: as do idioma
+    escolhido primeiro, depois as sem idioma e o resto, cada grupo pela nota."""
+    idioma = idioma_valido(idioma)
+    dados, erro = _get(("/tv/%d/images" if tipo == "serie" else "/movie/%d/images") % int(tmdb_id),
+                       {"include_image_language": "pt,en,null", "language": idioma})
     if erro:
         return [], erro
     saida = []
@@ -462,7 +477,7 @@ def listar_capas(tmdb_id):
             "nota": p.get("vote_average") or 0,
             "thumb": IMG_THUMB + caminho,
         })
-    ordem = {"pt": 0, "": 1, "en": 2}
+    ordem = {"pt": 0, "": 1, "en": 2} if idioma == "pt-BR" else {"en": 0, "": 1, "pt": 2}
     saida.sort(key=lambda c: (ordem.get(c["idioma"], 3), -float(c["nota"] or 0)))
     return saida, None
 
@@ -472,7 +487,7 @@ _NOMES_CAPA = ("poster", "capa", "cover", "folder")
 
 def aplicar_capa(folder_path, tmdb_id, poster_path):
     """Troca a capa de UM filme em pasta LOCAL pela escolhida. A capa antiga
-    nao e apagada: vira poster.anterior.<ext>. Devolve (ok, erro)."""
+    e sobrescrita (nao guarda copia). Devolve (ok, erro)."""
     if not _capa_valida(poster_path):
         return False, "Capa inválida."
     if not _sources.is_local(folder_path):
@@ -487,7 +502,8 @@ def aplicar_capa(folder_path, tmdb_id, poster_path):
         for p in sorted(pasta.iterdir()):
             if p.is_file() and p.stem.lower() in _NOMES_CAPA \
                     and p.suffix.lower() in (".jpg", ".jpeg", ".png"):
-                os.replace(p, pasta / ("poster.anterior" + p.suffix.lower()))
+                if p.name != "poster.jpg":
+                    p.unlink()
                 break
         _escrever_atomico(pasta / "poster.jpg", dados_img)
     except OSError as e:
@@ -497,9 +513,9 @@ def aplicar_capa(folder_path, tmdb_id, poster_path):
 
 # ── Aplicar: o unico caminho que grava alguma coisa ─────────
 
-def substituir_arquivos(pasta, meta):
-    """Troca o .nfo e o poster da pasta pelos do TMDB. O que existia nao e
-    apagado: o .nfo vira <nome>.nfo.anterior e a capa, poster.anterior.<ext>.
+def substituir_arquivos(pasta, meta, sem_nfo=False):
+    """Troca o .nfo e o poster da pasta pelos do TMDB, sobrescrevendo o que
+    existia (nao guarda copia anterior). `sem_nfo` troca so a capa (serie).
     Devolve True se gravou o .nfo."""
     try:
         existentes = [p for p in pasta.iterdir() if p.is_file()]
@@ -507,44 +523,50 @@ def substituir_arquivos(pasta, meta):
         return False
     nfos = [p for p in existentes if p.suffix.lower() == ".nfo"]
     nome_nfo = nfos[0].stem if nfos else pasta.name
-    for p in nfos:
+    gravou = False
+    if not sem_nfo:
         try:
-            os.replace(p, p.with_name(p.name + ".anterior"))
+            _escrever_atomico(pasta / (nome_nfo + ".nfo"), _construir_nfo_xml(meta).encode("utf-8"))
+            gravou = True
         except OSError:
             pass
-    gravou = False
-    try:
-        _escrever_atomico(pasta / (nome_nfo + ".nfo"), _construir_nfo_xml(meta).encode("utf-8"))
-        gravou = True
-    except OSError:
-        pass
     escolhida = meta.get("_poster_path")
     if escolhida and _capa_valida(escolhida):
         dados_img = _baixar_imagem(IMG_POSTER + escolhida)
         if dados_img:
             try:
                 for p in existentes:
-                    if p.stem.lower() in _NOMES_CAPA and p.suffix.lower() in (".jpg", ".jpeg", ".png"):
-                        os.replace(p, pasta / ("poster.anterior" + p.suffix.lower()))
-                        break
+                    if p.stem.lower() in _NOMES_CAPA and p.suffix.lower() in (".jpg", ".jpeg", ".png") \
+                            and p.name != "poster.jpg":
+                        p.unlink()
                 _escrever_atomico(pasta / "poster.jpg", dados_img)
             except OSError:
                 pass
     return gravou
 
 
-def aplicar(folder_path, tmdb_id, substituir=False):
+def _escolhas(meta, poster_path=None, plot=None):
+    """Aplica as escolhas da pessoa por cima do que veio do TMDB: a capa
+    escolhida na grade e a sinopse (que ela pode ter editado)."""
+    if poster_path and _capa_valida(poster_path):
+        meta["_poster_path"] = poster_path
+    if isinstance(plot, str) and plot.strip():
+        meta["plot"] = plot.strip()[:5000]
+    return meta
+
+
+def aplicar(folder_path, tmdb_id, substituir=False, idioma=None, poster_path=None, plot=None):
     """Busca os detalhes de UM filme escolhido na tela de revisao, grava no
     banco e, se der, escreve na pasta local. Com `substituir`, o metadado novo
-    SOBREPOE o que ja existe (banco, .nfo e poster); o antigo fica como .anterior.
+    SOBREPOE o que ja existe (banco, .nfo e poster), sem guardar o antigo.
     Devolve (ok, erro)."""
-    dados, erro = detalhes(tmdb_id)
+    dados, erro = detalhes(tmdb_id, idioma)
     if erro:
         return False, erro
     if not dados or not dados.get("id"):
         return False, "TMDB nao devolveu dados pra esse filme"
 
-    meta = para_movie_meta(dados)
+    meta = _escolhas(para_movie_meta(dados), poster_path, plot)
     conn = get_db()
     try:
         _save_nfo_to_db(conn, folder_path, meta)

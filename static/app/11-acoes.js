@@ -46,13 +46,13 @@
   function _capaBuscarTecla(ev) { if (ev.key === 'Enter') _capaBuscar(); }
 
   const ACOES = Object.freeze({
-    _capaBaixarTudo, _capaBuscar, _capaBuscarTecla, _capaClicada, _capaEscolherFilme, _cmDeleteCache,
+    _capaBuscar, _capaBuscarTecla, _capaClicada, _cmDeleteCache,
     _cmDownload, _colecaoEscolherCapa, _colecaoFiltrar, _colecaoIrParaCapa,
     _colecaoRenderPasso1, _colecaoSalvar, _colecaoToggle, _desmarcarEpisodio, _generoCriarEDar,
     _generoToggleChip, _loadRcloneStatus, _orgAbrirCapas, _orgAplicar, _orgBuscar,
     _orgBuscarDoCampo, _orgBuscarTecla, _orgDesfazer, _orgEscolher, _orgFecharBusca,
     _orgLimpar, _orgProcurar, _orgSemCapa, _orgSugerir, _scrapeAba, _scrapeAbrirBusca,
-    _scrapeAplicar, _scrapeConfirmar, _scrapeBuscar, _scrapePendentes, _scrapeSalvarChave, _wizardConectar,
+    _metaEscolherCapa, _metaEscolherFilme, _metaEscolherSinopse, _metaSalvar, _scrapePendentes, _scrapeSalvarChave, _wizardConectar,
     _wizardCriarRemote, _wizardEscolherRemote, _wizardEscolherTipo, _wizardFiltrarTipos,
     _wizardPassoExistente, _wizardPassoNovoTipo, _wizardPassoOrigem, abrirBusca, abrirColecao,
     addSource, addSourceFromForm, backupToCloud, buscaTecla, cancelarProximo, clearCache,
