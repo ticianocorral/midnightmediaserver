@@ -684,10 +684,11 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
             self._send_json({"status": "error", "error": "Faltou path ou tmdb_id"}, 400)
             return
         if self._tipo_da_pasta(folder_path) == "serie":
-            ok, erro, _n = _scraper.aplicar_serie(folder_path, tmdb_id)
+            ok, erro, _n = _scraper.aplicar_serie(folder_path, tmdb_id, body.get("idioma"))
         else:
             ok, erro = _scraper.aplicar(folder_path, tmdb_id,
-                                        substituir=bool(body.get("substituir")))
+                                        substituir=bool(body.get("substituir")),
+                                        idioma=body.get("idioma"))
         if not ok:
             self._send_json({"status": "error", "error": erro}, 502)
             return

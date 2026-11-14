@@ -100,7 +100,7 @@ def test_partir_caminho():
     assert db.partir_caminho("/c.mkv") == ("", "c.mkv")
 
 
-def test_substituir_arquivos_guarda_o_nfo_antigo(tmp_path):
+def test_substituir_arquivos_sobrescreve_sem_copia(tmp_path):
     from mediaserver import scraper
     pasta = tmp_path / "Filme (2000)"
     _arq(pasta / "Filme (2000).nfo", b"<movie><title>Velho</title></movie>")
@@ -109,4 +109,12 @@ def test_substituir_arquivos_guarda_o_nfo_antigo(tmp_path):
             "writers": [], "studios": [], "country": [], "tags": []}
     assert scraper.substituir_arquivos(pasta, meta)
     assert "Novo" in (pasta / "Filme (2000).nfo").read_text(encoding="utf-8")
-    assert "Velho" in (pasta / "Filme (2000).nfo.anterior").read_text(encoding="utf-8")
+    assert not list(pasta.glob("*.anterior*"))
+
+
+def test_idioma_do_metadado_so_aceita_pt_br_ou_en_us():
+    from mediaserver import scraper
+    assert scraper.idioma_valido("en-US") == "en-US"
+    assert scraper.idioma_valido("pt-BR") == "pt-BR"
+    assert scraper.idioma_valido("fr-FR") == "pt-BR"
+    assert scraper.idioma_valido(None) == "pt-BR"

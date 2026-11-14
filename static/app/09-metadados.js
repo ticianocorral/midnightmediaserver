@@ -327,62 +327,115 @@
     document.body.style.overflow = 'hidden';
     const st = await (await fetch('/api/scrape/status')).json().catch(() => ({}));
     if (!st.configurado) { _scrapeFormChave(); return; }
-    const box = document.getElementById('scrapeBox');
-    box.innerHTML = '<div class="rclone-help">Escolha o filme certo no TMDB. <b>Baixar metadado e capa</b> traz tudo do TMDB '
-      + 'e <b>sobrepõe</b> o que está no banco (e o .nfo e a capa da pasta, se for fonte local). O que existia não é apagado: '
-      + 'vira <b>.nfo.anterior</b> e <b>poster.anterior.jpg</b>. <b>Ver capas</b> troca só a capa. Sem fanart.</div>'
-      + '<div class="user-form"><input type="text" id="capaQuery" value="' + escHtml((titulo || '').replace(/\s*\(\d{4}\)\s*$/, '').trim()) + '" style="flex:1 1 auto" '
-      + attrAcao('_capaBuscarTecla', [{$: 'event'}], false, 'data-act-keydown') + '><button class="rclone-action-btn primary" data-act="_capaBuscar">Buscar filme</button></div>'
+    _metaTela(document.getElementById('scrapeBox'), path, titulo, null);
+  }
+
+  // ----- Busca + confirmação do metadado (ficha do filme/série e "Sem metadado") -----
+  // Fluxo único: buscar → escolher → VER o metadado → confirmar. Salvar sempre
+  // sobrescreve (banco, .nfo e poster); nada do que existia é guardado.
+  const _meta = { path: '', previewId: null, voltar: null };
+
+  function _idiomaAtual() {
+    try { const v = localStorage.getItem('scrapeIdioma'); if (v === 'pt-BR' || v === 'en-US') return v; } catch (e) { /* sem storage */ }
+    return 'pt-BR';
+  }
+
+  function _idiomaBarra() {
+    const at = _idiomaAtual();
+    const bt = (cod, rot) => '<button type="button" class="user-btn' + (at === cod ? ' active' : '') + '"'
+      + attrAcao('_scrapeIdioma', [cod]) + (at === cod ? ' style="border-color:var(--cream);color:var(--cream)"' : '') + '>' + rot + '</button>';
+    return '<div id="metaIdiomaBox"><div class="src-hint" style="margin:8px 0 4px">Idioma do metadado (sinopse, título, gêneros e do .nfo):</div>'
+      + '<div style="display:flex;gap:8px" id="metaIdioma">' + bt('pt-BR', 'Português (BR)') + bt('en-US', 'English (US)') + '</div></div>';
+  }
+
+  function _metaTela(el, path, titulo, voltar) {
+    _meta.path = path; _meta.previewId = null; _meta.voltar = voltar;
+    el.innerHTML = (voltar ? '<button class="user-btn"' + attrAcao(voltar) + '>← Voltar</button>' : '')
+      + '<div class="rclone-help" style="margin-top:' + (voltar ? '10' : '0') + 'px">Busque o filme/série certo no TMDB e escolha. Antes de salvar você vê o metadado que será gravado. '
+      + 'Salvar <b>sobrescreve</b> o banco, o .nfo e a capa da pasta (sem guardar o anterior).</div>'
+      + _idiomaBarra()
+      + '<div class="user-form" style="margin-top:10px"><input type="text" id="capaQuery" value="' + escHtml((titulo || '').replace(/\s*\(\d{4}\)\s*$/, '').trim()) + '" style="flex:1 1 auto" '
+      + attrAcao('_capaBuscarTecla', [{$: 'event'}], false, 'data-act-keydown') + '><button class="rclone-action-btn primary" data-act="_capaBuscar">Buscar</button></div>'
       + '<div id="capaCands" style="margin-top:10px"></div><div id="capaGrade" style="margin-top:10px"></div><div id="capaMsg"></div>';
-    window._capaAlvo = path;
     _capaBuscar();
+  }
+
+  function _scrapeIdioma(cod) {
+    try { localStorage.setItem('scrapeIdioma', cod); } catch (e) { /* sem storage */ }
+    const caixa = document.getElementById('metaIdiomaBox');
+    if (caixa) caixa.outerHTML = _idiomaBarra();
+    if (_meta.previewId) _metaPreview(_meta.previewId); else _capaBuscar();
   }
 
   async function _capaBuscar() {
     const q = (document.getElementById('capaQuery').value || '').trim();
     const area = document.getElementById('capaCands');
+    _meta.previewId = null;
+    document.getElementById('capaGrade').innerHTML = '';
+    document.getElementById('capaMsg').innerHTML = '';
     area.innerHTML = '<div class="loading" style="min-height:60px"><div class="spinner"></div><span>Buscando no TMDB...</span></div>';
-    const d = await (await fetch('/api/scrape/search?path=' + encodeURIComponent(window._capaAlvo) + '&q=' + encodeURIComponent(q))).json();
+    let d;
+    try {
+      d = await (await fetch('/api/scrape/search?path=' + encodeURIComponent(_meta.path) + '&q=' + encodeURIComponent(q)
+        + '&idioma=' + encodeURIComponent(_idiomaAtual()))).json();
+    } catch (e) { d = { erro: 'Falha de conexão.' }; }
     if (d.erro) { area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro) + '</div>'; return; }
     const c = d.candidatos || [];
-    area.innerHTML = c.length ? c.map(x => '<div class="user-row" style="align-items:center">'
-      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:36px;height:52px;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
-      + '<div class="src-main"><div class="user-name">' + escHtml(x.titulo) + (x.ano ? ' (' + x.ano + ')' : '') + '</div></div>'
-      + '<button class="user-btn"' + attrAcao('_capaEscolherFilme', [x.id]) + '>Ver capas</button>'
-      + '<button class="rclone-action-btn primary" style="margin-left:6px"' + attrAcao('_capaBaixarTudo', [x.id]) + '>Baixar metadado e capa</button></div>').join('')
+    area.innerHTML = c.length ? c.map(x => '<div class="user-row" style="align-items:flex-start">'
+      + (x.poster ? '<img src="' + escHtml(x.poster) + '" alt="" style="width:44px;height:64px;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
+      + '<div class="src-main"><div class="user-name">' + escHtml(x.titulo) + (x.ano ? ' (' + escHtml(x.ano) + ')' : '') + '</div>'
+      + '<div class="src-hint">' + escHtml((x.sinopse || '').slice(0, 140)) + '</div></div>'
+      + '<button class="user-btn"' + attrAcao('_metaPreview', [x.id]) + '>Ver metadado</button></div>').join('')
       : '<div class="user-msg">Nenhum resultado. Ajuste o texto da busca.</div>';
   }
 
-  function _capaEscolherFilme(tmdbId) {
-    window._capaTmdb = tmdbId;
-    _capasGrade('capaGrade', tmdbId, null, caminho => _capaAplicar(caminho));
+  // Mostra o metadado que seria gravado; só salva se a pessoa confirmar.
+  async function _metaPreview(tmdbId) {
+    const area = document.getElementById('capaCands');
+    _meta.previewId = tmdbId;
+    document.getElementById('capaGrade').innerHTML = '';
+    document.getElementById('capaMsg').innerHTML = '';
+    area.innerHTML = '<div class="loading" style="min-height:80px"><div class="spinner"></div><span>Baixando metadado...</span></div>';
+    let d;
+    try {
+      d = await (await fetch('/api/scrape/preview?path=' + encodeURIComponent(_meta.path) + '&tmdb_id=' + encodeURIComponent(tmdbId)
+        + '&idioma=' + encodeURIComponent(_idiomaAtual()))).json();
+    } catch (e) { d = { erro: 'Falha de conexão.' }; }
+    if (_meta.previewId !== tmdbId) return;   // a pessoa já saiu dessa tela
+    if (d.erro || !d.meta) {
+      area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro || 'Sem dados.') + '</div>'
+        + '<button class="user-btn" data-act="_capaBuscar">Voltar aos resultados</button>';
+      return;
+    }
+    const m = d.meta;
+    const lin = (rot, v) => (v && String(v).length) ? '<div class="src-hint" style="margin:2px 0"><b>' + rot + ':</b> ' + escHtml(String(v)) + '</div>' : '';
+    const lista = a => (a || []).join(', ');
+    area.innerHTML = '<div class="user-row" style="align-items:flex-start">'
+      + (m.poster ? '<img src="' + escHtml(m.poster) + '" alt="" style="width:92px;aspect-ratio:2/3;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
+      + '<div class="src-main"><div class="user-name">' + escHtml(m.title || '') + (m.year ? ' (' + escHtml(m.year) + ')' : '') + '</div>'
+      + lin('Título original', m.originaltitle !== m.title ? m.originaltitle : '')
+      + lin('Gêneros', lista(m.genres)) + lin('Duração', m.runtime ? m.runtime + ' min' : '')
+      + lin('Nota', m.rating ? m.rating + (m.votes ? ' (' + m.votes + ' votos)' : '') : '')
+      + lin('Direção', lista(m.directors)) + lin('Elenco', lista((m.actors || []).slice(0, 8).map(a => a.name)))
+      + lin('País', lista(m.country)) + lin('Estúdios', lista((m.studios || []).slice(0, 4))) + lin('Coleção', m.set_name)
+      + (m.tagline ? '<div class="src-hint" style="margin:4px 0;font-style:italic">' + escHtml(m.tagline) + '</div>' : '')
+      + '<div class="src-hint" style="margin:6px 0;color:var(--text2)">' + escHtml(m.plot || 'Sem sinopse.') + '</div></div></div>'
+      + '<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">'
+      + '<button class="rclone-action-btn primary"' + attrAcao('_metaSalvar', [tmdbId]) + '>Salvar (sobrescrever)</button>'
+      + '<button class="user-btn" data-act="_capaBuscar">Voltar aos resultados</button></div>';
   }
 
-  // Baixa o metadado e a capa do filme escolhido e SOBREPOE o que ja existe.
-  async function _capaBaixarTudo(tmdbId) {
-    if (!window.confirm('Baixar metadado e capa deste filme e sobrepor o que já existe? O .nfo e a capa atuais ficam como .anterior na pasta.')) return;
+  async function _metaSalvar(tmdbId) {
     const msg = document.getElementById('capaMsg');
-    msg.innerHTML = '<div class="loading" style="min-height:40px"><div class="spinner"></div><span>Baixando metadado e capa...</span></div>';
-    const r = await _scrapePost('/api/scrape/apply', { path: window._capaAlvo, tmdb_id: tmdbId, substituir: true });
+    msg.innerHTML = '<div class="loading" style="min-height:40px"><div class="spinner"></div><span>Salvando...</span></div>';
+    const r = await _scrapePost('/api/scrape/apply', { path: _meta.path, tmdb_id: tmdbId, substituir: true, idioma: _idiomaAtual() });
     if (r.ok) {
-      msg.innerHTML = '<div class="user-msg ok">Metadado e capa substituídos. O catálogo está sendo atualizado.</div>';
       showToast('Metadado e capa atualizados.', 'success');
       Object.keys(_frontCache).forEach(k => _invalidateCache(k));   // a ficha e o grid recarregam com o dado novo
+      if (_meta.voltar) { _scrapePendentes(); return; }
+      msg.innerHTML = '<div class="user-msg ok">Metadado e capa substituídos. O catálogo está sendo atualizado.</div>';
     } else {
-      msg.innerHTML = '<div class="user-msg err">' + escHtml(r.data.error || 'Não foi possível baixar.') + '</div>';
-    }
-  }
-
-  async function _capaAplicar(caminho) {
-    if (!window.confirm('Usar esta capa? A atual vira poster.anterior.jpg na pasta.')) return;
-    const msg = document.getElementById('capaMsg');
-    msg.innerHTML = '<div class="loading" style="min-height:40px"><div class="spinner"></div><span>Baixando a capa...</span></div>';
-    const r = await _scrapePost('/api/scrape/capa', { path: window._capaAlvo, tmdb_id: window._capaTmdb, poster_path: caminho });
-    if (r.ok) {
-      msg.innerHTML = '<div class="user-msg ok">Capa trocada. O catálogo está sendo atualizado.</div>';
-      showToast('Capa trocada.', 'success');
-    } else {
-      msg.innerHTML = '<div class="user-msg err">' + escHtml(r.data.error || 'Não foi possível trocar a capa.') + '</div>';
+      msg.innerHTML = '<div class="user-msg err">' + escHtml(r.data.error || 'Não foi possível salvar.') + '</div>';
     }
   }
 
@@ -401,76 +454,27 @@
   }
 
   function _scrapeAbrirBusca(pathEnc, nomeEnc) {
-    const nome = decodeURIComponent(nomeEnc);
-    document.getElementById('scrapeCorpo').innerHTML =
-      '<button class="user-btn" data-act="_scrapePendentes">← Voltar</button>'
-      + '<div class="user-form" style="margin-top:10px"><input type="text" id="scrapeQuery" value="'
-      + escHtml(nome.replace(/\s*\(\d{4}\)\s*$/, '').trim()) + '" style="flex:1 1 auto">'
-      + '<button class="rclone-action-btn primary"' + attrAcao('_scrapeBuscar', [pathEnc]) + '>Buscar</button></div>'
-      + '<div id="scrapeResultados" style="margin-top:12px"></div>';
-    _scrapeBuscar(pathEnc);
-  }
-
-  async function _scrapeBuscar(pathEnc) {
-    const path = decodeURIComponent(pathEnc);
-    const q = (document.getElementById('scrapeQuery').value || '').trim();
-    const area = document.getElementById('scrapeResultados');
-    area.innerHTML = '<div class="loading" style="min-height:80px"><div class="spinner"></div><span>Buscando no TMDB...</span></div>';
-    const d = await (await fetch('/api/scrape/search?path=' + encodeURIComponent(path) + (q ? '&q=' + encodeURIComponent(q) : ''))).json();
-    if (d.erro) { area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro) + '</div>'; return; }
-    const c = d.candidatos || [];
-    area.innerHTML = c.length ? c.map(x => '<div class="user-row" style="align-items:flex-start">'
-      + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:44px;height:64px;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
-      + '<div class="src-main"><div class="user-name">' + escHtml(x.titulo) + (x.ano ? ' (' + x.ano + ')' : '') + '</div>'
-      + '<div class="src-hint">' + escHtml((x.sinopse || '').slice(0, 140)) + '</div></div>'
-      + '<button class="user-btn"' + attrAcao('_scrapeAplicar', [pathEnc, x.id]) + '>Usar este</button></div>').join('')
-      : '<div class="user-msg">Nenhum resultado. Ajuste o texto da busca.</div>';
-  }
-
-  // "Usar este" não grava na hora: baixa o metadado, mostra e só salva se a
-  // pessoa confirmar.
-  async function _scrapeAplicar(pathEnc, tmdbId) {
-    const area = document.getElementById('scrapeResultados');
-    area.innerHTML = '<div class="loading" style="min-height:80px"><div class="spinner"></div><span>Baixando metadado...</span></div>';
-    let d;
-    try { d = await (await fetch('/api/scrape/preview?path=' + encodeURIComponent(decodeURIComponent(pathEnc)) + '&tmdb_id=' + encodeURIComponent(tmdbId))).json(); }
-    catch (e) { d = { erro: 'Falha de conexão.' }; }
-    if (d.erro || !d.meta) {
-      area.innerHTML = '<div class="user-msg err">' + escHtml(d.erro || 'Sem dados.') + '</div>';
-      return;
-    }
-    const m = d.meta;
-    const lin = (rot, v) => (v && String(v).length) ? '<div class="src-hint" style="margin:2px 0"><b>' + rot + ':</b> ' + escHtml(String(v)) + '</div>' : '';
-    const lista = a => (a || []).join(', ');
-    area.innerHTML = '<div class="user-row" style="align-items:flex-start">'
-      + (m.poster ? '<img src="' + escHtml(m.poster) + '" alt="" style="width:92px;aspect-ratio:2/3;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
-      + '<div class="src-main"><div class="user-name">' + escHtml(m.title || '') + (m.year ? ' (' + m.year + ')' : '') + '</div>'
-      + lin('Título original', m.originaltitle !== m.title ? m.originaltitle : '')
-      + lin('Gêneros', lista(m.genres)) + lin('Duração', m.runtime ? m.runtime + ' min' : '')
-      + lin('Nota', m.rating ? m.rating + (m.votes ? ' (' + m.votes + ' votos)' : '') : '')
-      + lin('Direção', lista(m.directors)) + lin('Elenco', lista((m.actors || []).slice(0, 8).map(a => a.name)))
-      + lin('País', lista(m.country)) + lin('Estúdios', lista((m.studios || []).slice(0, 4))) + lin('Coleção', m.set_name)
-      + (m.tagline ? '<div class="src-hint" style="margin:4px 0;font-style:italic">' + escHtml(m.tagline) + '</div>' : '')
-      + '<div class="src-hint" style="margin:6px 0;color:var(--text2)">' + escHtml(m.plot || 'Sem sinopse.') + '</div></div></div>'
-      + '<div style="display:flex;gap:10px;margin-top:10px">'
-      + '<button class="rclone-action-btn primary"' + attrAcao('_scrapeConfirmar', [pathEnc, tmdbId]) + '>Salvar este metadado</button>'
-      + '<button class="user-btn"' + attrAcao('_scrapeBuscar', [pathEnc]) + '>Voltar aos resultados</button></div>';
-  }
-
-  async function _scrapeConfirmar(pathEnc, tmdbId) {
-    const r = await _scrapePost('/api/scrape/apply', { path: decodeURIComponent(pathEnc), tmdb_id: tmdbId });
-    showToast(r.ok ? 'Metadados aplicados.' : (r.data.error || 'Não foi possível aplicar.'), r.ok ? 'success' : 'error');
-    if (r.ok) _scrapePendentes();
+    _metaTela(document.getElementById('scrapeCorpo'), decodeURIComponent(pathEnc), decodeURIComponent(nomeEnc), '_scrapePendentes');
   }
 
   // ==================== CHANGELOG MODAL ====================
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
     {
+      version: '1.29.6',
+      title: 'Busca de metadado com confirmação e idioma pt-BR/US',
+      changes: [
+        'Escolher o filme mostra o metadado para confirmar antes de salvar',
+        'Idioma do metadado: Português (BR) ou English (US)',
+        'Salvar sempre sobrescreve banco, .nfo e capa, sem guardar o anterior',
+        'Mesma tela de busca na ficha e em Sem metadado',
+      ],
+    },
+    {
       version: '1.29.5',
       title: 'Baixar metadado e capa na ficha, metadado some ao apagar o .nfo e legenda nova na TV',
       changes: [
-        'Botão Baixar metadado e capa na ficha do filme: sobrepõe banco, .nfo e poster (o antigo vira .anterior)',
+        'Botão Baixar metadado e capa na ficha do filme: sobrepõe banco, .nfo e poster (o antigo é sobrescrito, sem cópia)',
         'Filme local sem .nfo não mostra mais metadado antigo do banco',
         'TV: decodificador de hardware, legenda Média/Branca no estilo Apple TV com fonte Inter',
         'TV: legenda e escala ajustadas',

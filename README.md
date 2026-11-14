@@ -117,6 +117,17 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 ## 📋 Changelog
 
+### v1.29.6 — Busca de metadado com confirmação e idioma pt-BR/US
+
+- Escolher o filme mostra o metadado para confirmar antes de salvar
+
+- Idioma do metadado: Português (BR) ou English (US)
+
+- Salvar sempre sobrescreve banco, .nfo e capa, sem guardar o anterior
+
+- Mesma tela de busca na ficha e em Sem metadado
+
+
 ### v1.29.5 — Baixar metadado e capa na ficha, metadado some ao apagar o .nfo e legenda nova na TV
 
 - Botão Baixar metadado e capa na ficha do filme: sobrepõe banco, .nfo e poster (o antigo vira .anterior)

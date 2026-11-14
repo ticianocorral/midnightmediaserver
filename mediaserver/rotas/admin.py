@@ -33,7 +33,8 @@ class AdminRotas:
             return
         nome_pasta = folder_path.rstrip("/").rsplit("/", 1)[-1]
         candidatos, erro = _scraper.buscar_candidatos(
-            nome_pasta, query, self._tipo_da_pasta(folder_path))
+            nome_pasta, query, self._tipo_da_pasta(folder_path),
+            params.get("idioma", [""])[0])
         self._send_json({"candidatos": candidatos, "erro": erro})
         return
 
@@ -47,11 +48,12 @@ class AdminRotas:
         if not folder_path or not tmdb_id:
             self._send_error("Missing 'path' or 'tmdb_id'", 400)
             return
+        idioma = params.get("idioma", [""])[0]
         if self._tipo_da_pasta(folder_path) == "serie":
-            dados, erro = _scraper.detalhes_serie(tmdb_id)
+            dados, erro = _scraper.detalhes_serie(tmdb_id, idioma)
             meta = _scraper.para_serie_meta(dados) if dados else None
         else:
-            dados, erro = _scraper.detalhes(tmdb_id)
+            dados, erro = _scraper.detalhes(tmdb_id, idioma)
             meta = _scraper.para_movie_meta(dados) if dados else None
         if meta:
             poster = meta.pop("_poster_path", None)
