@@ -240,8 +240,9 @@ class MainActivity : AppCompatActivity() {
         if (requisicao != COD_PLAYER || resultado != Activity.RESULT_OK || dados == null) return
         val posicao = dados.getLongExtra(PlayerActivity.EXTRA_POSICAO, 0L)
         val duracao = dados.getLongExtra(PlayerActivity.EXTRA_DURACAO, 0L)
-        val legTam = dados.getIntExtra(PlayerActivity.EXTRA_LEG_TAM, -1)
-        val legCor = dados.getIntExtra(PlayerActivity.EXTRA_LEG_COR, -1)
+        // A legenda da TV nao volta para a pagina: la o padrao e sempre Media/Branco.
+        val legTam = -1
+        val legCor = -1
         // Episodios que o player emendou antes de sair, e o que estava tocando ao sair.
         val saidas = dados.getStringExtra(PlayerActivity.EXTRA_SAIDAS) ?: "[]"
         val atual = JSONObject.quote(dados.getStringExtra(PlayerActivity.EXTRA_ATUAL).orEmpty())

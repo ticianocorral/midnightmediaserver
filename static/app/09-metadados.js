@@ -328,8 +328,9 @@
     const st = await (await fetch('/api/scrape/status')).json().catch(() => ({}));
     if (!st.configurado) { _scrapeFormChave(); return; }
     const box = document.getElementById('scrapeBox');
-    box.innerHTML = '<div class="rclone-help">Escolha o filme certo no TMDB e depois a capa. A capa atual '
-      + 'não é apagada: vira <b>poster.anterior.jpg</b> na pasta. Só a capa é baixada, sem fanart.</div>'
+    box.innerHTML = '<div class="rclone-help">Escolha o filme certo no TMDB. <b>Baixar metadado e capa</b> traz tudo do TMDB '
+      + 'e <b>sobrepõe</b> o que está no banco (e o .nfo e a capa da pasta, se for fonte local). O que existia não é apagado: '
+      + 'vira <b>.nfo.anterior</b> e <b>poster.anterior.jpg</b>. <b>Ver capas</b> troca só a capa. Sem fanart.</div>'
       + '<div class="user-form"><input type="text" id="capaQuery" value="' + escHtml((titulo || '').replace(/\s*\(\d{4}\)\s*$/, '').trim()) + '" style="flex:1 1 auto" '
       + attrAcao('_capaBuscarTecla', [{$: 'event'}], false, 'data-act-keydown') + '><button class="rclone-action-btn primary" data-act="_capaBuscar">Buscar filme</button></div>'
       + '<div id="capaCands" style="margin-top:10px"></div><div id="capaGrade" style="margin-top:10px"></div><div id="capaMsg"></div>';
@@ -347,13 +348,29 @@
     area.innerHTML = c.length ? c.map(x => '<div class="user-row" style="align-items:center">'
       + (x.poster ? '<img src="' + x.poster + '" alt="" style="width:36px;height:52px;object-fit:cover;border-radius:4px;flex:0 0 auto"' + attrAcao('imgRemover', null, false, 'data-act-error') + '>' : '')
       + '<div class="src-main"><div class="user-name">' + escHtml(x.titulo) + (x.ano ? ' (' + x.ano + ')' : '') + '</div></div>'
-      + '<button class="user-btn"' + attrAcao('_capaEscolherFilme', [x.id]) + '>Ver capas</button></div>').join('')
+      + '<button class="user-btn"' + attrAcao('_capaEscolherFilme', [x.id]) + '>Ver capas</button>'
+      + '<button class="rclone-action-btn primary" style="margin-left:6px"' + attrAcao('_capaBaixarTudo', [x.id]) + '>Baixar metadado e capa</button></div>').join('')
       : '<div class="user-msg">Nenhum resultado. Ajuste o texto da busca.</div>';
   }
 
   function _capaEscolherFilme(tmdbId) {
     window._capaTmdb = tmdbId;
     _capasGrade('capaGrade', tmdbId, null, caminho => _capaAplicar(caminho));
+  }
+
+  // Baixa o metadado e a capa do filme escolhido e SOBREPOE o que ja existe.
+  async function _capaBaixarTudo(tmdbId) {
+    if (!window.confirm('Baixar metadado e capa deste filme e sobrepor o que já existe? O .nfo e a capa atuais ficam como .anterior na pasta.')) return;
+    const msg = document.getElementById('capaMsg');
+    msg.innerHTML = '<div class="loading" style="min-height:40px"><div class="spinner"></div><span>Baixando metadado e capa...</span></div>';
+    const r = await _scrapePost('/api/scrape/apply', { path: window._capaAlvo, tmdb_id: tmdbId, substituir: true });
+    if (r.ok) {
+      msg.innerHTML = '<div class="user-msg ok">Metadado e capa substituídos. O catálogo está sendo atualizado.</div>';
+      showToast('Metadado e capa atualizados.', 'success');
+      Object.keys(_frontCache).forEach(k => _invalidateCache(k));   // a ficha e o grid recarregam com o dado novo
+    } else {
+      msg.innerHTML = '<div class="user-msg err">' + escHtml(r.data.error || 'Não foi possível baixar.') + '</div>';
+    }
   }
 
   async function _capaAplicar(caminho) {
@@ -449,6 +466,16 @@
   // ==================== CHANGELOG MODAL ====================
   // Só a última entrada é exibida no modal (versões anteriores ficam no README)
   const _CHANGELOG = [
+    {
+      version: '1.29.5',
+      title: 'Baixar metadado e capa na ficha, metadado some ao apagar o .nfo e legenda nova na TV',
+      changes: [
+        'Botão Baixar metadado e capa na ficha do filme: sobrepõe banco, .nfo e poster (o antigo vira .anterior)',
+        'Filme local sem .nfo não mostra mais metadado antigo do banco',
+        'TV: decodificador de hardware, legenda Média/Branca no estilo Apple TV com fonte Inter',
+        'TV: legenda e escala ajustadas',
+      ],
+    },
     {
       version: '1.29.4',
       title: 'TV: página pausada enquanto o vídeo toca',

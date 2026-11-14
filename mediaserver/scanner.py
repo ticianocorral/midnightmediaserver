@@ -281,6 +281,14 @@ def _index_tree(conn, root_path, root_name, entries,
         novo = prev is None
         alterado = novo
         live = files_by_parent.get(path, {})
+        # Pasta LOCAL sem .nfo: o disco e a fonte da verdade. Se a pessoa apagou
+        # o .nfo (e o poster), o metadado antigo no banco nao pode continuar
+        # aparecendo como se existisse. Na nuvem o banco pode ser o unico lugar
+        # do metadado (ela e somente leitura), entao la nada e apagado.
+        if (tipo == "filme" and not any(n.lower().endswith(".nfo") for n in live)
+                and _sources.is_local(path)):
+            conn.execute("DELETE FROM movie_meta WHERE folder_path=?", (path,))
+            conn.execute("DELETE FROM movie_collections WHERE folder_path=?", (path,))
         if not alterado:
             db_keys = db_nomes_por_pasta.get(path, set())
             live_keys = set(live)
