@@ -481,6 +481,16 @@
     _metaDesenharIdiomas(); _metaDesenharInfo();
   }
 
+  // A capa nova tem o mesmo endereço da antiga: força as <img> já na tela
+  // (grid e ficha) a buscarem de novo.
+  function _recarregarCapas(pasta) {
+    const alvo = encodeURIComponent(pasta + '/');
+    document.querySelectorAll('img').forEach(im => {
+      const src = im.getAttribute('src') || '';
+      if (src.indexOf('/api/stream?path=' + alvo) === 0) im.src = src.replace(/&v=\d+$/, '') + '&v=' + Date.now();
+    });
+  }
+
   async function _metaSalvar() {
     if (!_meta.sel) return;
     const msg = document.getElementById('capaMsg');
@@ -492,6 +502,7 @@
     if (r.ok) {
       showToast('Metadado salvo.', 'success');
       Object.keys(_frontCache).forEach(k => _invalidateCache(k));   // a ficha e o grid recarregam com o dado novo
+      _recarregarCapas(_meta.path);
       if (_meta.voltar) { _scrapePendentes(); return; }
       msg.innerHTML = '<div class="user-msg ok" style="margin-top:10px">Salvo. O catálogo está sendo atualizado.</div>';
     } else {

@@ -1245,12 +1245,23 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         try:
             if not real.is_file():
                 raise FileNotFoundError
-            size = real.stat().st_size
+            st = real.stat()
+            size = st.st_size
         except OSError:
             self._send_error("Arquivo indisponivel — a fonte esta conectada?", 404)
             return
 
         range_header = self.headers.get("Range")
+        # Imagem local: o navegador revalida a cada uso (ETag pelo mtime). Assim
+        # uma capa trocada aparece na hora, sem esperar o cache de 1 dia vencer.
+        etag = f'"{st.st_mtime_ns:x}-{size:x}"' if cache_imagem else None
+        if etag and not range_header and self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "no-cache")
+            self._send_media_cors()
+            self.end_headers()
+            return
         start, end = 0, max(size - 1, 0)
         partial = False
 
@@ -1274,8 +1285,9 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         self.send_header("Content-Length", str(length))
         self.send_header("Content-Type", mime)
         self.send_header("Accept-Ranges", "bytes")
-        if cache_imagem:
-            self.send_header("Cache-Control", "max-age=86400")
+        if etag:
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("ETag", etag)
         self._send_media_cors()
         self.end_headers()
 
