@@ -121,7 +121,7 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 - O melhor resultado já vem escolhido: clique na capa, escolha a sinopse e salve
 
-- Sinopse em Português ou English, editável antes de salvar
+- Sinopse em Português ou English, editável; a pasta e os arquivos são renomeados pelo título nesse idioma (também no Organizar)
 
 - Salvar sempre sobrescreve banco, .nfo e capa, sem guardar o anterior
 

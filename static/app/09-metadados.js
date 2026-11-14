@@ -176,7 +176,7 @@
     area.innerHTML = '<div class="loading" style="min-height:60px"><div class="spinner"></div><span>Buscando no TMDB...</span></div>';
     const q = (texto !== undefined) ? texto : '';
     const d = await (await fetch('/api/organizar/buscar?source=' + encodeURIComponent(_org.source)
-      + '&origem=' + encodeURIComponent(it.origem) + (q ? '&q=' + encodeURIComponent(q) : ''))).json();
+      + '&origem=' + encodeURIComponent(it.origem) + (q ? '&q=' + encodeURIComponent(q) : '') + '&idioma=' + _idiomaAtual())).json();
     _org.busca[id] = d;
     _orgMostrarCandidatos(id, d);
   }
@@ -267,7 +267,7 @@
       if (_org.escolha[it.origem] || !it.titulo) continue;
       try {
         const d = await (await fetch('/api/organizar/buscar?source=' + encodeURIComponent(_org.source)
-          + '&origem=' + encodeURIComponent(it.origem))).json();
+          + '&origem=' + encodeURIComponent(it.origem) + '&idioma=' + _idiomaAtual())).json();
         const c = (d.candidatos || [])[0];
         if (c && it.ano && c.ano === it.ano &&
             (_orgNorm(c.titulo) === _orgNorm(it.titulo) || _orgNorm(c.titulo).startsWith(_orgNorm(it.titulo)))) {
@@ -284,7 +284,7 @@
 
   async function _orgAplicar() {
     const itens = Object.keys(_org.escolha).map(o => ({ origem: o, tmdb_id: _org.escolha[o].tmdb_id,
-      poster_path: _org.escolha[o].poster_path, sem_capa: !!_org.escolha[o].sem_capa }));
+      poster_path: _org.escolha[o].poster_path, sem_capa: !!_org.escolha[o].sem_capa, idioma: _idiomaAtual() }));
     if (!itens.length) return;
     if (!window.confirm('Mover e renomear ' + itens.length + ' filme(s) na fonte? Você pode desfazer depois pelo Histórico.')) return;
     const area = document.getElementById('orgResultado');
@@ -333,7 +333,8 @@
   // ----- Editor de metadado (ficha do filme/série e "Sem metadado") -----
   // Uma tela só: o melhor resultado já vem escolhido; a pessoa clica na capa,
   // escolhe a sinopse (Português ou English, editável) e salva. Salvar sempre
-  // sobrescreve banco, .nfo e capa — nada do anterior é guardado.
+  // sobrescreve banco, .nfo e capa — nada do anterior é guardado — e, em
+  // filme local, renomeia a pasta e os arquivos pelo título no idioma escolhido.
   const _meta = { path: '', voltar: null, cands: [], sel: null, metas: {}, idioma: 'pt-BR', capas: [], capa: null, local: true, gen: 0 };
   const _IDIOMAS = [['pt-BR', 'Português'], ['en-US', 'English']];
 
@@ -412,6 +413,7 @@
     }
     _meta.metas = { 'pt-BR': pt.meta, 'en-US': en.meta };
     _meta.local = (pt.meta ? pt : en).local !== false;
+    _meta.serie = !!(pt.meta ? pt : en).serie;
     if (!_meta.metas[_meta.idioma]) _meta.idioma = pt.meta ? 'pt-BR' : 'en-US';
     _meta.capas = cp.capas || [];
     const principal = (_meta.metas[_meta.idioma] || {}).poster_path;
@@ -423,7 +425,7 @@
       + 'background:rgba(255,255,255,.04);color:inherit;border:1px solid rgba(255,255,255,.12)"></textarea>'
       + '<div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">'
       + '<button class="rclone-action-btn primary" data-act="_metaSalvar">Salvar</button>'
-      + '<span class="src-hint">Substitui o que está no catálogo' + (_meta.local ? ', o .nfo e a capa da pasta.' : '. A nuvem é somente leitura: a capa não é gravada lá.') + '</span></div>';
+      + '<span class="src-hint">Substitui o que está no catálogo' + (_meta.local ? (_meta.serie ? ' e a capa da pasta.' : ', o .nfo e a capa, e renomeia a pasta e os arquivos pelo título no idioma escolhido.') : '. A nuvem é somente leitura: a capa não é gravada lá.') + '</span></div>';
     _metaDesenharInfo(); _metaDesenharCapas(); _metaDesenharIdiomas();
     document.getElementById('metaPlot').value = (_meta.metas[_meta.idioma] || {}).plot || '';
   }
@@ -505,10 +507,19 @@
       poster_path: _meta.capa, plot: (document.getElementById('metaPlot').value || '').trim(),
     });
     if (r.ok) {
-      showToast('Metadado salvo.', 'success');
+      const antigo = _meta.path, novo = r.data.novo_path;
       Object.keys(_frontCache).forEach(k => _invalidateCache(k));   // a ficha e o grid recarregam com o dado novo
-      _recarregarCapas(_meta.path);
+      if (r.data.aviso) showToast(r.data.aviso, 'error');
+      else showToast(novo ? 'Metadado salvo e pasta renomeada.' : 'Metadado salvo.', 'success');
       if (_meta.voltar) { _scrapePendentes(); return; }
+      if (novo) {
+        // a pasta mudou de nome: reabre a ficha no endereço novo
+        _meta.path = novo;
+        closeScrapeModal();
+        if (typeof currentMovieFolder !== 'undefined' && currentMovieFolder === antigo) showMovieInfo(novo);
+        return;
+      }
+      _recarregarCapas(antigo);
       msg.innerHTML = '<div class="user-msg ok" style="margin-top:10px">Salvo. O catálogo está sendo atualizado.</div>';
     } else {
       msg.innerHTML = '<div class="user-msg err" style="margin-top:10px">' + escHtml(r.data.error || 'Não foi possível salvar.') + '</div>';
@@ -541,7 +552,7 @@
       title: 'Editor de capa e sinopse em uma tela só',
       changes: [
         'O melhor resultado já vem escolhido: clique na capa, escolha a sinopse e salve',
-        'Sinopse em Português ou English, editável antes de salvar',
+        'Sinopse em Português ou English, editável; a pasta e os arquivos são renomeados pelo título nesse idioma (também no Organizar)',
         'Salvar sempre sobrescreve banco, .nfo e capa, sem guardar o anterior',
         'Botão Capa e sinopse na ficha e a mesma tela em Sem metadado; capas de série também',
       ],

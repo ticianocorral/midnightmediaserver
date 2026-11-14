@@ -61,7 +61,8 @@ class AdminRotas:
             meta["poster"] = ("https://image.tmdb.org/t/p/w185" + poster) if poster else None
             meta.pop("video_info", None)
             meta.pop("audio_info", None)
-        self._send_json({"meta": meta, "erro": erro, "local": _sources.is_local(folder_path)})
+        self._send_json({"meta": meta, "erro": erro, "local": _sources.is_local(folder_path),
+                         "serie": self._tipo_da_pasta(folder_path) == "serie"})
         return
 
     def _get_api_scrape_capas(self, path, params):
@@ -87,7 +88,7 @@ class AdminRotas:
         """GET /api/organizar/buscar"""
         cands, erro = _organizador.buscar(
             params.get("source", [""])[0], params.get("origem", [""])[0],
-            params.get("q", [""])[0].strip() or None)
+            params.get("q", [""])[0].strip() or None, params.get("idioma", [""])[0])
         self._send_json({"candidatos": cands, "erro": erro})
         return
 

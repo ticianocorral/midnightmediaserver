@@ -118,3 +118,28 @@ def test_idioma_do_metadado_so_aceita_pt_br_ou_en_us():
     assert scraper.idioma_valido("pt-BR") == "pt-BR"
     assert scraper.idioma_valido("fr-FR") == "pt-BR"
     assert scraper.idioma_valido(None) == "pt-BR"
+
+
+def test_renomear_no_lugar_segue_o_titulo_do_idioma(tmp_path, home):
+    from mediaserver import organizador
+    raiz = tmp_path / "disco" / "Media Server"
+    pasta = raiz / "movies" / "Jason Goes to Hell (1993)"
+    pasta.mkdir(parents=True)
+    with open(pasta / "Jason Goes to Hell (1993).mp4", "wb") as f:
+        f.truncate(31 * 1024 * 1024)   # esparso: passa do minimo de video sem ocupar disco
+    _arq(pasta / "Jason Goes to Hell (1993).srt")
+    _arq(pasta / "Jason Goes to Hell (1993).nfo")
+    _arq(pasta / "poster.jpg")
+    src, err = sources.add_source("Disco renomear", str(raiz.parent))
+    assert not err, err
+    logico = src["mount"] + "/movies/Jason Goes to Hell (1993)"
+    novo, erro = organizador.renomear_no_lugar(logico, "Jason Vai para o Inferno: A Última Sexta-Feira", "1993")
+    assert erro is None
+    nome = "Jason Vai para o Inferno - A Última Sexta-Feira (1993)"
+    assert novo == src["mount"] + "/movies/" + nome
+    destino = raiz / "movies" / nome
+    assert sorted(p.name for p in destino.iterdir()) == sorted(
+        [nome + ".mp4", nome + ".srt", nome + ".nfo", "poster.jpg"])
+    assert not pasta.exists()
+    # mesmo titulo de novo: nada a fazer
+    assert organizador.renomear_no_lugar(novo, "Jason Vai para o Inferno: A Última Sexta-Feira", "1993") == (None, None)
