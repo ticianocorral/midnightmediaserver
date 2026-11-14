@@ -485,9 +485,14 @@
   // (grid e ficha) a buscarem de novo.
   function _recarregarCapas(pasta) {
     const alvo = encodeURIComponent(pasta + '/');
+    const novo = u => u.replace(/&v=\d+/, '') + '&v=' + Date.now();
     document.querySelectorAll('img').forEach(im => {
       const src = im.getAttribute('src') || '';
-      if (src.indexOf('/api/stream?path=' + alvo) === 0) im.src = src.replace(/&v=\d+$/, '') + '&v=' + Date.now();
+      if (src.indexOf('/api/stream?path=' + alvo) === 0) im.src = novo(src);
+    });
+    document.querySelectorAll('[style*="background-image"]').forEach(el => {
+      const m = /url\("?([^")]+)"?\)/.exec(el.style.backgroundImage || '');
+      if (m && m[1].indexOf('/api/stream?path=' + alvo) === 0) el.style.backgroundImage = cssUrl(novo(m[1]));
     });
   }
 
