@@ -260,6 +260,7 @@ def para_serie_meta(dados):
         "set_name": None,
         "set_overview": None,
         "_poster_path": dados.get("poster_path"),
+        "_tmdb_id": dados.get("id"),
     }
 
 
@@ -318,16 +319,28 @@ def aplicar_serie(folder_path, tmdb_id, idioma=None, poster_path=None, plot=None
     finally:
         conn.close()
 
-    # Pasta local: so a capa (o NFO de filme nao serve de tvshow.nfo).
+    # Pasta local: tvshow.nfo e UMA capa (poster.jpg) para a serie inteira;
+    # nunca imagem por temporada ou episodio.
     if _sources.is_local(folder_path):
         pasta = _sources.local_real_path(folder_path)
         if pasta is not None and pasta.is_dir():
-            if substituir:
-                substituir_arquivos(pasta, meta, sem_nfo=True)
-            else:
-                escrever_arquivos(pasta, {"_poster_path": meta.get("_poster_path")},
-                                  sem_nfo=True)
+            _escrever_serie(pasta, meta, substituir)
     return True, None, len(episodios)
+
+
+def _escrever_serie(pasta, meta, substituir):
+    """tvshow.nfo + poster.jpg na pasta da serie. Sem `substituir`, so o que
+    falta; com ele, o metadado novo sobrepoe o antigo."""
+    nfo = pasta / "tvshow.nfo"
+    if substituir or not nfo.exists():
+        try:
+            _escrever_atomico(nfo, _construir_nfo_xml(meta, "tvshow").encode("utf-8"))
+        except OSError:
+            pass
+    if substituir:
+        substituir_arquivos(pasta, meta, sem_nfo=True)
+    else:
+        escrever_arquivos(pasta, {"_poster_path": meta.get("_poster_path")}, sem_nfo=True)
 
 
 # ── Escrita local: confinada, nao-destrutiva, atomica ───────
@@ -351,10 +364,10 @@ def _baixar_imagem(url):
         return None
 
 
-def _construir_nfo_xml(meta):
+def _construir_nfo_xml(meta, raiz="movie"):
     """XML no formato que nfo._parse_nfo ja sabe ler de volta — inclusive
     <ratings><rating> aninhado, que e a forma que rating_info() procura
-    primeiro, e <set> para colecao."""
+    primeiro, e <set> para colecao. `raiz` e "movie" ou "tvshow"."""
     def tag(nome, valor):
         if not valor:
             return ""
@@ -363,9 +376,11 @@ def _construir_nfo_xml(meta):
     def tags(nome, valores):
         return "".join(tag(nome, v) for v in (valores or []) if v)
 
-    partes = ["<movie>\n"]
+    partes = ["<%s>\n" % raiz]
     partes.append(tag("title", meta.get("title")))
     partes.append(tag("originaltitle", meta.get("originaltitle")))
+    if raiz == "tvshow":
+        partes.append(tag("showtitle", meta.get("title")))
     partes.append(tag("year", meta.get("year")))
     partes.append(tag("plot", meta.get("plot")))
     partes.append(tag("tagline", meta.get("tagline")))
@@ -389,14 +404,29 @@ def _construir_nfo_xml(meta):
         partes.append("    " + tag("role", ator.get("role")))
         partes.append("  </actor>\n")
     partes.append(tag("source", meta.get("source")))
+    if raiz == "tvshow":
+        partes.append(tag("tmdbid", meta.get("_tmdb_id")))
     if meta.get("set_name"):
         partes.append("  <set>\n")
         partes.append("    " + tag("name", meta.get("set_name")))
         if meta.get("set_overview"):
             partes.append("    " + tag("overview", meta.get("set_overview")))
         partes.append("  </set>\n")
-    partes.append("</movie>\n")
+    partes.append("</%s>\n" % raiz)
     return "".join(partes)
+
+
+def construir_episodio_nfo(serie_titulo, ep):
+    """<episodedetails> de um episodio (sem imagem: a capa e unica da serie)."""
+    def tag(nome, valor):
+        return "  <%s>%s</%s>\n" % (nome, _xml_escape(str(valor)), nome) if valor not in (None, "") else ""
+    return ("<episodedetails>\n" + tag("title", ep.get("title")) + tag("showtitle", serie_titulo)
+            + tag("season", ep.get("season")) + tag("episode", ep.get("episode"))
+            + tag("plot", ep.get("plot")) + tag("runtime", ep.get("runtime"))
+            + tag("aired", ep.get("air_date")) + tag("premiered", ep.get("air_date"))
+            + ("  <ratings>\n    <rating>\n      <value>%s</value>\n    </rating>\n  </ratings>\n"
+               % _xml_escape(str(ep["rating"])) if ep.get("rating") else "")
+            + "</episodedetails>\n")
 
 
 def _escrever_local_se_possivel(folder_path, meta):

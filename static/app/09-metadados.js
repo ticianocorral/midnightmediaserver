@@ -425,7 +425,7 @@
       + 'background:rgba(255,255,255,.04);color:inherit;border:1px solid rgba(255,255,255,.12)"></textarea>'
       + '<div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">'
       + '<button class="rclone-action-btn primary" data-act="_metaSalvar">Salvar</button>'
-      + '<span class="src-hint">Substitui o que está no catálogo' + (_meta.local ? (_meta.serie ? ' e a capa da pasta.' : ', o .nfo e a capa, e renomeia a pasta e os arquivos pelo título no idioma escolhido.') : '. A nuvem é somente leitura: a capa não é gravada lá.') + '</span></div>';
+      + '<span class="src-hint">Substitui o que está no catálogo' + (_meta.local ? (_meta.serie ? ', o tvshow.nfo e a capa única da série, e renomeia a pasta, as temporadas (Season N) e os episódios (S01E01 - Título) no idioma escolhido.' : ', o .nfo e a capa, e renomeia a pasta e os arquivos pelo título no idioma escolhido.') : '. A nuvem é somente leitura: a capa não é gravada lá.') + '</span></div>';
     _metaDesenharInfo(); _metaDesenharCapas(); _metaDesenharIdiomas();
     document.getElementById('metaPlot').value = (_meta.metas[_meta.idioma] || {}).plot || '';
   }
@@ -512,6 +512,13 @@
       if (r.data.aviso) showToast(r.data.aviso, 'error');
       else showToast(novo ? 'Metadado salvo e pasta renomeada.' : 'Metadado salvo.', 'success');
       if (_meta.voltar) { _scrapePendentes(); return; }
+      if (_meta.serie) {
+        // série: a pasta (e as temporadas e episódios) podem ter mudado de nome
+        closeScrapeModal();
+        if (novo) loadPath(LISTA_SERIES);   // o catálogo ainda está relendo o endereço novo
+        else if (currentPath === SERIE_PREFIXO + enc(antigo)) renderSerieView(antigo);
+        return;
+      }
       if (novo) {
         // a pasta mudou de nome: reabre a ficha no endereço novo
         _meta.path = novo;
@@ -555,6 +562,10 @@
         'Sinopse em Português ou English, editável; a pasta e os arquivos são renomeados pelo título nesse idioma (também no Organizar)',
         'Salvar sempre sobrescreve banco, .nfo e capa, sem guardar o anterior',
         'Botão Capa e sinopse na ficha e a mesma tela em Sem metadado; capas de série também',
+        'Séries: o mesmo editor, com UMA capa para a série toda; pasta Título (Ano)/Season N/S01E01 - Título, com tvshow.nfo e .nfo por episódio',
+        'Tela da série nova: abas por temporada, botão Continuar e grade compacta de episódios',
+        'Downloads offline: fila no servidor com andamento (continua com a janela fechada), filtros Offline/Online, baixar vários filmes e tamanho de cada um',
+        'Séries também baixam para offline: episódio avulso, temporada inteira ou a série toda (na janela e na tela da série)',
       ],
     },
     {

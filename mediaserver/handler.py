@@ -698,7 +698,10 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
             return
         novo_path, aviso = None, None
         if body.get("substituir") and _sources.is_local(folder_path):
-            if self._tipo_da_pasta(folder_path) != "serie":
+            if self._tipo_da_pasta(folder_path) == "serie":
+                # Titulo (Ano)/Season N/SxxExx - Titulo.ext, no idioma escolhido
+                novo_path, aviso = _organizador.organizar_serie(folder_path)
+            else:
                 # a pasta e os arquivos acompanham o titulo no idioma escolhido
                 novo_path, aviso = self._renomear_pelo_titulo(folder_path)
             # reindexa a fonte: o catalogo passa a enxergar o .nfo e o poster novos
@@ -2731,6 +2734,12 @@ class MediaServerHandler(SistemaRotas, AdminRotas, CacheRotas, CatalogoRotas, Mi
         "/api/check-cached": "_get_api_check_cached",
         "/api/clear-cache": "_get_api_clear_cache",
         "/api/uncache": "_get_api_uncache",
+        "/api/cache-fila-add": "_get_api_cache_fila_add",
+        "/api/cache-fila": "_get_api_cache_fila",
+        "/api/cache-fila-cancelar": "_get_api_cache_fila_cancelar",
+        "/api/cache-series": "_get_api_cache_series",
+        "/api/cache-serie": "_get_api_cache_serie",
+        "/api/uncache-arquivos": "_get_api_uncache_arquivos",
         "/api/cache-status": "_get_api_cache_status",
         "/api/genres": "_get_api_genres",
         "/api/recent-movies": "_get_api_recent_movies",

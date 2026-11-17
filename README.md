@@ -127,6 +127,14 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 
 - Botão Capa e sinopse na ficha e a mesma tela em Sem metadado; capas de série também
 
+- Séries: o mesmo editor, com UMA capa para a série toda; pasta Título (Ano)/Season N/S01E01 - Título, com tvshow.nfo e .nfo por episódio
+
+- Tela da série nova: abas por temporada, botão Continuar e grade compacta de episódios
+
+- Downloads offline: fila no servidor com andamento (continua com a janela fechada), filtros Offline/Online, baixar vários filmes e tamanho de cada um
+
+- Séries também baixam para offline: episódio avulso, temporada inteira ou a série toda (na janela e na tela da série)
+
 
 ### v1.29.5 — Baixar metadado e capa na ficha, metadado some ao apagar o .nfo e legenda nova na TV
 

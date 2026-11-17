@@ -41,6 +41,7 @@
         (isAdmin ? '<span class="colecao-acoes">'
           + switchInfantilHtml(seriePath, serie.infantil, 'Perfil infantil',
                                'vale para a série inteira: todas as temporadas e episódios')
+          + pillCapaHtml(seriePath, serie.name)
           + '</span>' : '')
         + '<svg class="icon-svg"><use href="#i-tv"></use></svg> '
         + serie.temporadas.length + (serie.temporadas.length === 1 ? ' temporada · ' : ' temporadas · ')
@@ -55,54 +56,144 @@
           + '(S01, S02...) e ponha os episódios dentro delas.</p></div>';
         return;
       }
-      let html = '';
-      serie.temporadas.forEach(temp => {
-        html += '<div class="genre-section">'
-          + '<div class="genre-header" style="cursor:default;border:none">'
-          + '<div class="genre-title">' + escHtml(temp.nome)
-          + ' <span class="genre-count">(' + temp.episodios.length + ')</span></div></div>'
-          + '<div class="episodio-lista">';
-        temp.episodios.forEach(ep => {
-          // Episódio pela metade: retoma de onde parou e oferece "Já assisti".
-          const temProgresso = (ep.position || 0) > 5 &&
-            (!ep.duration || (ep.position / ep.duration) <= 0.95);
-          const posStr = Math.floor((ep.position || 0) / 60) + ':' +
-            String(Math.floor((ep.position || 0) % 60)).padStart(2, '0');
-          const pct = (ep.duration > 0) ? Math.round((ep.position / ep.duration) * 100) : 0;
-          html += '<button class="episodio-linha' + (temProgresso ? ' em-progresso' : '') + '"'
-            + attrAcao('playMovie', [ep.path, ep.title, ep.subtitle ? ep.subtitle : null,
-                temProgresso ? Math.floor(ep.position) : null, ep.path])
-            + ' title="' + escHtml(ep.title) + '">'
-            + '<span class="episodio-play"><svg class="icon-svg"><use href="#i-'
-            + (temProgresso ? 'pause' : 'play') + '"></use></svg></span>'
-            + '<span class="episodio-titulo">' + escHtml(ep.title)
-            + (temProgresso ? ' <span class="episodio-pos">' + posStr + '</span>' : '')
-            + (ep.plot ? '<span class="episodio-sinopse" style="display:block;font-size:.8em;opacity:.65;font-weight:400;white-space:normal">'
-                + escHtml(ep.plot.length > 180 ? ep.plot.slice(0, 180) + '…' : ep.plot) + '</span>' : '')
-            + '</span>'
-            + '<span class="episodio-tamanho">' + formatSize(ep.size) + '</span>'
-            + (ep.subtitle ? '<span class="episodio-cc" title="Com legenda">CC</span>' : '')
-            + (temProgresso
-                ? '<span class="episodio-progresso" title="' + pct + '% assistido">'
-                  + '<span style="width:' + pct + '%"></span></span>'
-                : '')
-            + (temProgresso
-                ? '<span class="episodio-assistido"'
-                  + attrAcao('limparProgressoEpisodio', [ep.path, {$: 'this'}], true) + ' '
-                  + 'title="Remove o progresso deste episódio">Já assisti</span>'
-                : (ep.watched
-                    // Selo do assistido: clicável para RETIRAR a marcação.
-                    ? '<span class="episodio-assistido episodio-visto"'
-                      + attrAcao('_desmarcarEpisodio', [ep.path, {$: 'this'}], true) + ' '
-                      + 'title="Assistido — clique para retirar a marcação">✓ Assistido</span>'
-                    : ''))
-            + '</button>';
-        });
-        html += '</div></div>';
-      });
-      container.innerHTML = html;
+      _serieSel = _serieSel && _serieSel.path === seriePath ? _serieSel : { path: seriePath, t: null, pg: null };
+      _serieDesenhar(serie, container);
     });
   }
+
+  // ----- Tela da série: temporadas em abas, episódios da temporada em grade -----
+  // Série longa não vira rolagem infinita: uma temporada por vez, em grade
+  // compacta, e temporada grande é fatiada em faixas de 30 episódios.
+  let _serieSel = null;
+  const _SERIE_FAIXA = 30;
+
+  const _nomeTemporada = nome => (/^season\s*(\d+)$/i.exec(nome || '') || [])[1]
+    ? 'Temporada ' + /^season\s*(\d+)$/i.exec(nome)[1] : nome;
+  const _numEp = (ep, i) => {
+    const m = /[Ee](\d{1,3})(?!\d)/.exec(ep.name || '') || /^E(\d+)/.exec(ep.title || '');
+    return m ? parseInt(m[1], 10) : i + 1;
+  };
+  const _tituloEp = ep => String(ep.title || ep.name || '')
+    .replace(/^E\d+ · /, '').replace(/^S\d+\s*E\d+\s*[-.–]?\s*/i, '');
+
+  // Próximo episódio: o que ficou pela metade; senão o seguinte ao último assistido.
+  function _serieProximo(serie) {
+    let ultimo = null, andamento = null;
+    serie.temporadas.forEach((t, ti) => t.episodios.forEach((ep, ei) => {
+      const meio = (ep.position || 0) > 5 && (!ep.duration || ep.position / ep.duration <= 0.95);
+      if (meio && !andamento) andamento = { ti: ti, ei: ei, meio: true };
+      if (ep.watched) ultimo = { ti: ti, ei: ei };
+    }));
+    if (andamento) return andamento;
+    const plano = [];
+    serie.temporadas.forEach((t, ti) => t.episodios.forEach((_, ei) => plano.push({ ti: ti, ei: ei })));
+    if (!plano.length) return null;
+    if (!ultimo) return plano[0];
+    const i = plano.findIndex(x => x.ti === ultimo.ti && x.ei === ultimo.ei);
+    return plano[Math.min(i + 1, plano.length - 1)];
+  }
+
+  function _serieDesenhar(serie, container) {
+    const prox = _serieProximo(serie);
+    if (_serieSel.t === null || !serie.temporadas[_serieSel.t]) {
+      _serieSel.t = prox ? prox.ti : 0;
+      _serieSel.pg = null;
+    }
+    const temp = serie.temporadas[_serieSel.t];
+    const n = temp.episodios.length;
+    if (_serieSel.pg === null || _serieSel.pg * _SERIE_FAIXA >= n) {
+      _serieSel.pg = prox && prox.ti === _serieSel.t ? Math.floor(prox.ei / _SERIE_FAIXA) : 0;
+    }
+    let html = '';
+    if (prox) {
+      const ep = serie.temporadas[prox.ti].episodios[prox.ei];
+      const meio = prox.meio;
+      html += '<button class="serie-continuar"'
+        + attrAcao('playMovie', [ep.path, ep.title, ep.subtitle ? ep.subtitle : null,
+            meio ? Math.floor(ep.position) : null, ep.path]) + '>'
+        + '<span class="serie-continuar-icone"><svg class="icon-svg"><use href="#i-play"></use></svg></span>'
+        + '<span class="serie-continuar-txt"><b>' + (meio ? 'Continuar' : 'Assistir') + '</b>'
+        + '<span>' + escHtml(_nomeTemporada(serie.temporadas[prox.ti].nome)) + ' · Ep. '
+        + _numEp(ep, prox.ei) + ' — ' + escHtml(_tituloEp(ep)) + '</span></span></button>';
+    }
+    if (serie.temporadas.length > 1) {
+      html += '<div class="serie-temps">' + serie.temporadas.map((t, i) =>
+        '<button class="serie-temp' + (i === _serieSel.t ? ' on' : '') + '"'
+        + attrAcao('_serieEscolherTemporada', [i]) + '>' + escHtml(_nomeTemporada(t.nome))
+        + '<small>' + t.episodios.length + '</small></button>').join('') + '</div>';
+    } else {
+      html += '<div class="genre-title" style="margin:6px 0 10px">' + escHtml(_nomeTemporada(temp.nome))
+        + ' <span class="genre-count">(' + n + ')</span></div>';
+    }
+    if (!isLocalPath(serie.path)) {
+      html += '<div style="margin:0 0 10px"><button class="colecao-acao-btn"'
+        + attrAcao('_serieBaixarTemporada', [serie.path, temp.nome]) + ' title="Baixa esta temporada para assistir offline">'
+        + '<svg class="icon-svg"><use href="#i-download"></use></svg> Baixar temporada para offline</button></div>';
+    }
+    const paginas = Math.ceil(n / _SERIE_FAIXA);
+    if (paginas > 1) {
+      html += '<div class="serie-temps serie-faixas">';
+      for (let pg = 0; pg < paginas; pg++) {
+        const ini = pg * _SERIE_FAIXA, fim = Math.min(n, ini + _SERIE_FAIXA) - 1;
+        html += '<button class="serie-temp' + (pg === _serieSel.pg ? ' on' : '') + '"'
+          + attrAcao('_serieEscolherFaixa', [pg]) + '>' + _numEp(temp.episodios[ini], ini) + '–'
+          + _numEp(temp.episodios[fim], fim) + '</button>';
+      }
+      html += '</div>';
+    }
+    html += '<div class="episodio-grade">';
+    const ini = _serieSel.pg * _SERIE_FAIXA;
+    temp.episodios.slice(ini, ini + _SERIE_FAIXA).forEach((ep, k) => {
+      html += _episodioCard(ep, _numEp(ep, ini + k));
+    });
+    container.innerHTML = html + '</div>';
+  }
+
+  function _episodioCard(ep, num) {
+    // Episódio pela metade: retoma de onde parou e oferece "Já assisti".
+    const temProgresso = (ep.position || 0) > 5 &&
+      (!ep.duration || (ep.position / ep.duration) <= 0.95);
+    const posStr = Math.floor((ep.position || 0) / 60) + ':' +
+      String(Math.floor((ep.position || 0) % 60)).padStart(2, '0');
+    const pct = (ep.duration > 0) ? Math.round((ep.position / ep.duration) * 100) : 0;
+    const titulo = _tituloEp(ep);
+    return '<button class="episodio-linha' + (temProgresso ? ' em-progresso' : '') + '"'
+      + attrAcao('playMovie', [ep.path, ep.title, ep.subtitle ? ep.subtitle : null,
+          temProgresso ? Math.floor(ep.position) : null, ep.path])
+      + ' title="' + escHtml(titulo + (ep.plot ? ' — ' + ep.plot : '')) + '">'
+      + '<span class="episodio-num">' + num + '</span>'
+      + '<span class="episodio-corpo">'
+      + '<span class="episodio-titulo">' + escHtml(titulo) + '</span>'
+      + (ep.plot ? '<span class="episodio-sin">' + escHtml(ep.plot) + '</span>' : '')
+      + '<span class="episodio-meta">'
+      + '<span>' + formatSize(ep.size) + '</span>'
+      + (ep.subtitle ? '<span class="episodio-cc" title="Com legenda">CC</span>' : '')
+      + (temProgresso ? '<span class="episodio-pos">' + posStr + '</span>'
+          + '<span class="episodio-progresso" title="' + pct + '% assistido"><span style="width:' + pct + '%"></span></span>'
+          + '<span class="episodio-assistido"'
+          + attrAcao('limparProgressoEpisodio', [ep.path, {$: 'this'}], true) + ' '
+          + 'title="Remove o progresso deste episódio">Já assisti</span>'
+        : (ep.watched
+            ? '<span class="episodio-assistido episodio-visto"'
+              + attrAcao('_desmarcarEpisodio', [ep.path, {$: 'this'}], true) + ' '
+              + 'title="Assistido — clique para retirar a marcação">✓ Assistido</span>'
+            : ''))
+      + '</span></span></button>';
+  }
+
+  // Troca de aba relê a série (o cache foi invalidado ao marcar/desmarcar
+  // assistido), para a grade nunca mostrar um estado velho.
+  function _serieTrocar(mudar) {
+    const c = document.getElementById('content');
+    if (!_serieSel) return;
+    cachedFetch('/api/serie?path=' + encodeURIComponent(_serieSel.path)).then(serie => {
+      if (!serie) return;
+      mudar();
+      _serieDesenhar(serie, c);
+    });
+  }
+  function _serieEscolherTemporada(i) { _serieTrocar(() => { _serieSel.t = i; _serieSel.pg = null; }); }
+  function _serieEscolherFaixa(pg) { _serieTrocar(() => { _serieSel.pg = pg; }); }
 
   // Retira a marcação "assistido" do episódio: apaga a linha de progresso
   // (o /api/watched com on:false — a mesma tecla que o switch da ficha).
@@ -134,7 +225,7 @@
       const play = linha.querySelector('.episodio-play use');
       if (play) play.setAttribute('href', '#i-play');
       // Vira o selo "✓ Assistido" (com a mesma saída de marcação).
-      linha.insertAdjacentHTML('beforeend',
+      (linha.querySelector('.episodio-meta') || linha).insertAdjacentHTML('beforeend',
         '<span class="episodio-assistido episodio-visto"'
         + attrAcao('_desmarcarEpisodio', [epPath, {$: 'this'}], true) + ' '
         + 'title="Assistido — clique para retirar a marcação">✓ Assistido</span>');

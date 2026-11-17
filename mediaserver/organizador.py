@@ -317,10 +317,24 @@ def _remapear_banco(antigo, novo):
         for tabela, coluna in (("watch_progress", "folder_path"),
                                ("colecoes_filmes", "folder_path"),
                                ("colecoes", "capa"),
+                               ("episodios_meta", "serie_path"),
                                ("generos_filmes", "alvo"),
                                ("infantil_filmes", "alvo")):
             conn.execute("UPDATE OR REPLACE %s SET %s=? WHERE %s=?" % (tabela, coluna, coluna),
                          (novo, antigo))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _remapear_arquivos(pares):
+    """Leva o progresso de cada episodio para o caminho novo do arquivo."""
+    conn = get_db()
+    try:
+        for antigo, novo in pares:
+            if antigo != novo:
+                conn.execute("UPDATE OR REPLACE watch_progress SET folder_path=? WHERE folder_path=?",
+                             (novo, antigo))
         conn.commit()
     finally:
         conn.close()
@@ -436,6 +450,182 @@ def renomear_no_lugar(folder_logico, titulo, ano):
         _remapear_banco(*res["mapa"])
         _registrar(src["id"], [res])
     return res["mapa"][1], None
+
+
+# ── Series: Titulo (Ano)/Season N/SxxExx - Titulo.ext ────────
+
+def _episodios_do_banco(serie_logico):
+    conn = get_db()
+    try:
+        meta = conn.execute("SELECT title, year FROM movie_meta WHERE folder_path=?",
+                            (serie_logico,)).fetchone()
+        eps = {(r["season"], r["episode"]): dict(r) for r in conn.execute(
+            "SELECT season, episode, title, plot, air_date, rating, runtime "
+            "FROM episodios_meta WHERE serie_path=?", (serie_logico,)).fetchall()}
+    finally:
+        conn.close()
+    return meta, eps
+
+
+def _videos_da_serie(origem):
+    """[(Path, (temporada, episodio))] de todo video da pasta da serie que
+    der para numerar (S01E02, 1x02, "Season 1/Episode 2"...)."""
+    from .queries import _numero_episodio
+    achados = []
+    for dirpath, dirnames, filenames in os.walk(origem):
+        dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+        pasta = Path(dirpath)
+        nome_pasta = "" if pasta == origem else pasta.name
+        for nome in sorted(filenames):
+            if Path(nome).suffix.lower() not in VIDEO_EXTENSIONS or nome.startswith("."):
+                continue
+            num = _numero_episodio(nome, nome_pasta)
+            if num:
+                achados.append((pasta / nome, num))
+    return achados
+
+
+def _sidecars(video):
+    return [e for e in sorted(video.parent.iterdir())
+            if e.is_file() and e != video and e.name.startswith(video.stem)
+            and len(e.name) > len(video.stem) and e.name[len(video.stem)] in _SEP_SIDECAR
+            and e.suffix.lower() not in VIDEO_EXTENSIONS]
+
+
+def organizar_serie(folder_logico):
+    """Deixa UMA serie local no padrao do acervo:
+
+        Titulo (Ano)/tvshow.nfo, poster.jpg
+        Titulo (Ano)/Season N/SxxExx - Titulo do episodio.ext (+ .nfo e legendas)
+
+    Titulos no idioma do metadado ja salvo. A capa e unica da serie. So
+    renomeia/move dentro da pasta da serie, nunca sobrescreve nem apaga
+    (so pasta que ficou vazia), vai pro historico e pode ser desfeito.
+    Episodio que nao da para numerar, ou cujo nome novo ja existe, fica como
+    esta. Devolve (path_logico_novo_ou_None, aviso_ou_None)."""
+    src = _sources.resolve(folder_logico)
+    if not src or src.get("kind") != "local":
+        return None, None
+    raiz, erro = _raiz_local(src["id"])
+    if erro:
+        return None, erro
+    rel = ("/" + str(folder_logico).strip("/"))[len(src["mount"]):].strip("/")
+    origem = _dentro(raiz, rel) if rel else None
+    if origem is None or not origem.is_dir():
+        return None, None
+    meta, eps = _episodios_do_banco(folder_logico)
+    if not meta or not meta["title"]:
+        return None, None
+    nome_serie = nome_padrao(meta["title"], meta["year"])
+
+    with _lock:
+        # 1) a pasta da serie ganha o nome novo primeiro: no historico ela e a
+        #    primeira a ser desfeita... e a ultima, depois dos arquivos.
+        origem_antiga, aviso = origem, None
+        feitos, criadas = [], []
+        if origem.name != nome_serie:
+            novo = origem.parent / nome_serie
+            if novo.exists() and not _mesmo_arquivo(novo, origem):
+                aviso = "Já existe a pasta \"%s\": os episódios foram renomeados, a pasta da série não." % nome_serie
+            else:
+                try:
+                    _mover(origem, novo)
+                    feitos.append((origem, novo))
+                    origem = novo
+                except OSError as e:
+                    aviso = "Não foi possível renomear a pasta da série: %s" % e
+
+        # 2) episodios: Season N/SxxExx - Titulo.ext
+        planos, alvos = [], {}
+        for video, (t, e) in _videos_da_serie(origem):
+            ep = dict(eps.get((t, e)) or {"title": "", "plot": "", "air_date": "", "rating": "", "runtime": ""})
+            ep.update(season=t, episode=e)
+            stem = "S%02dE%02d" % (t, e)
+            tit = nome_seguro(ep.get("title"))
+            if tit:
+                stem += " - " + tit
+            nova_pasta = origem / ("Season %d" % t)
+            alvos.setdefault(str(nova_pasta / (stem + video.suffix)).lower(), []).append(video)
+            planos.append((video, nova_pasta, stem, ep))
+
+        movs, pulados = [], 0
+        for video, nova_pasta, stem, ep in planos:
+            destino = nova_pasta / (stem + video.suffix)
+            if len(alvos[str(destino).lower()]) > 1:
+                pulados += 1            # dois arquivos para o mesmo episodio
+                continue
+            grupo = [(video, destino)] + [(c, nova_pasta / (stem + c.name[len(video.stem):]))
+                                          for c in _sidecars(video)]
+            if any(d != s and d.exists() and not _mesmo_arquivo(s, d) for s, d in grupo):
+                pulados += 1
+                continue
+            # o .nfo do episodio acompanha o video e e regravado (sem imagem)
+            nfo = video.with_suffix(".nfo")
+            try:
+                nfo.write_text(_scraper.construir_episodio_nfo(meta["title"], ep), encoding="utf-8")
+            except OSError:
+                pass
+            if nfo not in [c for c, _ in grupo]:
+                grupo.append((nfo, nova_pasta / (stem + ".nfo")))
+            movs.extend((s, d) for s, d in grupo if s != d and s.exists())
+
+        n_dir = len(feitos)
+        try:
+            for s, d in movs:
+                if not d.parent.exists():
+                    d.parent.mkdir()
+                    criadas.append(d.parent)
+                _mover(s, d)
+                feitos.append((s, d))
+        except OSError as e:
+            for s, d in reversed(feitos):
+                try:
+                    _mover(d, s)
+                except OSError:
+                    pass
+            for d in reversed(criadas):
+                try:
+                    d.rmdir()
+                except OSError:
+                    pass
+            return None, "Não foi possível renomear os episódios: %s" % e
+
+        removidas = []
+        for pasta in sorted({s.parent for s, _ in feitos[n_dir:]}, key=lambda p: -len(p.parts)):
+            try:
+                if pasta != origem and not any(pasta.iterdir()):
+                    pasta.rmdir()
+                    removidas.append(pasta)
+            except OSError:
+                pass
+
+        if pulados and not aviso:
+            aviso = "%d episódio(s) ficaram como estavam (sem número claro ou nome novo já existe)." % pulados
+        if not feitos:
+            return None, aviso
+
+        destino_rel = origem.relative_to(raiz).as_posix()
+        antigo_rel = origem_antiga.relative_to(raiz).as_posix()
+
+        def _antigo(p):   # caminho do arquivo antes de a pasta da serie mudar de nome
+            return origem_antiga / p.relative_to(origem)
+        arquivos = [[_logico(src, _antigo(s).relative_to(raiz).as_posix()),
+                     _logico(src, d.relative_to(raiz).as_posix())]
+                    for s, d in feitos[n_dir:] if d.suffix.lower() in VIDEO_EXTENSIONS]
+        res = {
+            "origem": antigo_rel, "destino": destino_rel, "titulo": meta["title"],
+            "movimentos": [[s.relative_to(raiz).as_posix(), d.relative_to(raiz).as_posix()]
+                           for s, d in feitos],
+            # criadas saem depois de a pasta da serie voltar ao nome antigo
+            "criadas": [_antigo(d).relative_to(raiz).as_posix() for d in criadas],
+            "removidas": [d.relative_to(raiz).as_posix() for d in removidas],
+            "gerados": [], "mapa_arquivos": arquivos,
+            "mapa": [_logico(src, antigo_rel), _logico(src, destino_rel)],
+        }
+        _remapear_banco(*res["mapa"])
+        _remapear_arquivos(arquivos)
+        _registrar(src["id"], [res])
+    return (res["mapa"][1] if origem != origem_antiga else None), aviso
 
 
 def _aplicar_um(src_cfg, raiz, item):
@@ -579,6 +769,7 @@ def desfazer(op_id):
                 except OSError:
                     pass
             _remapear_banco(item["mapa"][1], item["mapa"][0])
+            _remapear_arquivos([(n, a) for a, n in item.get("mapa_arquivos", [])])
         op["desfeita"] = True
         _gravar_log(ops)
         return True, None

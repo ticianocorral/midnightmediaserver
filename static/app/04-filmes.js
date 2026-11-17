@@ -366,6 +366,12 @@
         <div class="movie-info-details">
           ${year ? '<div class="badge">' + escHtml(year) + '</div>' : ''}
           <h1>${escHtml(titleClean)}</h1>
+          <div class="movie-info-primary">
+            ${videoPath ? '<button class="btn-play"' + attrAcao('playFromInfo', subtitle ? [videoPath, titleClean, folderPath + '/' + subtitle.Name] : [videoPath, titleClean]) + '><svg class="icon-svg"><use href="#i-play"></use></svg> Assistir</button>' : '<button class="btn-play" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-play"></use></svg> Indisponível</button>'}
+            ${isLocalPath(folderPath)
+                ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-hard-drive"></use></svg> Local</span>'
+                : (_isCached(folderPath) ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-download"></use></svg> Baixado</span>' : '')}
+          </div>
           ${nfoHtml}
 
           <div class="movie-info-meta">
@@ -375,10 +381,6 @@
           </div>
 
           <div class="movie-info-actions">
-            ${videoPath ? '<button class="btn-play"' + attrAcao('playFromInfo', subtitle ? [videoPath, titleClean, folderPath + '/' + subtitle.Name] : [videoPath, titleClean]) + '><svg class="icon-svg"><use href="#i-play"></use></svg> Assistir</button>' : '<button class="btn-play" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-play"></use></svg> Indisponível</button>'}
-            ${isLocalPath(folderPath)
-                ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-hard-drive"></use></svg> Local</span>'
-                : (_isCached(folderPath) ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-download"></use></svg> Baixado</span>' : '')}
             ${switchAssistidoHtml(folderPath, !!detail.watched)}
             ${(_me && _me.role === 'admin')
                 ? pillTagsHtml(folderPath, titleClean, detail.tags)
@@ -400,6 +402,9 @@
         </div>`;
 
       content.innerHTML = html;
+      // O Assistir é o primeiro foco da ficha: na TV é só apertar OK.
+      const _play = content.querySelector('.movie-info-primary .btn-play:not([disabled])');
+      if (_play) _play.focus({ preventScroll: true });
 
       // Check progress and show resume button
       fetch('/api/progress?path=' + encodeURIComponent(folderPath)).then(r => r.json()).then(prog => {
@@ -409,7 +414,7 @@
           _pintarAssistido(content.querySelector('.movie-info-actions .pill-acao'), prog.watched);
         }
         if (!prog || !prog.position || prog.position <= 0) return;
-        const actionsEl = content.querySelector('.movie-info-actions');
+        const actionsEl = content.querySelector('.movie-info-primary');
         if (!actionsEl) return;
         const pct = (prog.duration > 0) ? Math.round((prog.position / prog.duration) * 100) : 0;
         // Don't show resume if >95% done
@@ -425,6 +430,7 @@
         };
         // Insert before the first button
         actionsEl.insertBefore(resumeBtn, actionsEl.firstChild);
+        resumeBtn.focus({ preventScroll: true });   // TV: o foco vai para o Continuar
       }).catch(function() {});
     });
   }

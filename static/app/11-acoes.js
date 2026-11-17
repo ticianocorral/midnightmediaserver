@@ -47,12 +47,14 @@
 
   const ACOES = Object.freeze({
     _capaBuscar, _capaBuscarTecla, _capaClicada, _cmDeleteCache,
-    _cmDownload, _colecaoEscolherCapa, _colecaoFiltrar, _colecaoIrParaCapa,
+    _cmDownload, _cmAba, _cmFiltro, _cmBaixarLote, _cmBaixarSerie, _cmBaixarArquivo, _cmCancelar,
+    _cmCancelarFila, _cmApagarSerie, _cmApagarArquivo, _cmAbrirSerie, _cmAbrirTemporada, _cmOcultarFila,
+    _serieBaixarTemporada, _colecaoEscolherCapa, _colecaoFiltrar, _colecaoIrParaCapa,
     _colecaoRenderPasso1, _colecaoSalvar, _colecaoToggle, _desmarcarEpisodio, _generoCriarEDar,
     _generoToggleChip, _loadRcloneStatus, _orgAbrirCapas, _orgAplicar, _orgBuscar,
     _orgBuscarDoCampo, _orgBuscarTecla, _orgDesfazer, _orgEscolher, _orgFecharBusca,
     _orgLimpar, _orgProcurar, _orgSemCapa, _orgSugerir, _scrapeAba, _scrapeAbrirBusca,
-    _metaEscolherCapa, _metaEscolherFilme, _metaEscolherSinopse, _metaSalvar, _scrapePendentes, _scrapeSalvarChave, _wizardConectar,
+    _metaEscolherCapa, _metaEscolherFilme, _serieEscolherTemporada, _serieEscolherFaixa, _metaEscolherSinopse, _metaSalvar, _scrapePendentes, _scrapeSalvarChave, _wizardConectar,
     _wizardCriarRemote, _wizardEscolherRemote, _wizardEscolherTipo, _wizardFiltrarTipos,
     _wizardPassoExistente, _wizardPassoNovoTipo, _wizardPassoOrigem, abrirBusca, abrirColecao,
     addSource, addSourceFromForm, backupToCloud, buscaTecla, cancelarProximo, clearCache,

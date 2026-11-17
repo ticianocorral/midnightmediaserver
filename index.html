@@ -254,35 +254,40 @@
 
   <!-- ====== CACHE MANAGER MODAL ====== -->
   <div class="modal-overlay" id="cacheManagerModal">
-    <div class="modal" style="width:560px">
+    <div class="modal" style="width:680px">
       <div class="modal-header">
-        <span class="modal-title"><svg class="icon-svg"><use href="#i-box"></use></svg> Gerenciar Cache</span>
+        <span class="modal-title"><svg class="icon-svg"><use href="#i-download"></use></svg> Downloads offline</span>
         <button class="modal-close" data-act="closeCacheManager"><svg class="icon-svg"><use href="#i-close"></use></svg></button>
       </div>
       <div class="modal-body">
         <div class="cache-stats" id="cacheStats">
           <div class="cache-stat-box">
             <div class="cache-stat-num total-num" id="cmTotalMovies">—</div>
-            <div class="cache-stat-label">Total Filmes</div>
+            <div class="cache-stat-label" id="cmStatTotalRot">Filmes na nuvem</div>
           </div>
           <div class="cache-stat-box">
             <div class="cache-stat-num cached-num" id="cmCachedMovies">0</div>
-            <div class="cache-stat-label">Offline</div>
+            <div class="cache-stat-label" id="cmStatOffRot">Offline</div>
           </div>
           <div class="cache-stat-box">
             <div class="cache-stat-num" id="cmUsageSize">—</div>
             <div class="cache-stat-label">Tamanho Cache</div>
           </div>
         </div>
+        <div class="cm-fila" id="cmFila" style="display:none"></div>
+        <div class="cm-abas">
+          <button class="serie-temp on" id="cmAbaFilmes" data-act="_cmAba" data-args='["filmes"]'>Filmes</button>
+          <button class="serie-temp" id="cmAbaSeries" data-act="_cmAba" data-args='["series"]'>Séries</button>
+        </div>
         <div class="cache-manager-search">
           <span style="font-size:14px;opacity:0.5;margin-right:8px"><svg class="icon-svg"><use href="#i-search"></use></svg></span>
           <input type="text" id="cmSearchInput" placeholder="Filtrar filmes..." data-act-input="filterCacheList">
         </div>
         <div class="cache-manager-list" id="cmList">
-          <div class="loading" style="min-height:100px"><div class="spinner"></div><span>Carregando filmes...</span></div>
+          <div class="loading" style="min-height:100px"><div class="spinner"></div><span>Carregando...</span></div>
         </div>
         <div class="cache-manager-actions">
-          <button class="rclone-action-btn" data-act="clearCache" title="Apaga todos os vídeos baixados. Os filmes continuam na nuvem.">
+          <button class="rclone-action-btn" data-act="clearCache" title="Apaga todos os vídeos baixados. Os filmes e séries continuam na nuvem.">
             <svg class="icon-svg"><use href="#i-broom"></use></svg> Limpar tudo
           </button>
         </div>
