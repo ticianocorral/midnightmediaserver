@@ -238,7 +238,7 @@
           <div class="home-stat-num" id="statSources">—</div>
           <div class="home-stat-label" id="statSourcesLabel">Fontes conectadas</div>
         </div>
-        <div class="home-stat" data-act="openCacheManager" title="Gerenciar o cache offline">
+        <div class="home-stat" data-act="openCacheManager" title="Downloads offline">
           <div class="home-stat-icon"><svg class="icon-svg"><use href="#i-download"></use></svg></div>
           <div class="home-stat-num" id="statDownloaded">—</div>
           <div class="home-stat-label" id="statDownloadedLabel">Baixados da nuvem</div>
