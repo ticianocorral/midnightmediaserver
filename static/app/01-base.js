@@ -113,18 +113,23 @@
   let _fonteFiltro = 'todas';
   try {
     const salvo = localStorage.getItem('fonteFiltro');
-    if (salvo === 'local' || salvo === 'nuvem') _fonteFiltro = salvo;
+    if (salvo === 'local' || salvo === 'nuvem' || salvo === 'offline') _fonteFiltro = salvo;
   } catch (e) { /* sem storage */ }
   const _ROTAS_FILTRAVEIS = ['/api/search', '/api/all-movies', '/api/recent-movies',
     '/api/continue-watching', '/api/series', '/api/collection?', '/api/genero?', '/api/genero-nfo?'];
 
   function _filtrarFonte(url, data) {
     if (_fonteFiltro === 'todas' || !data || !_ROTAS_FILTRAVEIS.some(r => url.indexOf(r) === 0)) return data;
-    const quer = _fonteFiltro === 'local';
+    // Local = pasta do computador/HD; Nuvem = tudo da nuvem; Offline = o que
+    // foi baixado da nuvem (filme local nunca entra em Offline).
+    const baixado = p => _isCached(p) || _isCached(p.replace(/\/[^/]*$/, ''));
+    const casa = p => _fonteFiltro === 'local' ? isLocalPath(p)
+      : _fonteFiltro === 'nuvem' ? !isLocalPath(p)
+      : !isLocalPath(p) && baixado(p);
     const manter = it => {
       if (!it || typeof it !== 'object') return true;
       const p = it.path != null ? it.path : (it.Path != null ? it.Path : it.folder_path);
-      return typeof p !== 'string' || isLocalPath(p) === quer;
+      return typeof p !== 'string' || casa(p);
     };
     const andar = v => Array.isArray(v) ? v.filter(manter).map(andar)
       : (v && typeof v === 'object')

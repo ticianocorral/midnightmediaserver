@@ -232,6 +232,53 @@
     grid.innerHTML = html;
   }
 
+  // ----- Baixar / remover pela ficha (só filme da nuvem) -----
+  function fichaBaixarHtml(folderPath) {
+    if (_isCached(folderPath)) {
+      return '<span class="offline-badge"><svg class="icon-svg"><use href="#i-download"></use></svg> Baixado</span>'
+        + '<button class="btn-ficha-sec" id="fichaBaixar"' + attrAcao('fichaRemoverDownload', [folderPath]) + ' title="Apaga a cópia offline (o filme continua na nuvem)">'
+        + '<svg class="icon-svg"><use href="#i-trash"></use></svg> Remover download</button>';
+    }
+    return '<button class="btn-ficha-sec" id="fichaBaixar"' + attrAcao('fichaBaixar', [folderPath]) + ' title="Baixa o filme para assistir sem depender da nuvem">'
+      + '<svg class="icon-svg"><use href="#i-download"></use></svg> Baixar</button>';
+  }
+
+  // Andamento no próprio botão da ficha enquanto ela estiver aberta.
+  let _fichaTimer = null;
+  async function fichaBaixar(folderPath) {
+    const ic = '<svg class="icon-svg"><use href="#i-download"></use></svg> ';
+    const bt = document.getElementById('fichaBaixar');
+    if (bt) { bt.disabled = true; bt.innerHTML = ic + 'Na fila…'; }
+    await _cmEnfileirar('path=' + encodeURIComponent(folderPath), _eps);
+    clearInterval(_fichaTimer);
+    _fichaTimer = setInterval(async () => {
+      const b = document.getElementById('fichaBaixar');
+      if (!b || currentMovieFolder !== folderPath) { clearInterval(_fichaTimer); return; }
+      let f;
+      try { f = await fetch('/api/cache-fila').then(r => r.json()); } catch (e) { return; }
+      const it = ((f && f.itens) || []).filter(i => i.path && i.path.indexOf(folderPath + '/') === 0).pop();
+      if (it && (it.status === 'queued' || it.status === 'downloading')) {
+        b.innerHTML = ic + (it.status === 'queued' ? 'Na fila…' : 'Baixando ' + (it.percent || 0) + '%');
+        return;
+      }
+      clearInterval(_fichaTimer);
+      if (it && it.status === 'error') { b.disabled = false; b.innerHTML = ic + 'Tentar de novo'; return; }
+      await _syncCachedFromServer();
+      _renderOfflineGrid();
+      const b2 = document.getElementById('fichaBaixar');
+      if (b2) b2.outerHTML = fichaBaixarHtml(folderPath);
+    }, 2000);
+  }
+
+  async function fichaRemoverDownload(folderPath) {
+    if (!window.confirm('Remover o download deste filme? Ele continua disponível na nuvem.')) return;
+    await _cmApagar('path=' + encodeURIComponent(folderPath), 'Download removido');
+    _cachedSet.delete(folderPath);
+    try { localStorage.setItem('media_server_cached', JSON.stringify([..._cachedSet])); } catch (e) { /* sem storage */ }
+    const bt = document.getElementById('fichaBaixar');
+    if (bt) { const prev = bt.previousElementSibling; if (prev && prev.classList.contains('offline-badge')) prev.remove(); bt.outerHTML = fichaBaixarHtml(folderPath); }
+  }
+
   // ==================== DOWNLOADS OFFLINE (modal) ====================
   // Filmes e séries da nuvem. Quem baixa é o servidor, numa fila de um arquivo
   // por vez (ver mediaserver/cachefila.py): a janela só mostra o estado e pode

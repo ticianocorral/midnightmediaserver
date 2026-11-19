@@ -2666,3 +2666,14 @@ button, input, select, textarea { font-family: inherit; }
 }
 .fonte-filtro button:hover { color: var(--text); }
 .fonte-filtro button.ativo { background: var(--primary); color: #fff; }
+
+/* Botão secundário da ficha (Baixar / Remover download). */
+.btn-ficha-sec {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.08); color: var(--text);
+  border: 1px solid rgba(255,255,255,0.18); border-radius: 8px;
+  padding: 12px 22px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.btn-ficha-sec:hover { background: rgba(255,255,255,0.14); }
+.btn-ficha-sec:disabled { opacity: .6; cursor: default; }
+.btn-ficha-sec:focus-visible { outline: 3px solid var(--cream, #fff); outline-offset: 3px; }

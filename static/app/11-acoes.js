@@ -63,7 +63,7 @@
     closeNuvemWizard, closePhoneModal, closePlayer, closeRcloneModal, closeScrapeModal,
     closeSettingsModal, closeSidebar, closeSourcesModal, copyPhone, criarGeneroDoModal,
     cycleSpeed, cycleSubtitleSize, doLogout, downloadBackup, excluirColecao, excluirGenero,
-    fichaAbrirColecao, filterCacheList, fromSettings, generoNovoTecla, imgComoPosterDoCache,
+    fichaAbrirColecao, fichaBaixar, fichaRemoverDownload, filterCacheList, fromSettings, generoNovoTecla, imgComoPosterDoCache,
     imgRemover, imgSemCartaz, imgSemPoster, imgTrocarPorIrmao, limparProgressoEpisodio, loadAZ,
     loadCollections, loadPath, loadSeries, nuvemDesconectar, onSearchInput, openBackupModal,
     openCacheManager, openCapaModal, openChangelogModal, openColecaoModal,

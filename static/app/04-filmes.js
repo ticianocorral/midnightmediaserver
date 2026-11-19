@@ -370,7 +370,7 @@
             ${videoPath ? '<button class="btn-play"' + attrAcao('playFromInfo', subtitle ? [videoPath, titleClean, folderPath + '/' + subtitle.Name] : [videoPath, titleClean]) + '><svg class="icon-svg"><use href="#i-play"></use></svg> Assistir</button>' : '<button class="btn-play" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-play"></use></svg> Indisponível</button>'}
             ${isLocalPath(folderPath)
                 ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-hard-drive"></use></svg> Local</span>'
-                : (_isCached(folderPath) ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-download"></use></svg> Baixado</span>' : '')}
+                : (videoPath ? fichaBaixarHtml(folderPath) : '')}
           </div>
           ${nfoHtml}
 
