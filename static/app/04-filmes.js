@@ -21,14 +21,10 @@
     const directVideos = data.videos || [];
 
     if (movieFolders.length === 0 && directVideos.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon"><svg class="icon-svg"><use href="#i-inbox"></use></svg></div>
-          <h3>Nenhum filme em "${escHtml(genreName)}"</h3>
-          <p>${isLocalPath(data.path)
-              ? 'Adicione pastas de filme nesta pasta do disco e clique em Atualizar.'
-              : 'Adicione filmes nesta pasta da nuvem para vê-los aqui.'}</p>
-        </div>`;
+      container.innerHTML = vazioHtml('inbox', 'Nenhum filme em “' + escHtml(genreName) + '”',
+        isLocalPath(data.path)
+          ? 'Coloque pastas de filme nesta pasta do computador e clique em Atualizar.'
+          : 'Envie filmes para esta pasta da nuvem e clique em Atualizar.');
       return;
     }
 
@@ -150,17 +146,12 @@
       html += `</div></div>`;
     }
 
-    container.innerHTML = html || `<div class="empty-state"><div class="empty-icon"><svg class="icon-svg"><use href="#i-folder"></use></svg></div><h3>Pasta vazia</h3></div>`;
+    container.innerHTML = html || vazioHtml('folder', 'Pasta vazia', 'Não há filmes nem subpastas aqui.');
   }
 
   // ===== EMPTY STATE =====
   function renderEmptyState(container, path) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon"><svg class="icon-svg"><use href="#i-folder"></use></svg></div>
-        <h3>Pasta vazia</h3>
-        <p>Nenhum conteúdo encontrado aqui.</p>
-      </div>`;
+    container.innerHTML = vazioHtml('folder', 'Pasta vazia', 'Não há filmes nem subpastas aqui.');
   }
 
   // ===== MOVIE CARD HTML =====
@@ -366,6 +357,12 @@
         <div class="movie-info-details">
           ${year ? '<div class="badge">' + escHtml(year) + '</div>' : ''}
           <h1>${escHtml(titleClean)}</h1>
+          <div class="movie-info-primary">
+            ${videoPath ? '<button class="btn-play"' + attrAcao('playFromInfo', subtitle ? [videoPath, titleClean, folderPath + '/' + subtitle.Name] : [videoPath, titleClean]) + '><svg class="icon-svg"><use href="#i-play"></use></svg> Assistir</button>' : '<button class="btn-play" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-play"></use></svg> Indisponível</button>'}
+            ${isLocalPath(folderPath)
+                ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-hard-drive"></use></svg> Local</span>'
+                : (videoPath ? fichaBaixarHtml(folderPath) : '')}
+          </div>
           ${nfoHtml}
 
           <div class="movie-info-meta">
@@ -375,10 +372,6 @@
           </div>
 
           <div class="movie-info-actions">
-            ${videoPath ? '<button class="btn-play"' + attrAcao('playFromInfo', subtitle ? [videoPath, titleClean, folderPath + '/' + subtitle.Name] : [videoPath, titleClean]) + '><svg class="icon-svg"><use href="#i-play"></use></svg> Assistir</button>' : '<button class="btn-play" disabled style="opacity:0.4"><svg class="icon-svg"><use href="#i-play"></use></svg> Indisponível</button>'}
-            ${isLocalPath(folderPath)
-                ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-hard-drive"></use></svg> Local</span>'
-                : (_isCached(folderPath) ? '<span class="offline-badge"><svg class="icon-svg"><use href="#i-download"></use></svg> Baixado</span>' : '')}
             ${switchAssistidoHtml(folderPath, !!detail.watched)}
             ${(_me && _me.role === 'admin')
                 ? pillTagsHtml(folderPath, titleClean, detail.tags)
@@ -400,6 +393,9 @@
         </div>`;
 
       content.innerHTML = html;
+      // O Assistir é o primeiro foco da ficha: na TV é só apertar OK.
+      const _play = content.querySelector('.movie-info-primary .btn-play:not([disabled])');
+      if (_play) _play.focus({ preventScroll: true });
 
       // Check progress and show resume button
       fetch('/api/progress?path=' + encodeURIComponent(folderPath)).then(r => r.json()).then(prog => {
@@ -409,7 +405,7 @@
           _pintarAssistido(content.querySelector('.movie-info-actions .pill-acao'), prog.watched);
         }
         if (!prog || !prog.position || prog.position <= 0) return;
-        const actionsEl = content.querySelector('.movie-info-actions');
+        const actionsEl = content.querySelector('.movie-info-primary');
         if (!actionsEl) return;
         const pct = (prog.duration > 0) ? Math.round((prog.position / prog.duration) * 100) : 0;
         // Don't show resume if >95% done
@@ -425,6 +421,7 @@
         };
         // Insert before the first button
         actionsEl.insertBefore(resumeBtn, actionsEl.firstChild);
+        resumeBtn.focus({ preventScroll: true });   // TV: o foco vai para o Continuar
       }).catch(function() {});
     });
   }

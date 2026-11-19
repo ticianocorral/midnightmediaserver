@@ -127,11 +127,11 @@ def test_nada_depende_dos_atributos_onclick_antigos():
 # por posterUrl/streamUrl, ou titulo ja passado por escHtml). Qualquer outra expressao nova falha
 # aqui ate alguem auditar: foi assim que um data-path="' + m.path + '" sem escape sobreviveu.
 _SEGUROS_ATRIBUTO = re.compile(
-    r"^(escHtml|enc\(|encodeURIComponent|posterUrl|attrAcao|JSON\.stringify|Math\.|Number|parseInt|cssUrl)")
+    r"^(escHtml|enc\(|encodeURIComponent|posterUrl|capaUrl|attrAcao|JSON\.stringify|Math\.|Number|parseInt|cssUrl)")
 _AUDITADOS = {
     "nome",                                   # nome de acao (constante) em attrAcao
     "GENERO_PREFIXO + g.id", "titulo",        # id numerico; titulo = escHtml(...) em todas as definicoes
-    "poster", "posterSrc", "streamUrl(c.poster)", "x.poster", "c.thumb",   # URLs: encodeURIComponent / validadas
+    "poster", "posterSrc", "x.poster", "c.thumb",   # URLs: encodeURIComponent / validadas
     "id",                                     # 10-nuvem.js: 'wz_' + o.nome, nome de opcao devolvido pelo proprio rclone
     "icon", "(ativo ? 'true' : 'false')", "(assistido ? 'true' : 'false')",
     "(a[0] === aba ? 'background:var(--primary);color:#fff' : '')", "(o.senha ? 'password' : 'text')",

@@ -59,6 +59,11 @@
     return '/api/stream?path=' + encodeURIComponent(filePath);
   }
 
+  // Capa já com caminho completo (mesmo "&i=2" de posterUrl).
+  function capaUrl(filePath) {
+    return streamUrl(filePath) + '&i=2';
+  }
+
   function posterUrl(folderPath, imageName) {
     if (!imageName) return null;
     // Algumas APIs (séries, coleções) já entregam o caminho completo da
@@ -67,7 +72,9 @@
     const fullPath = imageName.indexOf('/') === -1
       ? folderPath + '/' + imageName
       : imageName;
-    return '/api/stream?path=' + encodeURIComponent(fullPath);
+    // "&i=2": endereço novo para as capas. As antigas ficaram no cache do
+    // navegador por 1 dia; agora o servidor manda revalidar (ETag) a cada uso.
+    return '/api/stream?path=' + encodeURIComponent(fullPath) + '&i=2';
   }
 
   // ==================== FORMAT ====================
@@ -99,7 +106,97 @@
     delete _frontCache[url];
   }
 
+  // ==================== FILTRO DE FONTE (todas / locais / nuvem) ====================
+  // Vale para as listas de filmes e séries (Filmes, Séries, busca, home,
+  // coleções, tags e gêneros). O filtro age na resposta, depois do cache: o
+  // cache guarda sempre a resposta inteira, então alternar não refaz requisição.
+  let _fonteFiltro = 'todas';
+  try {
+    const salvo = localStorage.getItem('fonteFiltro');
+    if (salvo === 'local' || salvo === 'nuvem' || salvo === 'offline') _fonteFiltro = salvo;
+  } catch (e) { /* sem storage */ }
+  const _ROTAS_FILTRAVEIS = ['/api/search', '/api/all-movies', '/api/recent-movies',
+    '/api/continue-watching', '/api/series', '/api/collection?', '/api/genero?', '/api/genero-nfo?'];
+
+  function _filtrarFonte(url, data) {
+    if (_fonteFiltro === 'todas' || !data || !_ROTAS_FILTRAVEIS.some(r => url.indexOf(r) === 0)) return data;
+    // Local = pasta do computador/HD; Nuvem = tudo da nuvem; Offline = o que
+    // foi baixado da nuvem (filme local nunca entra em Offline).
+    const baixado = p => _isCached(p) || _isCached(p.replace(/\/[^/]*$/, ''));
+    const casa = p => _fonteFiltro === 'local' ? isLocalPath(p)
+      : _fonteFiltro === 'nuvem' ? !isLocalPath(p)
+      : !isLocalPath(p) && baixado(p);
+    let escondidos = 0;
+    const manter = it => {
+      if (!it || typeof it !== 'object') return true;
+      const p = it.path != null ? it.path : (it.Path != null ? it.Path : it.folder_path);
+      const fica = typeof p !== 'string' || casa(p);
+      if (!fica) escondidos++;
+      return fica;
+    };
+    const andar = v => Array.isArray(v) ? v.filter(manter).map(andar)
+      : (v && typeof v === 'object')
+        ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, andar(x)]))
+        : v;
+    const saida = andar(data);
+    _escondidosPeloFiltro = escondidos;
+    return saida;
+  }
+  // Quantos itens a última resposta filtrada escondeu (para o estado vazio).
+  let _escondidosPeloFiltro = 0;
+
+  function _pintarFonteFiltro() {
+    document.querySelectorAll('#fonteFiltro button').forEach(b => {
+      const ativo = b.dataset.fonte === _fonteFiltro;
+      b.classList.toggle('ativo', ativo);
+      b.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+    });
+  }
+
+  function setFonteFiltro(fonte) {
+    if (fonte === _fonteFiltro) return;
+    _fonteFiltro = fonte;
+    try { localStorage.setItem('fonteFiltro', fonte); } catch (e) { /* sem storage */ }
+    _pintarFonteFiltro();
+    // Refaz a tela atual (ou a busca em andamento) com o filtro novo.
+    if (document.getElementById('searchInput').value.trim()) search();
+    else loadPathInternal(currentPath);
+  }
+
+  // ----- Estados vazios -----
+  function vazioHtml(icone, titulo, texto, acoes) {
+    return '<div class="empty-state"><div class="empty-icon"><svg class="icon-svg"><use href="#i-' + icone + '"></use></svg></div>'
+      + '<h3>' + titulo + '</h3>' + (texto ? '<p>' + texto + '</p>' : '')
+      + (acoes ? '<div class="empty-acoes">' + acoes + '</div>' : '') + '</div>';
+  }
+
+  // Tela vazia SÓ por causa do filtro Local/Nuvem/Offline: diz isso e oferece
+  // voltar para "Todas". Devolve '' com o filtro em "Todas".
+  // `nenhum` é o começo do título: "Nenhum filme", "Nenhuma série"...
+  function vazioFiltro(nenhum) {
+    if (_fonteFiltro === 'todas') return '';
+    const v = {
+      local: ['hard-drive', nenhum + ' local aqui',
+        'Com o filtro <b>Local</b> aparecem só os itens das pastas do computador e de HDs.'],
+      nuvem: ['cloud', nenhum + ' na nuvem aqui',
+        'Com o filtro <b>Nuvem</b> aparecem só os itens que estão na nuvem.'],
+      offline: ['download', nenhum + ' baixado aqui',
+        'O filtro <b>Offline</b> mostra só o que você baixou da nuvem. Abra um filme da nuvem e toque em <b>Baixar</b> para assistir sem internet.'],
+    }[_fonteFiltro];
+    const n = _escondidosPeloFiltro;
+    const aviso = n > 0 ? ' <b>' + n + (n === 1 ? ' item desta tela está escondido' : ' itens desta tela estão escondidos') + '</b> pelo filtro.' : '';
+    return vazioHtml(v[0], v[1], v[2] + aviso,
+      '<button class="rclone-action-btn primary"' + attrAcao('setFonteFiltro', ['todas']) + '>Mostrar todas as fontes</button>');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _pintarFonteFiltro);
+  else _pintarFonteFiltro();
+
   function cachedFetch(url) {
+    return _cachedFetchBruto(url).then(data => _filtrarFonte(url, data));
+  }
+
+  function _cachedFetchBruto(url) {
     const now = Date.now();
     const entry = _frontCache[url];
     if (entry && (now - entry.time) < _CACHE_TTL) {
@@ -167,12 +264,8 @@
   function renderResults(results, query) {
     const container = document.getElementById('content');
     if (results.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon"><svg class="icon-svg"><use href="#i-search"></use></svg></div>
-          <h3>Nenhum resultado encontrado</h3>
-          <p>Tente outro termo de busca.</p>
-        </div>
+      container.innerHTML = (vazioFiltro('Nenhum resultado') || vazioHtml('search', 'Nada encontrado para “' + escHtml(query || '') + '”',
+          'Confira a grafia ou busque por parte do título, do ano ou de um ator.')) + `
         <div class="genre-section">
           <div class="genre-header" data-act="loadPath" data-args="[&quot;&quot;]">
             <div class="genre-title"><span class="arrow"><svg class="icon-svg"><use href="#i-arrow-left"></use></svg></span> Voltar ao início</div>
@@ -266,22 +359,40 @@
     });
   }
 
-  function toggleGeneros() {
-    const t = document.querySelector('.sidebar-generos-toggle');
-    const l = document.querySelector('.sidebar-generos-lista');
-    if (!t || !l) return;
-    const abrir = l.hidden;
-    l.hidden = !abrir;
-    t.classList.toggle('aberto', abrir);
-    try { localStorage.setItem('generosAbertos', abrir ? '1' : '0'); } catch (e) {}
+  // Gêneros: os 5 com mais filmes; "Mostrar mais" abre de 8 em 8 e a lista
+  // ganha rolagem quando passa da altura. A busca ignora o limite.
+  const _GENEROS_INICIO = 5, _GENEROS_PASSO = 8;
+  let _generosVisiveis = _GENEROS_INICIO;
+
+  function _aplicarGeneros() {
+    const lista = document.querySelector('.sidebar-generos-lista');
+    if (!lista) return;
+    const busca = lista.querySelector('.sidebar-generos-busca');
+    const q = ((busca && busca.value) || '').trim().toLowerCase();
+    const itens = [...lista.querySelectorAll('.sidebar-item')];
+    itens.forEach((b, i) => {
+      b.hidden = q ? b.getAttribute('data-nome').indexOf(q) === -1 : i >= _generosVisiveis;
+    });
+    if (busca) busca.hidden = _generosVisiveis <= _GENEROS_INICIO && !q;
+    const mais = document.querySelector('.sidebar-generos-mais');
+    if (mais) {
+      const resta = itens.length - _generosVisiveis;
+      mais.hidden = !!q || itens.length <= _GENEROS_INICIO;
+      mais.textContent = resta > 0 ? 'Mostrar mais (' + resta + ')' : 'Mostrar menos';
+    }
   }
 
-  function filtrarGeneros(q) {
-    q = (q || '').trim().toLowerCase();
-    document.querySelectorAll('.sidebar-generos-lista .sidebar-item').forEach(function (b) {
-      b.hidden = q && b.getAttribute('data-nome').indexOf(q) === -1;
-    });
+  function toggleGeneros() {
+    const total = document.querySelectorAll('.sidebar-generos-lista .sidebar-item').length;
+    _generosVisiveis = _generosVisiveis >= total ? _GENEROS_INICIO : _generosVisiveis + _GENEROS_PASSO;
+    if (_generosVisiveis === _GENEROS_INICIO) {
+      const l = document.querySelector('.sidebar-generos-lista');
+      if (l) l.scrollTop = 0;
+    }
+    _aplicarGeneros();
   }
+
+  function filtrarGeneros() { _aplicarGeneros(); }
   document.addEventListener('input', function (e) {
     if (e.target.classList && e.target.classList.contains('sidebar-generos-busca')) filtrarGeneros(e.target.value);
   });
@@ -316,28 +427,28 @@
       // Gêneros do NFO: filtro automático, mas as tags é que importam — por
       // isso ficam DEPOIS delas, recolhidos, em lista rolável com busca.
       if (generosNfo && generosNfo.length) {
-        const ativoNfo = (currentPath || '').indexOf(GENERO_NFO_PREFIXO) === 0;
-        let aberto = ativoNfo;
-        try { aberto = aberto || localStorage.getItem('generosAbertos') === '1'; } catch (e) {}
-        html += '<button class="sidebar-source-label sidebar-generos-toggle' + (aberto ? ' aberto' : '') + '"'
-          + attrAcao('toggleGeneros', []) + '><svg class="icon-svg"><use href="#i-film"></use></svg> Gêneros'
-          + ' <span class="sidebar-conta">' + generosNfo.length + '</span>'
-          + '<span class="sidebar-generos-seta">▾</span></button>'
-          + '<div class="sidebar-generos-lista"' + (aberto ? '' : ' hidden') + '>';
-        if (generosNfo.length > 8) {
-          html += '<input type="search" class="sidebar-generos-busca" placeholder="Filtrar gêneros…"'
-            + '>';
+        const ordenados = generosNfo.slice().sort((x, y) => (y.total - x.total) || x.nome.localeCompare(y.nome));
+        // gênero aberto agora fica sempre visível, mesmo fora dos primeiros
+        const ativo = (currentPath || '').indexOf(GENERO_NFO_PREFIXO) === 0
+          ? ordenados.findIndex(g => GENERO_NFO_PREFIXO + encodeURIComponent(g.nome) === currentPath) : -1;
+        if (ativo >= _generosVisiveis) _generosVisiveis = ativo + 1;
+        html += '<div class="sidebar-source-label"><svg class="icon-svg"><use href="#i-film"></use></svg> Gêneros'
+          + ' <span class="sidebar-conta">' + ordenados.length + '</span></div>'
+          + '<div class="sidebar-generos-lista">';
+        if (ordenados.length > 12) {
+          html += '<input type="search" class="sidebar-generos-busca" placeholder="Filtrar gêneros…">';
         }
-        generosNfo.forEach(g => {
+        ordenados.forEach(g => {
           html += '<button class="sidebar-item" data-nome="' + escHtml(g.nome.toLowerCase()) + '" data-nav="'
             + escHtml(GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)) + '"'
             + attrAcao('loadPath', [GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)]) + '>'
             + '<span class="icon"><svg class="icon-svg"><use href="#i-film"></use></svg></span> '
             + escHtml(g.nome) + ' <span class="sidebar-conta">' + g.total + '</span></button>';
         });
-        html += '</div>';
+        html += '</div><button class="sidebar-generos-mais"' + attrAcao('toggleGeneros', []) + '></button>';
       }
       container.innerHTML = html;
+      _aplicarGeneros();
       _updateSidebarActive();
     }).catch(() => {
       container.innerHTML = '';

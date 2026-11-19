@@ -17,6 +17,18 @@
   "comum": 404,
   "infantil": 403
  },
+ "/api/cache-fila-add": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 403
+ },
+ "/api/cache-fila-cancelar": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 403
+ },
  "/api/clear-cache": {
   "admin": 200,
   "anon": 401,
@@ -144,6 +156,12 @@
   "infantil": 403
  },
  "/api/uncache": {
+  "admin": 200,
+  "anon": 401,
+  "comum": 200,
+  "infantil": 403
+ },
+ "/api/uncache-arquivos": {
   "admin": 200,
   "anon": 401,
   "comum": 200,

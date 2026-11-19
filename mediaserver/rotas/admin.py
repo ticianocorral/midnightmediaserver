@@ -33,7 +33,8 @@ class AdminRotas:
             return
         nome_pasta = folder_path.rstrip("/").rsplit("/", 1)[-1]
         candidatos, erro = _scraper.buscar_candidatos(
-            nome_pasta, query, self._tipo_da_pasta(folder_path))
+            nome_pasta, query, self._tipo_da_pasta(folder_path),
+            params.get("idioma", [""])[0])
         self._send_json({"candidatos": candidatos, "erro": erro})
         return
 
@@ -47,18 +48,21 @@ class AdminRotas:
         if not folder_path or not tmdb_id:
             self._send_error("Missing 'path' or 'tmdb_id'", 400)
             return
+        idioma = params.get("idioma", [""])[0]
         if self._tipo_da_pasta(folder_path) == "serie":
-            dados, erro = _scraper.detalhes_serie(tmdb_id)
+            dados, erro = _scraper.detalhes_serie(tmdb_id, idioma)
             meta = _scraper.para_serie_meta(dados) if dados else None
         else:
-            dados, erro = _scraper.detalhes(tmdb_id)
+            dados, erro = _scraper.detalhes(tmdb_id, idioma)
             meta = _scraper.para_movie_meta(dados) if dados else None
         if meta:
             poster = meta.pop("_poster_path", None)
+            meta["poster_path"] = poster
             meta["poster"] = ("https://image.tmdb.org/t/p/w185" + poster) if poster else None
             meta.pop("video_info", None)
             meta.pop("audio_info", None)
-        self._send_json({"meta": meta, "erro": erro})
+        self._send_json({"meta": meta, "erro": erro, "local": _sources.is_local(folder_path),
+                         "serie": self._tipo_da_pasta(folder_path) == "serie"})
         return
 
     def _get_api_scrape_capas(self, path, params):
@@ -67,7 +71,10 @@ class AdminRotas:
             tmdb_id = int(params.get("tmdb_id", ["0"])[0])
         except ValueError:
             tmdb_id = 0
-        capas, erro = _scraper.listar_capas(tmdb_id) if tmdb_id else ([], "Filme não informado.")
+        folder_path = params.get("path", [""])[0]
+        tipo = self._tipo_da_pasta(folder_path) if folder_path else "filme"
+        capas, erro = (_scraper.listar_capas(tmdb_id, tipo, params.get("idioma", [""])[0])
+                       if tmdb_id else ([], "Filme não informado."))
         self._send_json({"capas": capas, "erro": erro})
         return
 
@@ -81,7 +88,7 @@ class AdminRotas:
         """GET /api/organizar/buscar"""
         cands, erro = _organizador.buscar(
             params.get("source", [""])[0], params.get("origem", [""])[0],
-            params.get("q", [""])[0].strip() or None)
+            params.get("q", [""])[0].strip() or None, params.get("idioma", [""])[0])
         self._send_json({"candidatos": cands, "erro": erro})
         return
 

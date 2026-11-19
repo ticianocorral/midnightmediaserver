@@ -167,6 +167,12 @@
         <input type="text" id="searchInput" placeholder="Pesquisar filmes..." data-act-input="onSearchInput" data-act-keydown="buscaTecla" data-args="[{&quot;$&quot;:&quot;event&quot;}]">
         <span class="search-clear" id="searchClear" data-act="clearSearch" title="Limpar busca"><svg class="icon-svg"><use href="#i-close"></use></svg></span>
       </div>
+      <div class="fonte-filtro" id="fonteFiltro" role="group" aria-label="Mostrar mídias">
+        <button type="button" data-fonte="todas" class="ativo" aria-pressed="true" data-act="setFonteFiltro" data-args="[&quot;todas&quot;]" title="Mostrar locais e da nuvem">Todas</button>
+        <button type="button" data-fonte="local" aria-pressed="false" data-act="setFonteFiltro" data-args="[&quot;local&quot;]" title="Só HD, pendrive e pastas do computador">Local</button>
+        <button type="button" data-fonte="nuvem" aria-pressed="false" data-act="setFonteFiltro" data-args="[&quot;nuvem&quot;]" title="Só o que está na nuvem">Nuvem</button>
+        <button type="button" data-fonte="offline" aria-pressed="false" data-act="setFonteFiltro" data-args="[&quot;offline&quot;]" title="Só o que foi baixado da nuvem">Offline</button>
+      </div>
       <button class="sidebar-item active" data-nav="home" data-act="loadPath" data-args="[&quot;&quot;]">
         <span class="icon"><svg class="icon-svg"><use href="#i-home"></use></svg></span> Início
       </button>
@@ -205,7 +211,7 @@
       <div class="sidebar-header-meta">
         <button class="sidebar-logout" data-act="doLogout" title="Encerrar a sessão neste aparelho"><svg class="icon-svg"><use href="#i-logout"></use></svg> <span id="logoutLabel">Sair da conta</span></button>
         <div class="sidebar-header-right">
-          <span class="logo-version" id="versionBadge" data-act="openChangelogModal" title="Ver changelog">v1.29.5</span>
+          <span class="logo-version" id="versionBadge" data-act="openChangelogModal" title="Ver changelog">v1.29.6</span>
         </div>
       </div>
     </div>
@@ -254,35 +260,40 @@
 
   <!-- ====== CACHE MANAGER MODAL ====== -->
   <div class="modal-overlay" id="cacheManagerModal">
-    <div class="modal" style="width:560px">
+    <div class="modal" style="width:680px">
       <div class="modal-header">
-        <span class="modal-title"><svg class="icon-svg"><use href="#i-box"></use></svg> Gerenciar Cache</span>
+        <span class="modal-title"><svg class="icon-svg"><use href="#i-download"></use></svg> Downloads offline</span>
         <button class="modal-close" data-act="closeCacheManager"><svg class="icon-svg"><use href="#i-close"></use></svg></button>
       </div>
       <div class="modal-body">
         <div class="cache-stats" id="cacheStats">
           <div class="cache-stat-box">
             <div class="cache-stat-num total-num" id="cmTotalMovies">—</div>
-            <div class="cache-stat-label">Total Filmes</div>
+            <div class="cache-stat-label" id="cmStatTotalRot">Filmes na nuvem</div>
           </div>
           <div class="cache-stat-box">
             <div class="cache-stat-num cached-num" id="cmCachedMovies">0</div>
-            <div class="cache-stat-label">Offline</div>
+            <div class="cache-stat-label" id="cmStatOffRot">Offline</div>
           </div>
           <div class="cache-stat-box">
             <div class="cache-stat-num" id="cmUsageSize">—</div>
             <div class="cache-stat-label">Tamanho Cache</div>
           </div>
         </div>
+        <div class="cm-fila" id="cmFila" style="display:none"></div>
+        <div class="cm-abas">
+          <button class="serie-temp on" id="cmAbaFilmes" data-act="_cmAba" data-args='["filmes"]'>Filmes</button>
+          <button class="serie-temp" id="cmAbaSeries" data-act="_cmAba" data-args='["series"]'>Séries</button>
+        </div>
         <div class="cache-manager-search">
           <span style="font-size:14px;opacity:0.5;margin-right:8px"><svg class="icon-svg"><use href="#i-search"></use></svg></span>
           <input type="text" id="cmSearchInput" placeholder="Filtrar filmes..." data-act-input="filterCacheList">
         </div>
         <div class="cache-manager-list" id="cmList">
-          <div class="loading" style="min-height:100px"><div class="spinner"></div><span>Carregando filmes...</span></div>
+          <div class="loading" style="min-height:100px"><div class="spinner"></div><span>Carregando...</span></div>
         </div>
         <div class="cache-manager-actions">
-          <button class="rclone-action-btn" data-act="clearCache" title="Apaga todos os vídeos baixados. Os filmes continuam na nuvem.">
+          <button class="rclone-action-btn" data-act="clearCache" title="Apaga todos os vídeos baixados. Os filmes e séries continuam na nuvem.">
             <svg class="icon-svg"><use href="#i-broom"></use></svg> Limpar tudo
           </button>
         </div>
@@ -322,10 +333,10 @@
           </div>
         </div>
         <div class="backup-option" data-act="fromSettings" data-args="[{&quot;$&quot;:&quot;fn&quot;,&quot;n&quot;:&quot;openCacheManager&quot;}]">
-          <span class="backup-icon"><svg class="icon-svg"><use href="#i-box"></use></svg></span>
+          <span class="backup-icon"><svg class="icon-svg"><use href="#i-download"></use></svg></span>
           <div>
-            <div class="backup-option-title">Cache offline</div>
-            <div class="backup-option-desc">Baixar filmes da nuvem para assistir sem internet, ou liberar espaço</div>
+            <div class="backup-option-title">Downloads offline</div>
+            <div class="backup-option-desc">Baixar filmes e séries (episódios ou temporadas) da nuvem para assistir sem internet, ou liberar espaço</div>
           </div>
         </div>
         <div class="backup-option" id="settingsBackup" style="display:none" data-act="fromSettings" data-args="[{&quot;$&quot;:&quot;fn&quot;,&quot;n&quot;:&quot;openBackupModal&quot;}]">

@@ -123,7 +123,8 @@ MAX_NFO_BYTES = 2 * 1024 * 1024         # teto de um arquivo .nfo
 # Rotas que alteram estado: so respondem a POST com Origin local.
 WRITE_ROUTES = frozenset({
     "/api/refresh", "/api/clear-cache", "/api/uncache",
-    "/api/cache-download", "/api/backup/b2", "/api/restore/b2",
+    "/api/cache-download", "/api/cache-fila-add", "/api/cache-fila-cancelar",
+    "/api/uncache-arquivos", "/api/backup/b2", "/api/restore/b2",
     "/api/sources/add", "/api/sources/remove", "/api/branding/set",
     "/api/nuvem/conectar", "/api/nuvem/desconectar", "/api/rclone/wizard",
     "/api/infantil/marcar",

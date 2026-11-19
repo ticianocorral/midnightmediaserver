@@ -4,7 +4,7 @@
   <p>
     <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.9+">
     <img src="https://img.shields.io/badge/rclone-1.60%2B-green" alt="rclone 1.60+">
-    <img src="https://img.shields.io/badge/version-1.27-red" alt="v1.27">
+    <img src="https://img.shields.io/badge/version-1.29.6-red" alt="v1.29.6">
     <img src="https://img.shields.io/badge/license-MIT-yellow" alt="MIT License">
   </p>
 </div>
@@ -20,7 +20,9 @@
 - **Player** — legendas, próximo episódio com contagem, Chromecast e AirPlay.
 - **App de Android TV** — ExoPlayer nativo com legenda ajustável; veja [`tv/README.md`](tv/README.md).
 - **PWA** — instala na tela inicial do celular. Fonte embutida: funciona sem internet.
-- **Coleções, tags, busca e séries** com temporadas e episódios.
+- **Coleções, tags, busca e séries** com temporadas e episódios, filtro por gênero e filtro **Todas / Locais / Nuvem / Offline** no menu lateral.
+- **Downloads offline** — baixe filmes e séries (temporada ou série inteira) para assistir sem internet; a fila roda no servidor.
+- **Vários servidores na mesma rede** — cada um se anuncia por Bonjour com o próprio nome (`<nome-do-Mac>.local`).
 
 ---
 
@@ -97,7 +99,7 @@ O servidor também sobe em **HTTPS na 9443** (prefira; a senha trafega em claro 
 ## 🧹 Manutenção
 
 - **Atualizar:** `git pull` e reinicie o serviço (`systemctl --user restart media-server` ou `launchctl kickstart -k gui/$(id -u)/com.mediaserver`). Nos instaladores, instale a nova versão por cima.
-- **Limpar cache de vídeo:** **⚙️ Ajustes › 📦 Cache offline › Limpar tudo**.
+- **Limpar cache de vídeo:** **⚙️ Ajustes › 📦 Downloads offline › Limpar tudo**.
 - **Esqueci a senha:** outro administrador redefine em **👥 Contas**. Sem nenhum, apague `~/.cache/media-server/auth.json` e reinicie (apaga todas as contas; o catálogo fica).
 - **Esqueci o PIN:** um administrador remove em Gerenciar perfis.
 
@@ -116,6 +118,34 @@ MIT — veja [LICENSE](LICENSE). Histórico completo no changelog do próprio ap
 ---
 
 ## 📋 Changelog
+
+### Em desenvolvimento (depois da v1.29.6)
+
+- Filtro **Todas / Locais / Nuvem** no menu lateral e filtro **Offline** separado do Local
+- Botão **Baixar** na ficha do filme da nuvem
+- Gêneros mostram os 4 com mais filmes e expandem de 8 em 8
+- Estados vazios avisam quando o filtro Local/Nuvem/Offline esvazia a tela
+- `.nfo` da nuvem com acento decomposto (B2) volta a ser lido
+- "Cache offline" renomeado para **Downloads offline** em Ajustes e na home
+
+### v1.29.6 — Editor de capa e sinopse em uma tela só
+
+- O melhor resultado já vem escolhido: clique na capa, escolha a sinopse e salve
+
+- Sinopse em Português ou English, editável; a pasta e os arquivos são renomeados pelo título nesse idioma (também no Organizar)
+
+- Salvar sempre sobrescreve banco, .nfo e capa, sem guardar o anterior
+
+- Botão Capa e sinopse na ficha e a mesma tela em Sem metadado; capas de série também
+
+- Séries: o mesmo editor, com UMA capa para a série toda; pasta Título (Ano)/Season N/S01E01 - Título, com tvshow.nfo e .nfo por episódio
+
+- Tela da série nova: abas por temporada, botão Continuar e grade compacta de episódios
+
+- Downloads offline: fila no servidor com andamento (continua com a janela fechada), filtros Offline/Online, baixar vários filmes e tamanho de cada um
+
+- Séries também baixam para offline: episódio avulso, temporada inteira ou a série toda (na janela e na tela da série)
+
 
 ### v1.29.5 — Baixar metadado e capa na ficha, metadado some ao apagar o .nfo e legenda nova na TV
 

@@ -289,6 +289,10 @@ def _index_tree(conn, root_path, root_name, entries,
                 and _sources.is_local(path)):
             conn.execute("DELETE FROM movie_meta WHERE folder_path=?", (path,))
             conn.execute("DELETE FROM movie_collections WHERE folder_path=?", (path,))
+        if (not alterado and tipo == "filme" and any(n.lower().endswith(".nfo") for n in live)
+                and conn.execute("SELECT 1 FROM movie_meta WHERE folder_path=?",
+                                 (path,)).fetchone() is None):
+            alterado = True   # tem .nfo mas o metadado nunca entrou (ex.: leitura falhou antes)
         if not alterado:
             db_keys = db_nomes_por_pasta.get(path, set())
             live_keys = set(live)
@@ -326,8 +330,10 @@ def _index_tree(conn, root_path, root_name, entries,
 
         # NFO only for new/changed movies AND only if the folder really
         # has one (avoids a slow fetch on a missing file)
-        if any(n.lower().endswith(".nfo") for n in live):
-            nfo_raw = _fetch_nfo_raw(path)
+        nfos = sorted(n for n in live if n.lower().endswith(".nfo"))
+        if nfos:
+            # o .nfo com o nome da pasta, se houver; senao o primeiro
+            nfo_raw = _fetch_nfo_raw(path, nome + ".nfo" if (nome + ".nfo") in nfos else nfos[0])
             if nfo_raw:
                 nfo_data = _parse_nfo(nfo_raw)
                 if nfo_data:

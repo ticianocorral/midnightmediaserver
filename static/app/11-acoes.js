@@ -46,13 +46,15 @@
   function _capaBuscarTecla(ev) { if (ev.key === 'Enter') _capaBuscar(); }
 
   const ACOES = Object.freeze({
-    _capaBaixarTudo, _capaBuscar, _capaBuscarTecla, _capaClicada, _capaEscolherFilme, _cmDeleteCache,
-    _cmDownload, _colecaoEscolherCapa, _colecaoFiltrar, _colecaoIrParaCapa,
+    _capaBuscar, _capaBuscarTecla, _capaClicada, _cmDeleteCache,
+    _cmDownload, _cmAba, _cmFiltro, _cmBaixarLote, _cmBaixarSerie, _cmBaixarArquivo, _cmCancelar,
+    _cmCancelarFila, _cmApagarSerie, _cmApagarArquivo, _cmAbrirSerie, _cmAbrirTemporada, _cmOcultarFila,
+    _serieBaixarTemporada, _colecaoEscolherCapa, _colecaoFiltrar, _colecaoIrParaCapa,
     _colecaoRenderPasso1, _colecaoSalvar, _colecaoToggle, _desmarcarEpisodio, _generoCriarEDar,
     _generoToggleChip, _loadRcloneStatus, _orgAbrirCapas, _orgAplicar, _orgBuscar,
     _orgBuscarDoCampo, _orgBuscarTecla, _orgDesfazer, _orgEscolher, _orgFecharBusca,
     _orgLimpar, _orgProcurar, _orgSemCapa, _orgSugerir, _scrapeAba, _scrapeAbrirBusca,
-    _scrapeAplicar, _scrapeConfirmar, _scrapeBuscar, _scrapePendentes, _scrapeSalvarChave, _wizardConectar,
+    _metaEscolherCapa, _metaEscolherFilme, _serieEscolherTemporada, _serieEscolherFaixa, _metaEscolherSinopse, _metaSalvar, _scrapePendentes, _scrapeSalvarChave, _wizardConectar,
     _wizardCriarRemote, _wizardEscolherRemote, _wizardEscolherTipo, _wizardFiltrarTipos,
     _wizardPassoExistente, _wizardPassoNovoTipo, _wizardPassoOrigem, abrirBusca, abrirColecao,
     addSource, addSourceFromForm, backupToCloud, buscaTecla, cancelarProximo, clearCache,
@@ -61,7 +63,7 @@
     closeNuvemWizard, closePhoneModal, closePlayer, closeRcloneModal, closeScrapeModal,
     closeSettingsModal, closeSidebar, closeSourcesModal, copyPhone, criarGeneroDoModal,
     cycleSpeed, cycleSubtitleSize, doLogout, downloadBackup, excluirColecao, excluirGenero,
-    fichaAbrirColecao, filterCacheList, fromSettings, generoNovoTecla, imgComoPosterDoCache,
+    fichaAbrirColecao, fichaBaixar, fichaRemoverDownload, filterCacheList, fromSettings, generoNovoTecla, imgComoPosterDoCache,
     imgRemover, imgSemCartaz, imgSemPoster, imgTrocarPorIrmao, limparProgressoEpisodio, loadAZ,
     loadCollections, loadPath, loadSeries, nuvemDesconectar, onSearchInput, openBackupModal,
     openCacheManager, openCapaModal, openChangelogModal, openColecaoModal,
@@ -70,7 +72,7 @@
     openSourcesModal, openSourcesOrSettings, playFromInfo, playMovie, proximoEpisodio,
     rcloneRestartServe, rcloneStartWebgui, rcloneStopWebgui, refreshCache, removeSource,
     restoreFromCloud, restoreFromFile, retryPlay, rolarPara, scanSource, selectSubtitleColor,
-    selectSubtitleSize, showMovieInfo, skip, switchProfile, toggleAirplay, toggleAssistido,
+    selectSubtitleSize, setFonteFiltro, showMovieInfo, skip, switchProfile, toggleAirplay, toggleAssistido,
     toggleCast, toggleFullscreen, toggleInfantil, toggleMute, togglePlay, togglePlayerMore,
     toggleSidebar, toggleSubtitleColorMenu, toggleSubtitleSizeMenu, toggleSubtitles,
     voltarDoFilme, addSourceAceitar, dispensarChecklist, dispensarDica, checklistCelular, srcBrowse, srcBrowseUse, onboardingEscolherPasta

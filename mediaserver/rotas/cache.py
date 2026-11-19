@@ -38,10 +38,13 @@ from ..rclone import (
 )
 from .. import scanner as _scanner
 from .. import sources as _sources
+from .. import cachefila as _fila
 from ..queries import (
     cached_all_movies,
     cached_movie_count,
     cached_series_count,
+    cached_series_list,
+    cached_serie,
 )
 from .estado import _download_progress, _download_progress_lock
 
@@ -149,8 +152,8 @@ class CacheRotas:
             # do app: 5.000 filmes = ate 10 mil conexoes.
             conn_ck = get_db()
             try:
-                primeiro = {r["folder_path"]: r["name"] for r in conn_ck.execute(
-                    "SELECT folder_path, name FROM files WHERE file_type='video' "
+                primeiro = {r["folder_path"]: (r["name"], r["size"] or 0) for r in conn_ck.execute(
+                    "SELECT folder_path, name, size FROM files WHERE file_type='video' "
                     "AND rowid IN (SELECT MIN(rowid) FROM files "
                     "WHERE file_type='video' GROUP BY folder_path)")}
             finally:
@@ -158,23 +161,24 @@ class CacheRotas:
             result = []
             for m in movies:
                 folder_path = m["path"]
-                nome = primeiro.get(folder_path)
-                if nome is None:
-                    nome = primeiro.get(folder_path.strip("/"))
-                cached = bool(nome) and _is_file_cached(folder_path.strip("/") + "/" + nome)
+                nome, tamanho = primeiro.get(folder_path) or primeiro.get(folder_path.strip("/")) or (None, 0)
+                video = (folder_path.strip("/") + "/" + nome) if nome else None
+                cached = bool(nome) and _is_file_cached(video)
                 result.append({
                     "path": folder_path,
                     "name": m["name"],
                     "title": m["title"],
                     "poster": m["poster"],
                     "cached": cached,
+                    "size": tamanho,
+                    "video": video,
                 })
             self._send_json(result)
         except Exception as e:
             self._send_exception(e)
         return
 
-    # API: Download a movie file to cache (forces VFS caching in background)
+    # API: Baixa UM filme para o cache (entra na fila de downloads)
     def _get_api_cache_download(self, path, params):
         """GET /api/cache-download"""
         if self._bloqueia_infantil():
@@ -188,129 +192,156 @@ class CacheRotas:
                              "message": "Filme em fonte local — ja disponivel offline."})
             return
         try:
-            # Find the video file for this folder
-            conn = get_db()
-            row = conn.execute(
-                "SELECT name FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                (folder_path,)
-            ).fetchone()
-            conn.close()
-            if not row:
-                # Try without leading slash
-                conn2 = get_db()
-                row2 = conn2.execute(
-                    "SELECT name FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                    (folder_path.strip("/"),)
-                ).fetchone()
-                conn2.close()
-                if not row2:
-                    self._send_json({"status": "error", "error": "No video found"}, 404)
-                    return
-                row = row2
-            video_name = row["name"]
-            video_path = folder_path.strip("/") + "/" + video_name
-
-            # Check if already cached
+            video = self._video_do_filme(folder_path)
+            if not video:
+                self._send_json({"status": "error", "error": "No video found"}, 404)
+                return
+            video_path, size = video
             if _is_file_cached(video_path):
                 self._send_json({"status": "already_cached", "path": video_path})
                 return
-
-            # Start background download (forces VFS caching via rclone serve HTTP)
-            def _do_cache_download(file_path, total_bytes):
-                try:
-                    print(f"[Midnight Media Server] Cache download starting: {file_path} ({total_bytes}B)", flush=True)
-
-                    with _download_progress_lock:
-                        _download_progress[file_path] = {"percent": 0, "status": "downloading", "total": total_bytes, "downloaded": 0}
-
-                    if total_bytes <= 0:
-                        # Can't track progress without size, just mark as cached
-                        _mark_file_cached(file_path)
-                        with _download_progress_lock:
-                            _download_progress[file_path] = {"percent": 100, "status": "done"}
-                        print(f"[Midnight Media Server] Cache marked (no size info): {file_path}", flush=True)
-                        return
-
-                    # Use HTTP range requests against rclone serve to force VFS caching
-                    safe_url_path = urllib.parse.quote(_serve_path(file_path), safe="/")
-                    rclone_url = f"http://localhost:{RCLONE_SERVE_PORT}/{safe_url_path}"
-                    CHUNK = 5 * 1024 * 1024  # 5MB chunks (same as frontend)
-                    downloaded = 0
-
-                    while downloaded < total_bytes:
-                        end = min(downloaded + CHUNK - 1, total_bytes - 1)
-                        range_hdr = f"bytes={downloaded}-{end}"
-                        try:
-                            req = urllib.request.Request(rclone_url, method="GET", headers=rclone_auth.cabecalho())
-                            req.add_header("Range", range_hdr)
-                            with urllib.request.urlopen(req, timeout=120) as resp:
-                                while True:
-                                    buf = resp.read(65536)
-                                    if not buf:
-                                        break
-                                    downloaded += len(buf)
-                                    pct = min(99, int((downloaded / total_bytes) * 100))
-                                    with _download_progress_lock:
-                                        _download_progress[file_path] = {
-                                            "percent": pct, "status": "downloading",
-                                            "total": total_bytes, "downloaded": downloaded
-                                        }
-                        except Exception as chunk_err:
-                            print(f"[Midnight Media Server] Cache chunk error at {downloaded}: {chunk_err}", flush=True)
-                            # Retry once
-                            try:
-                                req2 = urllib.request.Request(rclone_url, method="GET")
-                                req2.add_header("Range", range_hdr)
-                                with urllib.request.urlopen(req2, timeout=120) as resp2:
-                                    while True:
-                                        buf = resp2.read(65536)
-                                        if not buf:
-                                            break
-                                        downloaded += len(buf)
-                                        pct = min(99, int((downloaded / total_bytes) * 100))
-                                        with _download_progress_lock:
-                                            _download_progress[file_path] = {
-                                                "percent": pct, "status": "downloading",
-                                                "total": total_bytes, "downloaded": downloaded
-                                            }
-                            except Exception:
-                                raise
-
-                    # Mark as fully cached
-                    _mark_file_cached(file_path)
-                    with _download_progress_lock:
-                        _download_progress[file_path] = {"percent": 100, "status": "done"}
-                    print(f"[Midnight Media Server] Cache download complete: {file_path}", flush=True)
-                except Exception as e:
-                    print(f"[Midnight Media Server] Cache download error: {e}", flush=True)
-                    with _download_progress_lock:
-                        _download_progress[file_path] = {"percent": 0, "status": "error"}
-
-            # Get file size first (needed for progress tracking)
-            file_size = 0
-            # Prefer DB size (fastest, most reliable)
-            try:
-                conn_sz = get_db()
-                row_sz = conn_sz.execute(
-                    "SELECT size FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                    (folder_path.strip("/"),)
-                ).fetchone()
-                if not row_sz:
-                    row_sz = conn_sz.execute(
-                        "SELECT size FROM files WHERE folder_path=? AND file_type='video' LIMIT 1",
-                        (folder_path,)
-                    ).fetchone()
-                conn_sz.close()
-                if row_sz and row_sz["size"] > 0:
-                    file_size = row_sz["size"]
-            except (sqlite3.Error, OSError) as e:
-                aviso("cache-download: tamanho do arquivo nao veio do banco", e)
-
-            t = threading.Thread(target=_do_cache_download, args=(video_path, file_size), daemon=True)
-            t.start()
-            self._send_json({"status": "started", "path": video_path, "name": video_name, "size": file_size})
+            _fila.adicionar([(video_path, size, folder_path.rstrip("/").rsplit("/", 1)[-1], "")])
+            self._send_json({"status": "started", "path": video_path,
+                             "name": video_path.rsplit("/", 1)[-1], "size": size})
         except Exception as e:
             self._send_exception(e)
+        return
+
+    @staticmethod
+    def _video_do_filme(folder_path):
+        """(path do video, tamanho) do primeiro video da pasta do filme, ou None."""
+        conn = get_db()
+        try:
+            for pasta in (folder_path, folder_path.strip("/")):
+                row = conn.execute(
+                    "SELECT name, size FROM files WHERE folder_path=? AND file_type='video' "
+                    "ORDER BY rowid LIMIT 1", (pasta,)).fetchone()
+                if row:
+                    return folder_path.strip("/") + "/" + row["name"], int(row["size"] or 0)
+        finally:
+            conn.close()
+        return None
+
+    @staticmethod
+    def _episodios_para_cache(serie_path, temporada=None, so_infantil=False):
+        """[(path, size, titulo, grupo)] dos episodios da serie (ou de uma
+        temporada, pelo nome dela). Serie em fonte local nao entra: ja esta no disco."""
+        if _sources.is_local(serie_path):
+            return []
+        serie = cached_serie(serie_path, so_infantil=so_infantil)
+        if not serie:
+            return []
+        saida = []
+        for t in serie["temporadas"]:
+            if temporada is not None and t["nome"] != temporada:
+                continue
+            for ep in t["episodios"]:
+                saida.append((ep["path"], ep["size"], ep["title"], serie["name"] + " · " + t["nome"]))
+        return saida
+
+    # API: Entra na fila: filmes (path), episodios (file), serie ou temporada (serie[, temporada])
+    def _get_api_cache_fila_add(self, path, params):
+        """GET /api/cache-fila-add"""
+        if self._bloqueia_infantil():
+            return
+        try:
+            arquivos = []
+            for pasta in params.get("path", []):
+                if pasta and not _sources.is_local(pasta):
+                    v = self._video_do_filme(pasta)
+                    if v:
+                        arquivos.append((v[0], v[1], pasta.rstrip("/").rsplit("/", 1)[-1], ""))
+            serie = params.get("serie", [""])[0]
+            if serie:
+                temp = params.get("temporada", [None])[0]
+                arquivos += self._episodios_para_cache(serie, temp or None)
+            for arq in params.get("file", []):
+                if not arq or _sources.is_local(arq):
+                    continue
+                pasta, _, nome = arq.rpartition("/")
+                conn = get_db()
+                try:
+                    row = conn.execute("SELECT size FROM files WHERE folder_path=? AND name=? "
+                                       "AND file_type='video'", (pasta, nome)).fetchone()
+                finally:
+                    conn.close()
+                if row:
+                    arquivos.append((arq, row["size"], nome, ""))
+            novos, bytes_ = _fila.adicionar(arquivos)
+            self._send_json({"status": "ok", "added": novos, "bytes": bytes_})
+        except Exception as e:
+            self._send_exception(e)
+        return
+
+    def _get_api_cache_fila(self, path, params):
+        """GET /api/cache-fila"""
+        self._send_json(_fila.estado())
+        return
+
+    def _get_api_cache_fila_cancelar(self, path, params):
+        """GET /api/cache-fila-cancelar"""
+        if self._bloqueia_infantil():
+            return
+        self._send_json({"status": "ok", "cancelled": _fila.cancelar(params.get("path", [""])[0] or None)})
+        return
+
+    # API: Series na nuvem com o que ja esta offline
+    def _get_api_cache_series(self, path, params):
+        """GET /api/cache-series"""
+        try:
+            saida = []
+            conn = get_db()
+            try:
+                for s in cached_series_list(so_infantil=self._so_infantil()):
+                    if _sources.is_local(s["path"]):
+                        continue
+                    videos = conn.execute(
+                        "SELECT folder_path, name, size FROM files WHERE file_type='video' AND "
+                        "(folder_path=? OR substr(folder_path, 1, length(?) + 1) = ? || '/')",
+                        (s["path"], s["path"], s["path"])).fetchall()
+                    off = [v for v in videos if _is_file_cached(v["folder_path"] + "/" + v["name"])]
+                    saida.append({
+                        "path": s["path"], "title": s["title"], "poster": s["poster"],
+                        "episodios": len(videos), "offline": len(off),
+                        "size": sum(v["size"] or 0 for v in videos),
+                        "size_offline": sum(v["size"] or 0 for v in off),
+                    })
+            finally:
+                conn.close()
+            self._send_json(saida)
+        except Exception as e:
+            self._send_exception(e)
+        return
+
+    # API: Temporadas e episodios de UMA serie, com o estado de cada um
+    def _get_api_cache_serie(self, path, params):
+        """GET /api/cache-serie"""
+        serie = cached_serie(params.get("path", [""])[0], so_infantil=self._so_infantil())
+        if not serie:
+            self._send_json({"temporadas": []})
+            return
+        self._send_json({"temporadas": [
+            {"nome": t["nome"], "episodios": [
+                {"path": e["path"], "title": e["title"], "size": e["size"],
+                 "cached": _is_file_cached(e["path"])} for e in t["episodios"]]}
+            for t in serie["temporadas"]]})
+        return
+
+    # API: Tira do cache episodios (file), uma temporada ou a serie inteira
+    def _get_api_uncache_arquivos(self, path, params):
+        """GET /api/uncache-arquivos"""
+        if self._bloqueia_infantil():
+            return
+        arquivos = [a for a in params.get("file", []) if a and not _sources.is_local(a)]
+        serie = params.get("serie", [""])[0]
+        if serie:
+            temp = params.get("temporada", [None])[0]
+            arquivos += [e[0] for e in self._episodios_para_cache(serie, temp or None)]
+        for pasta in params.get("path", []):
+            v = self._video_do_filme(pasta) if pasta and not _sources.is_local(pasta) else None
+            if v:
+                arquivos.append(v[0])
+        self._send_json({"status": "ok", "removed": _fila.apagar(arquivos)})
         return
 
     # API: Download progress for a video being cached
