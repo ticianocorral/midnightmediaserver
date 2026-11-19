@@ -21,14 +21,10 @@
     const directVideos = data.videos || [];
 
     if (movieFolders.length === 0 && directVideos.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon"><svg class="icon-svg"><use href="#i-inbox"></use></svg></div>
-          <h3>Nenhum filme em "${escHtml(genreName)}"</h3>
-          <p>${isLocalPath(data.path)
-              ? 'Adicione pastas de filme nesta pasta do disco e clique em Atualizar.'
-              : 'Adicione filmes nesta pasta da nuvem para vê-los aqui.'}</p>
-        </div>`;
+      container.innerHTML = vazioHtml('inbox', 'Nenhum filme em “' + escHtml(genreName) + '”',
+        isLocalPath(data.path)
+          ? 'Coloque pastas de filme nesta pasta do computador e clique em Atualizar.'
+          : 'Envie filmes para esta pasta da nuvem e clique em Atualizar.');
       return;
     }
 
@@ -150,17 +146,12 @@
       html += `</div></div>`;
     }
 
-    container.innerHTML = html || `<div class="empty-state"><div class="empty-icon"><svg class="icon-svg"><use href="#i-folder"></use></svg></div><h3>Pasta vazia</h3></div>`;
+    container.innerHTML = html || vazioHtml('folder', 'Pasta vazia', 'Não há filmes nem subpastas aqui.');
   }
 
   // ===== EMPTY STATE =====
   function renderEmptyState(container, path) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon"><svg class="icon-svg"><use href="#i-folder"></use></svg></div>
-        <h3>Pasta vazia</h3>
-        <p>Nenhum conteúdo encontrado aqui.</p>
-      </div>`;
+    container.innerHTML = vazioHtml('folder', 'Pasta vazia', 'Não há filmes nem subpastas aqui.');
   }
 
   // ===== MOVIE CARD HTML =====

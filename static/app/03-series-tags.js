@@ -290,7 +290,8 @@
         '<svg class="icon-svg"><use href="#i-film"></use></svg> ' + gen.movies.length
         + (gen.movies.length === 1 ? ' filme' : ' filmes');
       container.innerHTML = gen.movies.length ? _gradeDeFilmes(gen.movies)
-        : '<div class="empty-state"><h3>Nenhum filme neste gênero</h3></div>';
+        : (vazioFiltro('Nenhum filme') || vazioHtml('film', 'Nenhum filme neste gênero',
+            'O gênero vem do .nfo de cada filme. Troque o metadado pela ficha para mudar.'));
     });
   }
 
@@ -327,11 +328,8 @@
         + (gen.movies.length === 1 ? ' filme' : ' filmes');
 
       if (!gen.movies.length) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">'
-          + '<svg class="icon-svg"><use href="#i-film"></use></svg></div>'
-          + '<h3>Nenhum filme nesta tag</h3>'
-          + '<p>Abra a ficha de um filme (ou um card no A-Z) e toque em '
-          + '<b>Tags</b> para colocá-lo aqui.</p></div>';
+        container.innerHTML = vazioFiltro('Nenhum filme') || vazioHtml('layers', 'Nenhum filme nesta tag',
+          'Abra a ficha de um filme e toque em <b>Tags</b> para colocá-lo aqui.');
         return;
       }
       container.innerHTML = _gradeDeFilmes(gen.movies);

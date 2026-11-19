@@ -98,7 +98,9 @@
     _invalidateCache('/api/all-movies');
     cachedFetch('/api/all-movies').then(movies => {
       if (!movies || movies.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg class="icon-svg"><use href="#i-film"></use></svg></div><h3>Nenhum filme encontrado</h3></div>';
+        container.innerHTML = vazioFiltro('Nenhum filme') || vazioHtml('film', 'Nenhum filme no acervo',
+          'Adicione uma pasta do computador ou conecte uma nuvem para os filmes aparecerem aqui.',
+          (_me && _me.role === 'admin') ? '<button class="rclone-action-btn primary" data-act="openSourcesOrSettings">Adicionar filmes</button>' : '');
         return;
       }
       renderAZView(movies);
@@ -279,7 +281,7 @@
       const grid = document.getElementById('recentGrid');
       if (!grid) return;
       if (movies.length === 0) {
-        grid.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg class="icon-svg"><use href="#i-inbox"></use></svg></div><h3>Nenhum filme ainda</h3></div>';
+        grid.innerHTML = vazioFiltro('Nenhum filme') || vazioHtml('inbox', 'Nenhum filme ainda', 'Os filmes adicionados por último aparecem aqui.');
         return;
       }
       // Show up to 7 newest
@@ -598,11 +600,9 @@
     _dicaPrimeiraVez('series', 'Aqui ficam suas séries, com temporadas e episódios. Abra uma série e o app lembra onde você parou em cada episódio.');
     cachedFetch('/api/series').then(series => {
       if (!series || series.length === 0) {
-        container.innerHTML = '<div class="empty-state">'
-          + '<div class="empty-icon"><svg class="icon-svg"><use href="#i-tv"></use></svg></div>'
-          + '<h3>Nenhuma série no acervo</h3>'
-          + '<p>Dentro da pasta <b>tv shows</b> do acervo, crie uma pasta por série '
-          + 'e, dentro dela, as temporadas (S01, S02...) com os episódios.</p></div>';
+        container.innerHTML = vazioFiltro('Nenhuma série') || vazioHtml('tv', 'Nenhuma série no acervo',
+          'Dentro da pasta <b>tv shows</b> do acervo, crie uma pasta por série '
+          + 'e, dentro dela, as temporadas (S01, S02...) com os episódios.');
         return;
       }
       document.getElementById('heroDesc').innerHTML =
@@ -732,6 +732,11 @@
         + (col.movies.length === 1 ? ' filme' : ' filmes')
         + (col.overview ? '<div class="colecao-sinopse">' + escHtml(col.overview) + '</div>' : '');
 
+      if (!col.movies.length) {
+        container.innerHTML = vazioFiltro('Nenhum filme') || vazioHtml('layers', 'Coleção vazia',
+          (_me && _me.role === 'admin') ? 'Toque em <b>Editar</b> para escolher os filmes desta coleção.' : '');
+        return;
+      }
       // Ordenados por ano no servidor — é o que põe a saga na ordem certa.
       let html = '<div class="genre-section"><div class="movie-grid">';
       col.movies.forEach(m => {
@@ -792,8 +797,8 @@
     document.body.style.overflow = 'hidden';
     Promise.all([
       _colecaoAbrirEstado(id || null),
-      cachedFetch('/api/all-movies'),
-      cachedFetch('/api/series'),
+      _cachedFetchBruto('/api/all-movies'),   // o seletor mostra tudo, sem o filtro de fonte
+      _cachedFetchBruto('/api/series'),
     ]).then(([estado, filmes, series]) => {
       if (!estado) {
         conteudo.innerHTML = '<div class="empty-state"><div class="empty-icon">'

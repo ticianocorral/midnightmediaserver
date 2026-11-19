@@ -1072,6 +1072,7 @@
   .empty-state .empty-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.4; }
   .empty-state h3 { font-size: 20px; margin-bottom: 8px; color: var(--text2); }
   .empty-state p { font-size: 14px; max-width: 400px; margin: 0 auto; line-height: 1.6; }
+  .empty-acoes { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 18px; }
 
   /* ====== LOADING ====== */
   .loading {

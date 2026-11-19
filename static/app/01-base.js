@@ -156,6 +156,30 @@
     else loadPathInternal(currentPath);
   }
 
+  // ----- Estados vazios -----
+  function vazioHtml(icone, titulo, texto, acoes) {
+    return '<div class="empty-state"><div class="empty-icon"><svg class="icon-svg"><use href="#i-' + icone + '"></use></svg></div>'
+      + '<h3>' + titulo + '</h3>' + (texto ? '<p>' + texto + '</p>' : '')
+      + (acoes ? '<div class="empty-acoes">' + acoes + '</div>' : '') + '</div>';
+  }
+
+  // Tela vazia SÓ por causa do filtro Local/Nuvem/Offline: diz isso e oferece
+  // voltar para "Todas". Devolve '' com o filtro em "Todas".
+  // `nenhum` é o começo do título: "Nenhum filme", "Nenhuma série"...
+  function vazioFiltro(nenhum) {
+    if (_fonteFiltro === 'todas') return '';
+    const v = {
+      local: ['hard-drive', nenhum + ' local aqui',
+        'Com o filtro <b>Local</b> aparecem só os itens das pastas do computador e de HDs.'],
+      nuvem: ['cloud', nenhum + ' na nuvem aqui',
+        'Com o filtro <b>Nuvem</b> aparecem só os itens que estão na nuvem.'],
+      offline: ['download', nenhum + ' baixado aqui',
+        'O filtro <b>Offline</b> mostra só o que você baixou da nuvem. Abra um filme da nuvem e toque em <b>Baixar</b> para assistir sem internet.'],
+    }[_fonteFiltro];
+    return vazioHtml(v[0], v[1], v[2],
+      '<button class="rclone-action-btn primary"' + attrAcao('setFonteFiltro', ['todas']) + '>Mostrar todas as fontes</button>');
+  }
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _pintarFonteFiltro);
   else _pintarFonteFiltro();
 
@@ -231,12 +255,8 @@
   function renderResults(results, query) {
     const container = document.getElementById('content');
     if (results.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon"><svg class="icon-svg"><use href="#i-search"></use></svg></div>
-          <h3>Nenhum resultado encontrado</h3>
-          <p>Tente outro termo de busca.</p>
-        </div>
+      container.innerHTML = (vazioFiltro('Nenhum resultado') || vazioHtml('search', 'Nada encontrado para “' + escHtml(query || '') + '”',
+          'Confira a grafia ou busque por parte do título, do ano ou de um ator.')) + `
         <div class="genre-section">
           <div class="genre-header" data-act="loadPath" data-args="[&quot;&quot;]">
             <div class="genre-title"><span class="arrow"><svg class="icon-svg"><use href="#i-arrow-left"></use></svg></span> Voltar ao início</div>
