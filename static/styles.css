@@ -2650,3 +2650,19 @@ button, input, select, textarea { font-family: inherit; }
   .sidebar-generos-lista .sidebar-item { font-size: 12px; padding-block: 5px; gap: 8px; }
   .sidebar-generos-lista .sidebar-item .icon { display: none; }
   .sidebar-generos-lista .sidebar-conta { font-size: 10px; }
+
+/* Filtro de fonte: três opções num controle só, "Todas" por padrão. */
+.fonte-filtro {
+  display: flex; gap: 2px; padding: 3px; margin: 0 0 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 999px;
+}
+.fonte-filtro button {
+  flex: 1 1 0; border: 0; background: transparent; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: var(--text3); padding: 5px 4px; border-radius: 999px;
+  transition: all var(--transition);
+}
+.fonte-filtro button:hover { color: var(--text); }
+.fonte-filtro button.ativo { background: var(--primary); color: #fff; }

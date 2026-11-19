@@ -72,7 +72,7 @@
     openSourcesModal, openSourcesOrSettings, playFromInfo, playMovie, proximoEpisodio,
     rcloneRestartServe, rcloneStartWebgui, rcloneStopWebgui, refreshCache, removeSource,
     restoreFromCloud, restoreFromFile, retryPlay, rolarPara, scanSource, selectSubtitleColor,
-    selectSubtitleSize, showMovieInfo, skip, switchProfile, toggleAirplay, toggleAssistido,
+    selectSubtitleSize, setFonteFiltro, showMovieInfo, skip, switchProfile, toggleAirplay, toggleAssistido,
     toggleCast, toggleFullscreen, toggleInfantil, toggleMute, togglePlay, togglePlayerMore,
     toggleSidebar, toggleSubtitleColorMenu, toggleSubtitleSizeMenu, toggleSubtitles,
     voltarDoFilme, addSourceAceitar, dispensarChecklist, dispensarDica, checklistCelular, srcBrowse, srcBrowseUse, onboardingEscolherPasta
