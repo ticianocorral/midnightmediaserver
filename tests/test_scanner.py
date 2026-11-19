@@ -228,3 +228,19 @@ def test_fila_de_downloads_do_cache_offline(home):
         cachefila.adicionar([("/x/y/z.mkv", 10, "z", "")])
         assert cachefila.cancelar("/x/y/z.mkv") == 1
     assert [i["status"] for i in cachefila.estado()["itens"] if i["path"] == "x/y/z.mkv"] == ["cancelled"]
+
+
+def test_nfo_da_nuvem_e_lido_pela_pasta_com_filtro_em_nfc():
+    # no B2, "rclone cat pasta/arquivo" com acento decomposto (NFD) volta vazio
+    import unicodedata
+    from unittest import mock
+    from mediaserver import nfo, branding
+    pasta = unicodedata.normalize("NFD", branding.logical_root() + "/movies/Última [Sexta] (1993)")
+    with mock.patch.object(nfo.subprocess, "run") as run, \
+            mock.patch.object(nfo, "_rc_remote", lambda p: "b2:" + p):
+        run.return_value = mock.Mock(returncode=0, stdout="<movie/>")
+        assert nfo._fetch_nfo_raw(pasta) == "<movie/>"
+    args = run.call_args[0][0]
+    filtro = args[args.index("--include") + 1]
+    assert filtro == "/" + unicodedata.normalize("NFC", "Última \\[Sexta\\] (1993).nfo")
+    assert not args[-1].endswith(".nfo")

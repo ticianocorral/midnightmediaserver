@@ -8,6 +8,7 @@ import json
 import re
 import subprocess
 import sys
+import unicodedata
 import time
 from .log import aviso
 import xml.etree.ElementTree as ET
@@ -160,7 +161,12 @@ def _local_nfo_file(folder_path):
     return None
 
 
-def _fetch_nfo_raw(folder_path):
+def _glob_literal(nome):
+    """Nome de arquivo como filtro literal do rclone (escapa os curingas)."""
+    return re.sub(r"([\\*?\[\]{}])", r"\\\1", nome)
+
+
+def _fetch_nfo_raw(folder_path, nome_nfo=None):
     """Texto XML do NFO de um filme, direto da fonte. Sem cache.
 
     Despacha por fonte: pasta local le do disco, nuvem continua no rclone cat.
@@ -179,14 +185,22 @@ def _fetch_nfo_raw(folder_path):
         except UnicodeDecodeError:
             return raw.decode("latin-1", errors="replace")
 
-    nfo_path = f"{folder_path.strip('/')}/{folder_path.strip('/').split('/')[-1]}.nfo"
+    pasta = folder_path.strip('/')
+    nome = nome_nfo or (pasta.split('/')[-1] + ".nfo")
+    nfo_path = f"{pasta}/{nome}"
     try:
-        remote_path = _rc_remote(nfo_path)
+        remote_dir = _rc_remote(pasta)
     except ValueError:
         return None
     try:
+        # "rclone cat <pasta> --include <nome>" e nao "rclone cat <pasta>/<nome>":
+        # no B2 um nome com acento decomposto (NFD, como o macOS grava) volta
+        # VAZIO e sem erro quando o arquivo e pedido direto; listando a pasta
+        # e filtrando pelo nome (em NFC: e assim que o rclone compara o filtro),
+        # o rclone acha o objeto.
         result = subprocess.run(
-            ["rclone", "cat", remote_path],
+            ["rclone", "cat", "--max-depth", "1", "--include",
+             "/" + _glob_literal(unicodedata.normalize("NFC", nome)), remote_dir],
             capture_output=True, text=True, timeout=15
         )
         if result.returncode != 0:
