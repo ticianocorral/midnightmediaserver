@@ -126,17 +126,24 @@
     const casa = p => _fonteFiltro === 'local' ? isLocalPath(p)
       : _fonteFiltro === 'nuvem' ? !isLocalPath(p)
       : !isLocalPath(p) && baixado(p);
+    let escondidos = 0;
     const manter = it => {
       if (!it || typeof it !== 'object') return true;
       const p = it.path != null ? it.path : (it.Path != null ? it.Path : it.folder_path);
-      return typeof p !== 'string' || casa(p);
+      const fica = typeof p !== 'string' || casa(p);
+      if (!fica) escondidos++;
+      return fica;
     };
     const andar = v => Array.isArray(v) ? v.filter(manter).map(andar)
       : (v && typeof v === 'object')
         ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, andar(x)]))
         : v;
-    return andar(data);
+    const saida = andar(data);
+    _escondidosPeloFiltro = escondidos;
+    return saida;
   }
+  // Quantos itens a última resposta filtrada escondeu (para o estado vazio).
+  let _escondidosPeloFiltro = 0;
 
   function _pintarFonteFiltro() {
     document.querySelectorAll('#fonteFiltro button').forEach(b => {
@@ -176,7 +183,9 @@
       offline: ['download', nenhum + ' baixado aqui',
         'O filtro <b>Offline</b> mostra só o que você baixou da nuvem. Abra um filme da nuvem e toque em <b>Baixar</b> para assistir sem internet.'],
     }[_fonteFiltro];
-    return vazioHtml(v[0], v[1], v[2],
+    const n = _escondidosPeloFiltro;
+    const aviso = n > 0 ? ' <b>' + n + (n === 1 ? ' item desta tela está escondido' : ' itens desta tela estão escondidos') + '</b> pelo filtro.' : '';
+    return vazioHtml(v[0], v[1], v[2] + aviso,
       '<button class="rclone-action-btn primary"' + attrAcao('setFonteFiltro', ['todas']) + '>Mostrar todas as fontes</button>');
   }
 
