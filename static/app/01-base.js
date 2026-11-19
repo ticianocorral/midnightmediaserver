@@ -330,22 +330,40 @@
     });
   }
 
-  function toggleGeneros() {
-    const t = document.querySelector('.sidebar-generos-toggle');
-    const l = document.querySelector('.sidebar-generos-lista');
-    if (!t || !l) return;
-    const abrir = l.hidden;
-    l.hidden = !abrir;
-    t.classList.toggle('aberto', abrir);
-    try { localStorage.setItem('generosAbertos', abrir ? '1' : '0'); } catch (e) {}
+  // Gêneros: os 4 com mais filmes; "Mostrar mais" abre de 8 em 8 e a lista
+  // ganha rolagem quando passa da altura. A busca ignora o limite.
+  const _GENEROS_INICIO = 4, _GENEROS_PASSO = 8;
+  let _generosVisiveis = _GENEROS_INICIO;
+
+  function _aplicarGeneros() {
+    const lista = document.querySelector('.sidebar-generos-lista');
+    if (!lista) return;
+    const busca = lista.querySelector('.sidebar-generos-busca');
+    const q = ((busca && busca.value) || '').trim().toLowerCase();
+    const itens = [...lista.querySelectorAll('.sidebar-item')];
+    itens.forEach((b, i) => {
+      b.hidden = q ? b.getAttribute('data-nome').indexOf(q) === -1 : i >= _generosVisiveis;
+    });
+    if (busca) busca.hidden = _generosVisiveis <= _GENEROS_INICIO && !q;
+    const mais = document.querySelector('.sidebar-generos-mais');
+    if (mais) {
+      const resta = itens.length - _generosVisiveis;
+      mais.hidden = !!q || itens.length <= _GENEROS_INICIO;
+      mais.textContent = resta > 0 ? 'Mostrar mais (' + resta + ')' : 'Mostrar menos';
+    }
   }
 
-  function filtrarGeneros(q) {
-    q = (q || '').trim().toLowerCase();
-    document.querySelectorAll('.sidebar-generos-lista .sidebar-item').forEach(function (b) {
-      b.hidden = q && b.getAttribute('data-nome').indexOf(q) === -1;
-    });
+  function toggleGeneros() {
+    const total = document.querySelectorAll('.sidebar-generos-lista .sidebar-item').length;
+    _generosVisiveis = _generosVisiveis >= total ? _GENEROS_INICIO : _generosVisiveis + _GENEROS_PASSO;
+    if (_generosVisiveis === _GENEROS_INICIO) {
+      const l = document.querySelector('.sidebar-generos-lista');
+      if (l) l.scrollTop = 0;
+    }
+    _aplicarGeneros();
   }
+
+  function filtrarGeneros() { _aplicarGeneros(); }
   document.addEventListener('input', function (e) {
     if (e.target.classList && e.target.classList.contains('sidebar-generos-busca')) filtrarGeneros(e.target.value);
   });
@@ -380,28 +398,28 @@
       // Gêneros do NFO: filtro automático, mas as tags é que importam — por
       // isso ficam DEPOIS delas, recolhidos, em lista rolável com busca.
       if (generosNfo && generosNfo.length) {
-        const ativoNfo = (currentPath || '').indexOf(GENERO_NFO_PREFIXO) === 0;
-        let aberto = ativoNfo;
-        try { aberto = aberto || localStorage.getItem('generosAbertos') === '1'; } catch (e) {}
-        html += '<button class="sidebar-source-label sidebar-generos-toggle' + (aberto ? ' aberto' : '') + '"'
-          + attrAcao('toggleGeneros', []) + '><svg class="icon-svg"><use href="#i-film"></use></svg> Gêneros'
-          + ' <span class="sidebar-conta">' + generosNfo.length + '</span>'
-          + '<span class="sidebar-generos-seta">▾</span></button>'
-          + '<div class="sidebar-generos-lista"' + (aberto ? '' : ' hidden') + '>';
-        if (generosNfo.length > 8) {
-          html += '<input type="search" class="sidebar-generos-busca" placeholder="Filtrar gêneros…"'
-            + '>';
+        const ordenados = generosNfo.slice().sort((x, y) => (y.total - x.total) || x.nome.localeCompare(y.nome));
+        // gênero aberto agora fica sempre visível, mesmo fora dos primeiros
+        const ativo = (currentPath || '').indexOf(GENERO_NFO_PREFIXO) === 0
+          ? ordenados.findIndex(g => GENERO_NFO_PREFIXO + encodeURIComponent(g.nome) === currentPath) : -1;
+        if (ativo >= _generosVisiveis) _generosVisiveis = ativo + 1;
+        html += '<div class="sidebar-source-label"><svg class="icon-svg"><use href="#i-film"></use></svg> Gêneros'
+          + ' <span class="sidebar-conta">' + ordenados.length + '</span></div>'
+          + '<div class="sidebar-generos-lista">';
+        if (ordenados.length > 12) {
+          html += '<input type="search" class="sidebar-generos-busca" placeholder="Filtrar gêneros…">';
         }
-        generosNfo.forEach(g => {
+        ordenados.forEach(g => {
           html += '<button class="sidebar-item" data-nome="' + escHtml(g.nome.toLowerCase()) + '" data-nav="'
             + escHtml(GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)) + '"'
             + attrAcao('loadPath', [GENERO_NFO_PREFIXO + encodeURIComponent(g.nome)]) + '>'
             + '<span class="icon"><svg class="icon-svg"><use href="#i-film"></use></svg></span> '
             + escHtml(g.nome) + ' <span class="sidebar-conta">' + g.total + '</span></button>';
         });
-        html += '</div>';
+        html += '</div><button class="sidebar-generos-mais"' + attrAcao('toggleGeneros', []) + '></button>';
       }
       container.innerHTML = html;
+      _aplicarGeneros();
       _updateSidebarActive();
     }).catch(() => {
       container.innerHTML = '';
