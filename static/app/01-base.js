@@ -330,9 +330,9 @@
     });
   }
 
-  // Gêneros: os 4 com mais filmes; "Mostrar mais" abre de 8 em 8 e a lista
+  // Gêneros: os 5 com mais filmes; "Mostrar mais" abre de 8 em 8 e a lista
   // ganha rolagem quando passa da altura. A busca ignora o limite.
-  const _GENEROS_INICIO = 4, _GENEROS_PASSO = 8;
+  const _GENEROS_INICIO = 5, _GENEROS_PASSO = 8;
   let _generosVisiveis = _GENEROS_INICIO;
 
   function _aplicarGeneros() {
